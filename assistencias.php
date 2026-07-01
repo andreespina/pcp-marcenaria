@@ -432,10 +432,25 @@ require_once 'includes/header.php';
     // DRAG AND DROP
     document.addEventListener('DOMContentLoaded', () => {
         const columns = document.querySelectorAll('.kanban-column');
-        columns.forEach(col => { new Sortable(col, { group: 'assistencias_group', animation: 180, ghostClass: 'sortable-ghost', onEnd: async function (evt) { await atualizarStatusAsst(evt.item.getAttribute('data-id'), evt.to.getAttribute('data-status')); } }); });
-    });
-    async function atualizarStatusAsst(id, status) { try { await fetch('api/update_assistencia_status.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: id, status: status }) }); } catch (error) {} }
+        columns.forEach(col => { 
+            new Sortable(col, { 
+                group: 'assistencias_group', 
+                animation: 180, 
+                ghostClass: 'sortable-ghost', 
+                
+                // --- NOVAS CONFIGURAÇÕES PARA MOBILE ---
+                delay: 150, // Exige 150ms segurando o card para iniciar o drag
+                delayOnTouchOnly: true, // Aplica o atraso apenas no celular (mouse continua instantâneo)
+                fallbackTolerance: 3, // Permite que o dedo trema/mova até 3 pixels sem cancelar o clique
+                // ---------------------------------------
 
+                onEnd: async function (evt) { 
+                    await atualizarStatusAsst(evt.item.getAttribute('data-id'), evt.to.getAttribute('data-status')); 
+                } 
+            }); 
+        });
+    });
+    
     // ORDENAÇÃO
     function ordenarColuna(colunaId, criterio) {
         const col = document.getElementById('col-' + colunaId); const cards = Array.from(col.children);

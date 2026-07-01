@@ -729,13 +729,24 @@ require_once 'includes/header.php';
         }
     }
 
-    // DRAG AND DROP
+  // DRAG AND DROP
     document.addEventListener('DOMContentLoaded', () => {
         const columns = document.querySelectorAll('.kanban-column');
         columns.forEach(col => {
             new Sortable(col, {
-                group: 'pcp_shared_group', animation: 180, ghostClass: 'sortable-ghost',
-                onEnd: async function (evt) { await atualizarStatusNoServidor(evt.item.getAttribute('data-id'), evt.to.getAttribute('data-status')); },
+                group: 'pcp_shared_group', 
+                animation: 180, 
+                ghostClass: 'sortable-ghost',
+                
+                // --- NOVAS CONFIGURAÇÕES PARA MOBILE ---
+                delay: 150, // Exige 150ms segurando o card para iniciar o drag
+                delayOnTouchOnly: true, // Aplica o atraso apenas no celular (mouse continua instantâneo)
+                fallbackTolerance: 3, // Permite que o dedo trema/mova até 3 pixels sem cancelar o clique
+                // ---------------------------------------
+
+                onEnd: async function (evt) { 
+                    await atualizarStatusNoServidor(evt.item.getAttribute('data-id'), evt.to.getAttribute('data-status')); 
+                },
             });
         });
     });
