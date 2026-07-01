@@ -29,26 +29,32 @@ require_once 'includes/header.php';
 // -------------------------------------
 ?>
 
-<div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-5 mb-6 shadow-sm transition-colors duration-300">
-    <h2 class="text-blue-800 dark:text-blue-300 font-bold text-lg mb-3 flex items-center">
-        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-        Guia Rápido: Gestão de Clientes
-    </h2>
-    <ul class="text-sm text-blue-700 dark:text-blue-400 space-y-2 ml-1">
-        <li class="flex items-start">
-            <span class="mr-2">📋</span>
-            <span><strong>Cadastro:</strong> Clique no botão <em>"+ CLIENTE"</em> para registrar um novo contrato. Insira os dados pessoais, endereço completo da obra e os contatos do arquiteto(a) responsável.</span>
-        </li>
-        <li class="flex items-start">
-            <span class="mr-2">⚙️</span>
-            <span><strong>Gestão:</strong> Utilize a barra de busca abaixo para encontrar clientes rapidamente pelo nome ou código. Você pode clicar em qualquer linha para expandir e ver o endereço completo, contatos ou dados do arquiteto.</span>
-        </li>
-        <li class="flex items-start">
-            <span class="mr-2">🖨️</span>
-            <span><strong>Impressão de Ficha:</strong> Clique no ícone de impressora no cabeçalho do cliente para gerar formulários de <em>Medição</em> ou <em>Confirmação de Medidas</em>. Selecione os ambientes, e o sistema criará um documento pronto para levar à obra.</span>
-        </li>
-    </ul>
-</div>
+<!-- GUIA RÁPIDO: CLIENTES -->
+<details class="group bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg mb-6 shadow-sm transition-colors duration-300">
+    <summary class="cursor-pointer p-4 font-bold text-lg text-blue-800 dark:text-blue-300 flex items-center justify-between select-none">
+        <div class="flex items-center">
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            Guia Rápido: Gestão de Clientes
+        </div>
+        <svg class="w-5 h-5 transition-transform duration-200 group-open:rotate-180 text-blue-800 dark:text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+    </summary>
+    <div class="p-4 pt-0 mt-2 border-t border-blue-200 dark:border-blue-800">
+        <ul class="text-sm text-blue-700 dark:text-blue-400 space-y-2 ml-1 mt-3">
+            <li class="flex items-start">
+                <span class="mr-2">📋</span>
+                <span><strong>Cadastro:</strong> Clique no botão <em>"+ CLIENTE"</em> para registrar um novo contrato. Insira os dados pessoais, endereço completo da obra e os contatos do arquiteto(a) responsável.</span>
+            </li>
+            <li class="flex items-start">
+                <span class="mr-2">⚙️</span>
+                <span><strong>Gestão:</strong> Utilize a barra de busca abaixo para encontrar clientes rapidamente pelo nome ou código. Você pode clicar em qualquer linha para expandir e ver o endereço completo, contatos ou dados do arquiteto.</span>
+            </li>
+            <li class="flex items-start">
+                <span class="mr-2">🖨️</span>
+                <span><strong>Impressão de Ficha:</strong> Clique no ícone de impressora no cabeçalho do cliente para gerar formulários de <em>Medição</em> ou <em>Confirmação de Medidas</em>. Selecione os ambientes, e o sistema criará um documento pronto para levar à obra.</span>
+            </li>
+        </ul>
+    </div>
+</details>
 
 <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden p-4">
     <div class="mb-4">

@@ -55,6 +55,33 @@ require_once 'includes/header.php';
 </head>
 <body class="bg-[#f4f7f6] dark:bg-gray-900 min-h-screen p-6 font-sans flex flex-col transition-colors duration-300">
 
+<!-- GUIA RÁPIDO: ALMOXARIFADO -->
+<details class="group bg-slate-50 dark:bg-slate-900/20 border border-slate-200 dark:border-slate-800 rounded-lg mb-6 shadow-sm transition-colors duration-300">
+    <summary class="cursor-pointer p-4 font-bold text-lg text-slate-800 dark:text-slate-300 flex items-center justify-between select-none">
+        <div class="flex items-center">
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            Guia Rápido: Controle de Estoque
+        </div>
+        <svg class="w-5 h-5 transition-transform duration-200 group-open:rotate-180 text-slate-800 dark:text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+    </summary>
+    <div class="p-4 pt-0 mt-2 border-t border-slate-200 dark:border-slate-800">
+        <ul class="text-sm text-slate-700 dark:text-slate-400 space-y-2 ml-1 mt-3">
+            <li class="flex items-start">
+                <span class="mr-2">📦</span>
+                <span><strong>Cadastro e Edição:</strong> Use o botão <em>"+ ITEM"</em> para registrar novos materiais. Você pode organizar por categorias e definir um "Estoque Mínimo" para alertas. Para editar, clique no ícone do lápis (✏️).</span>
+            </li>
+            <li class="flex items-start">
+                <span class="mr-2">⚡</span>
+                <span><strong>Ações Rápidas:</strong> Na própria tabela, utilize os botões de <strong>+</strong> e <strong>-</strong> para dar entrada ou saída rápida em um material do estoque.</span>
+            </li>
+            <li class="flex items-start">
+                <span class="mr-2">🚨</span>
+                <span><strong>Alertas de Estoque:</strong> Itens com quantidade igual ou menor que o estoque mínimo definido ficarão marcados em vermelho com o status <em>COMPRAR</em>, facilitando a gestão de reposição.</span>
+            </li>
+        </ul>
+    </div>
+</details>
+
     <main class="flex-1 max-w-7xl mx-auto w-full">
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">

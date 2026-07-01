@@ -74,27 +74,32 @@ require_once 'includes/header.php';
     const CLIENTES_BASE_DATA = <?= json_encode($lista_clientes_base) ?>;
 </script>
 
-<!-- NOVO: Quadro Explicativo -->
-<div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-5 mb-6 shadow-sm transition-colors duration-300">
-    <h2 class="text-amber-800 dark:text-amber-400 font-bold text-lg mb-3 flex items-center">
-        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-        Guia Rápido: Gestão de Assistências
-    </h2>
-    <ul class="text-sm text-amber-800 dark:text-amber-300 space-y-2 ml-1">
-        <li class="flex items-start">
-            <span class="mr-2 font-bold text-lg leading-none">➕</span>
-            <span><strong>Abertura:</strong> Use o botão <em>"+ ASSISTÊNCIA"</em> para registrar um novo chamado, ou abra diretamente pelo painel de Projetos. O endereço será preenchido automaticamente ao selecionar o cliente cadastrado.</span>
-        </li>
-        <li class="flex items-start">
-            <span class="mr-2 font-bold text-lg leading-none">📋</span>
-            <span><strong>Fluxo Kanban:</strong> Arraste os cards entre as colunas para organizar o status (Solicitações Pendentes &rarr; Visitas Agendadas &rarr; Resolvidos / Baixados).</span>
-        </li>
-        <li class="flex items-start">
-            <span class="mr-2 font-bold text-lg leading-none">🛠️</span>
-            <span><strong>Ações Rápidas:</strong> Em cada card, você pode <strong>Imprimir a OS</strong> (🖨️) para o técnico levar à obra, <strong>Editar</strong> (✏️) os detalhes do chamado, ou <strong>Dar Baixa</strong> (✔️) informando a data e o técnico quando o problema for resolvido.</span>
-        </li>
-    </ul>
-</div>
+<!-- GUIA RÁPIDO: ASSISTÊNCIAS -->
+<details class="group bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg mb-6 shadow-sm transition-colors duration-300">
+    <summary class="cursor-pointer p-4 font-bold text-lg text-amber-800 dark:text-amber-400 flex items-center justify-between select-none">
+        <div class="flex items-center">
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            Guia Rápido: Gestão de Assistências
+        </div>
+        <svg class="w-5 h-5 transition-transform duration-200 group-open:rotate-180 text-amber-800 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+    </summary>
+    <div class="p-4 pt-0 mt-2 border-t border-amber-200 dark:border-amber-800">
+        <ul class="text-sm text-amber-800 dark:text-amber-300 space-y-2 ml-1 mt-3">
+            <li class="flex items-start">
+                <span class="mr-2 font-bold text-lg leading-none">➕</span>
+                <span><strong>Abertura:</strong> Use o botão <em>"+ ASSISTÊNCIA"</em> para registrar um novo chamado, ou abra diretamente pelo painel de Projetos. O endereço será preenchido automaticamente ao selecionar o cliente cadastrado.</span>
+            </li>
+            <li class="flex items-start">
+                <span class="mr-2 font-bold text-lg leading-none">🔄</span>
+                <span><strong>Fluxo Kanban:</strong> Arraste os cards entre as colunas para organizar o status (Solicitações Pendentes &rarr; Visitas Agendadas &rarr; Resolvidos / Baixados).</span>
+            </li>
+            <li class="flex items-start">
+                <span class="mr-2 font-bold text-lg leading-none">⚡</span>
+                <span><strong>Ações Rápidas:</strong> Em cada card, você pode <strong>Imprimir a OS</strong> (🖨️) para o técnico levar à obra, <strong>Editar</strong> (✏️) os detalhes do chamado, ou <strong>Dar Baixa</strong> (✔️) informando a data e o técnico quando o problema for resolvido.</span>
+            </li>
+        </ul>
+    </div>
+</details>
 
 <div class="grid grid-cols-3 gap-4 mb-6">
     <div class="bg-red-50 dark:bg-red-900/20 p-4 rounded-lg border border-red-100 dark:border-red-800 text-center">
@@ -450,7 +455,7 @@ require_once 'includes/header.php';
             }); 
         });
     });
-    
+
     // ORDENAÇÃO
     function ordenarColuna(colunaId, criterio) {
         const col = document.getElementById('col-' + colunaId); const cards = Array.from(col.children);
