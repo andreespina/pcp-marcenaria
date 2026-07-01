@@ -41,111 +41,138 @@ require_once 'includes/header.php';
         </li>
         <li class="flex items-start">
             <span class="mr-2">⚙️</span>
-            <span><strong>Gestão:</strong> Utilize a barra de busca abaixo para encontrar clientes rapidamente pelo nome ou código. Você pode editar (✏️) ou atualizar informações a qualquer momento.</span>
+            <span><strong>Gestão:</strong> Utilize a barra de busca abaixo para encontrar clientes rapidamente pelo nome ou código. Você pode clicar em qualquer linha para expandir e ver o endereço completo, contatos ou dados do arquiteto.</span>
         </li>
         <li class="flex items-start">
             <span class="mr-2">🖨️</span>
-            <span><strong>Impressão de Ficha:</strong> Clique no ícone de impressora ao lado do cliente para gerar formulários de <em>Medição</em> ou <em>Confirmação de Medidas</em>. Selecione os ambientes, e o sistema criará um documento com a logo da SBG, área para croqui e pronto para levar à obra.</span>
+            <span><strong>Impressão de Ficha:</strong> Clique no ícone de impressora no cabeçalho do cliente para gerar formulários de <em>Medição</em> ou <em>Confirmação de Medidas</em>. Selecione os ambientes, e o sistema criará um documento pronto para levar à obra.</span>
         </li>
     </ul>
 </div>
 
-<div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-    <div class="p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
+<div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden p-4">
+    <div class="mb-4">
         <input type="text" id="filtro_clientes" onkeyup="filtrarTabela()" placeholder="Buscar cliente por nome ou código..." class="w-full md:w-1/3 px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded focus:ring-2 focus:ring-blue-500 text-sm">
     </div>
 
-    <div class="overflow-x-auto">
-        <table class="w-full text-left text-sm whitespace-nowrap" id="tabelaClientes">
-            <thead class="bg-gray-50 dark:bg-gray-700/50 text-gray-600 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700">
-                <tr>
-                    <th class="px-4 py-3 font-bold">Código</th>
-                    <th class="px-4 py-3 font-bold">Nome / Contrato</th>
-                    <th class="px-4 py-3 font-bold">E-mail</th>
-                    <th class="px-4 py-3 font-bold text-indigo-600 dark:text-indigo-400">Arquiteto(a)</th>
-                    <th class="px-4 py-3 font-bold">Contatos</th>
-                    <th class="px-4 py-3 font-bold">Endereço Principal</th>
-                    <th class="px-4 py-3 font-bold text-center">Ações</th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
-                <?php if (empty($clientes)): ?>
-                    <tr><td colspan="7" class="px-6 py-8 text-center text-gray-500 dark:text-gray-400 italic">Nenhum cliente cadastrado.</td></tr>
-                <?php endif; ?>
+    <div class="space-y-2" id="listaClientes">
+        <?php if (empty($clientes)): ?>
+            <div class="p-6 text-center text-gray-500 dark:text-gray-400 italic">Nenhum cliente cadastrado.</div>
+        <?php endif; ?>
+        
+        <?php foreach ($clientes as $c): 
+            $codigo_exibicao = !empty($c['codigo_cliente']) ? htmlspecialchars($c['codigo_cliente']) : "CLI-" . str_pad($c['id'], 2, "0", STR_PAD_LEFT);
+
+            $end_parts = [];
+            if($c['endereco']) $end_parts[] = $c['endereco'];
+            if($c['numero_lote']) $end_parts[] = $c['numero_lote'];
+            if($c['condominio']) $end_parts[] = $c['condominio'];
+            if($c['cidade']) $end_parts[] = $c['cidade'];
+            $endereco_resumido = implode(", ", $end_parts);
+
+            $cardData = htmlspecialchars(json_encode([
+                'id' => $c['id'], 'codigo_cliente' => $c['codigo_cliente'], 'nome' => $c['nome_contrato'], 'cpf' => $c['cpf_cnpj'],
+                'end' => $c['endereco'], 'num' => $c['numero_lote'], 'qd' => $c['quadra'],
+                'bairro' => $c['bairro'], 'cond' => $c['condominio'], 'comp' => $c['complemento'],
+                'cid' => $c['cidade'], 'cep' => $c['cep'], 'tel' => $c['telefone'], 'wpp' => $c['whatsapp'],
+                'email' => $c['email'], 'obs' => $c['observacao'],
+                'arq_nome' => $c['arquiteto_nome'], 'arq_wpp' => $c['arquiteto_whatsapp'], 'arq_email' => $c['arquiteto_email']
+            ]), ENT_QUOTES, 'UTF-8');
+        ?>
+            <div class="linha-cliente border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800/40 overflow-hidden shadow-sm transition-all" data-json='<?= $cardData ?>'>
                 
-                <?php foreach ($clientes as $c): 
-                    $codigo_exibicao = !empty($c['codigo_cliente']) ? htmlspecialchars($c['codigo_cliente']) : "CLI-" . str_pad($c['id'], 2, "0", STR_PAD_LEFT);
-
-                    $end_parts = [];
-                    if($c['endereco']) $end_parts[] = $c['endereco'];
-                    if($c['numero_lote']) $end_parts[] = $c['numero_lote'];
-                    if($c['condominio']) $end_parts[] = $c['condominio'];
-                    if($c['cidade']) $end_parts[] = $c['cidade'];
-                    $endereco_resumido = implode(", ", $end_parts);
-
-                    $cardData = htmlspecialchars(json_encode([
-                        'id' => $c['id'], 'codigo_cliente' => $c['codigo_cliente'], 'nome' => $c['nome_contrato'], 'cpf' => $c['cpf_cnpj'],
-                        'end' => $c['endereco'], 'num' => $c['numero_lote'], 'qd' => $c['quadra'],
-                        'bairro' => $c['bairro'], 'cond' => $c['condominio'], 'comp' => $c['complemento'],
-                        'cid' => $c['cidade'], 'cep' => $c['cep'], 'tel' => $c['telefone'], 'wpp' => $c['whatsapp'],
-                        'email' => $c['email'], 'obs' => $c['observacao'],
-                        'arq_nome' => $c['arquiteto_nome'], 'arq_wpp' => $c['arquiteto_whatsapp'], 'arq_email' => $c['arquiteto_email']
-                    ]), ENT_QUOTES, 'UTF-8');
-                ?>
-                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors text-gray-700 dark:text-gray-200 linha-cliente" data-json='<?= $cardData ?>'>
+                <div class="p-3.5 flex items-center justify-between cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/30 select-none" onclick="toggleDetails(this)">
+                    <div class="flex items-center space-x-3.5 overflow-hidden">
+                        <svg class="w-4 h-4 text-gray-400 transform transition-transform duration-200 icon-seta flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                        </svg>
                         
-                        <td class="px-4 py-3">
-                            <span class="text-xs font-black text-blue-600 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/50 px-2 py-1 rounded border border-blue-200 dark:border-blue-800 tracking-wider codigo-busca">
-                                <?= $codigo_exibicao ?>
-                            </span>
-                        </td>
-
-                        <td class="px-4 py-3">
-                            <p class="font-bold text-gray-800 dark:text-white uppercase nome-busca"><?= htmlspecialchars($c['nome_contrato']) ?></p>
-                        </td>
+                        <span class="text-[11px] font-black text-blue-600 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/50 px-2 py-0.5 rounded border border-blue-200 dark:border-blue-800 tracking-wider flex-shrink-0 codigo-busca">
+                            <?= $codigo_exibicao ?>
+                        </span>
                         
-                        <td class="px-4 py-3 text-gray-500 dark:text-gray-400">
-                            <?= htmlspecialchars($c['email']) ?: '-' ?>
-                        </td>
-
-                        <td class="px-4 py-3 font-semibold text-indigo-700 dark:text-indigo-400 uppercase text-xs">
-                            <?= htmlspecialchars($c['arquiteto_nome']) ?: '-' ?>
-                        </td>
+                        <span class="font-bold text-gray-800 dark:text-gray-100 uppercase truncate text-sm nome-busca"><?= htmlspecialchars($c['nome_contrato']) ?></span>
+                    </div>
+                    
+                    <div class="flex items-center space-x-2 pl-2" onclick="event.stopPropagation();">
+                        <button onclick="chamarImpressaoFicha(this)" class="text-gray-400 hover:text-green-600 dark:hover:text-green-400 transition-colors p-1" title="Imprimir Ficha de Medição">
+                            <svg class="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                        </button>
+                        <button onclick="chamarEdicao(this)" class="text-blue-500 hover:text-blue-700 dark:hover:text-blue-300 transition-colors p-1 text-sm font-bold" title="Editar Cliente">
+                            &#9998;
+                        </button>
+                        <button onclick="deletarCliente(<?= $c['id'] ?>)" class="text-red-400 hover:text-red-600 dark:hover:text-red-400 transition-colors text-lg p-1 font-bold" title="Apagar Cliente">
+                            &times;
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="details-container hidden border-t border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/10 p-4 transition-all">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 text-xs">
                         
-                        <td class="px-4 py-3">
+                        <div class="space-y-1.5">
+                            <h4 class="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-1">Contatos Gerais</h4>
+                            <p class="text-gray-700 dark:text-gray-300"><strong class="text-gray-400 dark:text-gray-500">E-mail:</strong> <?= htmlspecialchars($c['email']) ?: '-' ?></p>
                             <?php if($c['telefone']): ?>
-                                <p class="text-xs">☎ <?= htmlspecialchars($c['telefone']) ?></p>
+                                <p class="text-gray-700 dark:text-gray-300"><strong class="text-gray-400 dark:text-gray-500">Telefone:</strong> <?= htmlspecialchars($c['telefone']) ?></p>
                             <?php endif; ?>
                             <?php if($c['whatsapp']): ?>
-                                <p class="text-xs mt-1 text-green-600 dark:text-green-400 font-semibold">
-                                    <a href="https://wa.me/55<?= preg_replace('/[^0-9]/', '', $c['whatsapp']) ?>" target="_blank" class="hover:underline">
-                                        💬 <?= htmlspecialchars($c['whatsapp']) ?>
+                                <p class="text-green-600 dark:text-green-400 font-semibold">
+                                    <a href="https://wa.me/55<?= preg_replace('/[^0-9]/', '', $c['whatsapp']) ?>" target="_blank" class="hover:underline flex items-center">
+                                        <span class="mr-1">💬 WhatsApp:</span> <?= htmlspecialchars($c['whatsapp']) ?>
                                     </a>
                                 </p>
                             <?php endif; ?>
-                        </td>
+                            <p class="text-gray-700 dark:text-gray-300"><strong class="text-gray-400 dark:text-gray-500">CPF/CNPJ:</strong> <?= htmlspecialchars($c['cpf_cnpj']) ?: '-' ?></p>
+                        </div>
 
-                        <td class="px-4 py-3">
-                            <div class="truncate w-48 xl:w-64 text-xs text-gray-500 dark:text-gray-400" title="<?= htmlspecialchars($endereco_resumido) ?>">
-                                <?= htmlspecialchars($endereco_resumido) ?: '-' ?>
-                            </div>
-                        </td>
-                        
-                        <td class="px-4 py-3 text-center">
-                            <button onclick="chamarImpressaoFicha(this)" class="text-gray-400 hover:text-green-600 dark:hover:text-green-400 transition-colors text-sm mx-1" title="Imprimir Ficha de Medição">
-                                <svg class="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
-                            </button>
-                            <button onclick="chamarEdicao(this)" class="text-blue-500 hover:text-blue-700 dark:hover:text-blue-300 transition-colors mx-1" title="Editar Cliente">
-                                &#9998;
-                            </button>
-                            <button onclick="deletarCliente(<?= $c['id'] ?>)" class="text-red-400 hover:text-red-600 dark:hover:text-red-400 transition-colors text-lg mx-1" title="Apagar Cliente">
-                                &times;
-                            </button>
-                        </td>
-                    </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
+                        <div class="bg-indigo-50/60 dark:bg-indigo-950/20 p-3 rounded border border-indigo-100 dark:border-indigo-900/40">
+                            <h4 class="text-[10px] font-bold uppercase tracking-wider text-indigo-500 dark:text-indigo-400 mb-1.5">Arquiteto(a) Vinculado(a)</h4>
+                            <?php if($c['arquiteto_nome']): ?>
+                                <p class="text-gray-800 dark:text-gray-200 font-bold uppercase mb-0.5"><?= htmlspecialchars($c['arquiteto_nome']) ?></p>
+                                <?php if($c['arquiteto_whatsapp']): ?>
+                                    <p class="text-green-600 dark:text-green-400 font-semibold mb-0.5">
+                                        <a href="https://wa.me/55<?= preg_replace('/[^0-9]/', '', $c['arquiteto_whatsapp']) ?>" target="_blank" class="hover:underline">
+                                            💬 <?= htmlspecialchars($c['arquiteto_whatsapp']) ?>
+                                        </a>
+                                    </p>
+                                <?php endif; ?>
+                                <?php if($c['arquiteto_email']): ?>
+                                    <p class="text-gray-500 dark:text-gray-400"><?= htmlspecialchars($c['arquiteto_email']) ?></p>
+                                <?php endif; ?>
+                            <?php else: ?>
+                                <p class="italic text-gray-400 dark:text-gray-500">Nenhum profissional cadastrado.</p>
+                            <?php endif; ?>
+                        </div>
+
+                        <div class="space-y-1">
+                            <h4 class="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-1">Local da Obra</h4>
+                            <?php if($endereco_resumido): ?>
+                                <p class="text-gray-800 dark:text-gray-200 font-semibold uppercase"><?= htmlspecialchars($c['endereco']) ?><?= $c['numero_lote'] ? ', Nº ' . htmlspecialchars($c['numero_lote']) : '' ?></p>
+                                <?php if($c['quadra'] || $c['bairro']): ?>
+                                    <p class="text-gray-500 dark:text-gray-400"><?= $c['quadra'] ? 'Quadra/Lote: ' . htmlspecialchars($c['quadra']) : '' ?><?= $c['bairro'] ? ' - Bairro: ' . htmlspecialchars($c['bairro']) : '' ?></p>
+                                <?php endif; ?>
+                                <?php if($c['condominio']): ?>
+                                    <p class="text-amber-600 dark:text-amber-400 font-bold">🏢 Condomínio: <?= htmlspecialchars($c['condominio']) ?></p>
+                                <?php endif; ?>
+                                <?php if($c['complemento'] || $c['cidade']): ?>
+                                    <p class="text-gray-500 dark:text-gray-400 italic"><?= $c['complemento'] ? htmlspecialchars($c['complemento']) . ' ' : '' ?><?= $c['cidade'] ? ' (' . htmlspecialchars($c['cidade']) . ')' : '' ?></p>
+                                <?php endif; ?>
+                            <?php else: ?>
+                                <p class="italic text-gray-400 dark:text-gray-500">Endereço não cadastrado.</p>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+
+                    <?php if($c['observacao']): ?>
+                        <div class="mt-3.5 pt-3 border-t border-gray-200 dark:border-gray-700">
+                            <h4 class="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-1">Observações do Cliente</h4>
+                            <p class="bg-white dark:bg-gray-800 p-2.5 rounded border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 italic font-mono whitespace-pre-wrap">"<?= htmlspecialchars($c['observacao']) ?>"</p>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+        <?php endforeach; ?>
     </div>
 </div>
 
@@ -315,13 +342,33 @@ require_once 'includes/header.php';
 <script>
     let clienteImpressaoAtual = null; 
 
+    // LÓGICA DO INTERRUPTOR DE EXPANSÃO (ACCORDION)
+    function toggleDetails(headerElement) {
+        const rowBlock = headerElement.closest('.linha-cliente');
+        const detailsContainer = rowBlock.querySelector('.details-container');
+        const arrowIcon = rowBlock.querySelector('.icon-seta');
+        
+        if (detailsContainer.classList.contains('hidden')) {
+            detailsContainer.classList.remove('hidden');
+            arrowIcon.classList.add('rotate-90');
+        } else {
+            detailsContainer.classList.add('hidden');
+            arrowIcon.classList.remove('rotate-90');
+        }
+    }
+
+    // FILTRAGEM TOTALMENTE PRESERVADA E FUNCIONAL COM O ACCORDION
     function filtrarTabela() {
         const filtro = document.getElementById('filtro_clientes').value.toLowerCase();
         const linhas = document.querySelectorAll('.linha-cliente');
         linhas.forEach(linha => {
             const nome = linha.querySelector('.nome-busca').textContent.toLowerCase();
             const codigo = linha.querySelector('.codigo-busca').textContent.toLowerCase();
-            if (nome.includes(filtro) || codigo.includes(filtro)) { linha.style.display = ''; } else { linha.style.display = 'none'; }
+            if (nome.includes(filtro) || codigo.includes(filtro)) { 
+                linha.style.display = ''; 
+            } else { 
+                linha.style.display = 'none'; 
+            }
         });
     }
 
@@ -510,9 +557,7 @@ require_once 'includes/header.php';
                 <title>SBG Móveis & Design - ${tipoFicha}</title>
                 <style>
                     @media print {
-                        /* Força o navegador a remover cabeçalhos/rodapés padrão (about:blank) */
                         @page { margin: 0; } 
-                        /* Devolve uma margem de segurança para o conteúdo da folha */
                         body { padding: 1.5cm; } 
                     }
                     body { font-family: Arial, sans-serif; color: #000; margin: 0; padding: 20px; } 
@@ -529,7 +574,6 @@ require_once 'includes/header.php';
                     .value { font-size: 14px; font-weight: bold; }
                     .title-client { font-size: 18px; font-weight: 900; text-transform: uppercase; }
                     
-                    /* Área para desenho/escrever */
                     .drawing-area { 
                         width: 100%; 
                         height: 500px; 
@@ -615,7 +659,6 @@ require_once 'includes/header.php';
         janelaPrint.document.close();
         janelaPrint.focus();
         
-        // Aguarda renderizar
         setTimeout(() => { 
             janelaPrint.print(); 
             janelaPrint.close(); 
