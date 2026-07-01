@@ -2,8 +2,7 @@
 // assistencias.php
 require_once 'includes/auth.php';
 protegerPagina();
-
-require_once 'config/conexao.php'; 
+require_once 'config/conexao.php';
 
 // Colunas do Kanban de Assistências
 $titulos_colunas = [
@@ -13,19 +12,17 @@ $titulos_colunas = [
 ];
 
 try {
-    // 1. Busca as assistências (Ordenadas pelas pendentes primeiro, e data mais recente)
     $stmt = $pdo->query("SELECT a.*, c.codigo_cliente, c.id as id_cadastro 
                          FROM assistencias_tecnicas a 
                          LEFT JOIN clientes_cadastro c ON a.cliente = c.nome_contrato 
                          ORDER BY a.resolvido_assistencia ASC, a.data_solicitacao DESC");
     $assistencias = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // 2. Busca TODA a base de clientes cadastrados para alimentar o seletor automático
     $stmt_cli = $pdo->query("SELECT * FROM clientes_cadastro ORDER BY nome_contrato ASC");
     $lista_clientes_base = $stmt_cli->fetchAll(PDO::FETCH_ASSOC);
 
     $colunas = [ 'pendente'  => [], 'agendada'  => [], 'concluida' => [] ];
-
+    
     foreach ($assistencias as $a) {
         $status = isset($colunas[$a['status']]) ? $a['status'] : 'pendente';
         $colunas[$status][] = $a;
@@ -39,7 +36,6 @@ function formatarData($data) {
     return date('d/m/Y', strtotime($data));
 }
 
-// Mantido para compatibilidade de impressão
 function formatarDataPrint($data) {
     if (!$data) return '';
     return date('d/m/Y', strtotime($data));
@@ -57,22 +53,11 @@ $page_actions = '
 // Estilos extras para o Kanban
 $head_extras = '
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
-<style>
-    .kanban-column::-webkit-scrollbar { width: 4px; }
-    .kanban-column::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 4px; }
-    .dark .kanban-column::-webkit-scrollbar-thumb { background-color: #475569; }
-    .sortable-ghost { opacity: 0.4; background-color: #e2e8f0; border: 2px dashed #94a3b8; }
-    .dark .sortable-ghost { background-color: #334155; border-color: #64748b; }
-</style>';
+<link rel="stylesheet" href="assets/css/custom.css">
+';
 
 require_once 'includes/header.php';
-// -------------------------------------
 ?>
-
-<script>
-    // Mantém os dados dos clientes na memória da página para o auto-preenchimento
-    const CLIENTES_BASE_DATA = <?= json_encode($lista_clientes_base) ?>;
-</script>
 
 <!-- GUIA RÁPIDO: ASSISTÊNCIAS -->
 <details class="group bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg mb-6 shadow-sm transition-colors duration-300">
@@ -87,7 +72,7 @@ require_once 'includes/header.php';
         <ul class="text-sm text-amber-800 dark:text-amber-300 space-y-2 ml-1 mt-3">
             <li class="flex items-start">
                 <span class="mr-2 font-bold text-lg leading-none">➕</span>
-                <span><strong>Abertura:</strong> Use o botão <em>"+ ASSISTÊNCIA"</em> para registrar um novo chamado, ou abra diretamente pelo painel de Projetos. O endereço será preenchido automaticamente ao selecionar o cliente cadastrado.</span>
+                <span><strong>Abertura:</strong> Use o botão <em>"+ ASSISTÊNCIA"</em> para registrar um novo chamado, definindo se é Garantia ou Faturada.</span>
             </li>
             <li class="flex items-start">
                 <span class="mr-2 font-bold text-lg leading-none">🔄</span>
@@ -95,7 +80,7 @@ require_once 'includes/header.php';
             </li>
             <li class="flex items-start">
                 <span class="mr-2 font-bold text-lg leading-none">⚡</span>
-                <span><strong>Ações Rápidas:</strong> Em cada card, você pode <strong>Imprimir a OS</strong> (🖨️) para o técnico levar à obra, <strong>Editar</strong> (✏️) os detalhes do chamado, ou <strong>Dar Baixa</strong> (✔️) informando a data e o técnico quando o problema for resolvido.</span>
+                <span><strong>Ações Rápidas:</strong> Em cada card, você pode <strong>Imprimir a OS</strong> (🖨️), <strong>Editar</strong> (✏️), ou <strong>Dar Baixa</strong> (✔️) quando resolvido.</span>
             </li>
         </ul>
     </div>
@@ -139,11 +124,13 @@ require_once 'includes/header.php';
                         'cid' => $a['cidade'], 'cep' => $a['cep'], 'fixo' => $a['tel_fixo'], 'cel' => $a['tel_cel'],
                         'dt_solic_raw' => $a['data_solicitacao'], 'dt_agend_raw' => $a['data_assistencia'],
                         'dt_solic' => formatarDataPrint($a['data_solicitacao']), 'dt_agend' => formatarDataPrint($a['data_assistencia']),
-                        'resolvido' => $a['resolvido_assistencia'], 'tecnico' => $a['tecnico_assistencia']
+                        'resolvido' => $a['resolvido_assistencia'], 'tecnico' => $a['tecnico_assistencia'],
+                        'tipo_cobranca' => $a['tipo_cobranca'], 'valor_cobrado' => $a['valor_cobrado'],
+                        'forma_pagamento' => $a['forma_pagamento'], 'comprovante_file' => $a['comprovante_file']
                     ]), ENT_QUOTES, 'UTF-8'); ?>
-
+                    
                     <div class="bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 border border-gray-200 dark:border-gray-600 p-3 rounded shadow-sm cursor-grab active:cursor-grabbing transition-all duration-200" 
-                            data-id="<?= $a['id'] ?>" data-nome="<?= htmlspecialchars(strtolower($a['cliente'])) ?>" data-time="<?= strtotime($a['data_solicitacao']) ?>" data-json='<?= $cardData ?>'>
+                         data-id="<?= $a['id'] ?>" data-nome="<?= htmlspecialchars(strtolower($a['cliente'])) ?>" data-time="<?= strtotime($a['data_solicitacao']) ?>" data-json='<?= $cardData ?>'>
                         
                         <div class="flex justify-between items-start mb-1">
                             <div class="flex items-center space-x-1.5">
@@ -152,11 +139,9 @@ require_once 'includes/header.php';
                                 <button onclick="chamarImpressao(this)" class="text-gray-400 hover:text-gray-800 dark:hover:text-gray-100 transition-colors text-xs px-1" title="Imprimir OS">
                                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
                                 </button>
-
                                 <button onclick="chamarEdicao(this)" class="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors text-xs px-1 font-bold" title="Editar Solicitação">
                                     &#9998;
                                 </button>
-
                                 <button onclick="chamarBaixa(this)" class="text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300 transition-colors text-sm px-1 font-bold" title="Gerenciar / Dar Baixa">
                                     <svg class="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
                                 </button>
@@ -178,9 +163,25 @@ require_once 'includes/header.php';
                             <?php endif; ?>
                             <?= htmlspecialchars($a['cliente']) ?>
                         </p>
+
+                        <!-- STATUS DE FATURAMENTO / GARANTIA -->
+                        <div class="mt-2 flex items-center flex-wrap gap-1">
+                            <?php if ($a['tipo_cobranca'] === 'FATURADA'): ?>
+                                <span class="bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300 px-1.5 py-0.5 rounded text-[9px] font-bold border border-purple-200 dark:border-purple-800 uppercase">
+                                    FATURADA (R$ <?= number_format((float)$a['valor_cobrado'], 2, ',', '.') ?>)
+                                </span>
+                                <?php if (!empty($a['comprovante_file'])): ?>
+                                    <a href="<?= htmlspecialchars($a['comprovante_file']) ?>" target="_blank" class="bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 px-1.5 py-0.5 rounded text-[9px] font-bold border border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors flex items-center" title="Ver Comprovante" onclick="event.stopPropagation()">
+                                        <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path></svg> COMPROVANTE
+                                    </a>
+                                <?php endif; ?>
+                            <?php else: ?>
+                                <span class="bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400 px-1.5 py-0.5 rounded text-[9px] font-bold border border-emerald-200 dark:border-emerald-800 uppercase">GARANTIA</span>
+                            <?php endif; ?>
+                        </div>
                         
                         <?php if ($a['projeto_id']): ?>
-                            <p class="text-[10px] text-gray-400">(Ref. Projeto Original #<?= $a['projeto_id'] ?>)</p>
+                            <p class="text-[10px] text-gray-400 mt-1">(Ref. Projeto Original #<?= $a['projeto_id'] ?>)</p>
                         <?php endif; ?>
 
                         <?php if ($a['cidade'] || $a['condominio']): ?>
@@ -195,7 +196,7 @@ require_once 'includes/header.php';
 
                         <?php if ($a['resolvido_assistencia'] === 'SIM'): ?>
                             <div class="mt-3 pt-2 border-t border-gray-200 dark:border-gray-600 text-[11px]">
-                                <p class="text-green-600 dark:text-green-400 font-bold">✔ Resolvido por: <?= htmlspecialchars($a['tecnico_assistencia']) ?></p>
+                                <p class="text-green-600 dark:text-green-400 font-bold">✔️ Resolvido por: <?= htmlspecialchars($a['tecnico_assistencia']) ?></p>
                                 <p class="text-gray-500 dark:text-gray-400">Data de Resolução: <?= formatarData($a['data_assistencia']) ?></p>
                             </div>
                         <?php endif; ?>
@@ -206,23 +207,21 @@ require_once 'includes/header.php';
     <?php endforeach; ?>
 </div>
 
+<!-- MODAL 1: NOVA ASSISTÊNCIA -->
 <div id="modalNovaAssistencia" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 hidden opacity-0 transition-opacity duration-300">
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-2xl p-6 border border-gray-200 dark:border-gray-700 transform scale-95 transition-all duration-300 max-h-[90vh] overflow-y-auto" id="modalNovaAssistenciaConteudo">
         <div class="flex justify-between items-center mb-4 border-b dark:border-gray-700 pb-2">
             <h3 class="text-lg font-bold text-amber-600 dark:text-amber-500">Abrir Novo Chamado</h3>
             <button onclick="fecharModalNovaAssistencia()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-2xl font-bold">&times;</button>
         </div>
-        <form id="formNovaAssistencia" onsubmit="salvarNovaAssistencia(event)">
+        
+        <form id="formNovaAssistencia" onsubmit="salvarNovaAssistencia(event)" enctype="multipart/form-data">
             <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
                 <div class="md:col-span-3">
                     <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Escolher Cliente Cadastrado</label>
-                    
-                    <!-- Campo de Pesquisa Nova Assistência -->
                     <input type="text" id="search_na_cliente" onkeyup="filtrarSelect('search_na_cliente', 'na_cliente')" placeholder="Pesquisar cliente..." autocomplete="off" class="w-full px-3 py-1.5 mb-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-2 focus:ring-amber-500">
-                    
-                    <select id="na_cliente" required size="4" onchange="autoPreencherFormulario(this.value, 'na')" class="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded uppercase text-sm focus:ring-2 focus:ring-amber-500 scrollbar-thin">
+                    <select id="na_cliente" name="cliente" required size="4" onchange="autoPreencherFormulario(this.value, 'na')" class="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded uppercase text-sm focus:ring-2 focus:ring-amber-500 scrollbar-thin">
                         <?php foreach ($lista_clientes_base as $cb): 
-                            // Verifica se existe o código personalizado, se não, usa o ID padrão
                             $codigo_cb = !empty($cb['codigo_cliente']) ? $cb['codigo_cliente'] : "CLI-" . str_pad($cb['id'], 2, "0", STR_PAD_LEFT);
                         ?>
                         <option value="<?= htmlspecialchars($cb['nome_contrato']) ?>" class="p-1 border-b border-gray-100 dark:border-gray-700 hover:bg-amber-50 dark:hover:bg-gray-600">
@@ -231,51 +230,85 @@ require_once 'includes/header.php';
                         <?php endforeach; ?>
                     </select>
                 </div>
+                
                 <div class="md:col-span-2">
                     <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Endereço</label>
-                    <input type="text" id="na_endereco" class="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded uppercase text-sm focus:ring-2 focus:ring-amber-500">
+                    <input type="text" id="na_endereco" name="endereco" class="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded uppercase text-sm focus:ring-2 focus:ring-amber-500">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Número / Lote</label>
-                    <input type="text" id="na_numero" class="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded uppercase text-sm focus:ring-2 focus:ring-amber-500">
+                    <input type="text" id="na_numero" name="numero_lote" class="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded uppercase text-sm focus:ring-2 focus:ring-amber-500">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Quadra</label>
-                    <input type="text" id="na_quadra" class="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded uppercase text-sm focus:ring-2 focus:ring-amber-500">
+                    <input type="text" id="na_quadra" name="quadra" class="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded uppercase text-sm focus:ring-2 focus:ring-amber-500">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Bairro</label>
-                    <input type="text" id="na_bairro" class="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded uppercase text-sm focus:ring-2 focus:ring-amber-500">
+                    <input type="text" id="na_bairro" name="bairro" class="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded uppercase text-sm focus:ring-2 focus:ring-amber-500">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Condomínio</label>
-                    <input type="text" id="na_condominio" class="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded uppercase text-sm focus:ring-2 focus:ring-amber-500">
+                    <input type="text" id="na_condominio" name="condominio" class="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded uppercase text-sm focus:ring-2 focus:ring-amber-500">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Complemento</label>
-                    <input type="text" id="na_complemento" class="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded uppercase text-sm focus:ring-2 focus:ring-amber-500">
+                    <input type="text" id="na_complemento" name="complemento" class="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded uppercase text-sm focus:ring-2 focus:ring-amber-500">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Cidade / UF</label>
-                    <input type="text" id="na_cidade" class="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded uppercase text-sm focus:ring-2 focus:ring-amber-500">
+                    <input type="text" id="na_cidade" name="cidade" class="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded uppercase text-sm focus:ring-2 focus:ring-amber-500">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">CEP</label>
-                    <input type="text" id="na_cep" class="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded uppercase text-sm focus:ring-2 focus:ring-amber-500">
+                    <input type="text" id="na_cep" name="cep" class="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded uppercase text-sm focus:ring-2 focus:ring-amber-500">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Telefone Fixo</label>
-                    <input type="text" id="na_tel_fixo" class="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded uppercase text-sm focus:ring-2 focus:ring-amber-500">
+                    <input type="text" id="na_tel_fixo" name="tel_fixo" class="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded uppercase text-sm focus:ring-2 focus:ring-amber-500">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Celular / WhatsApp</label>
-                    <input type="text" id="na_tel_cel" class="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded uppercase text-sm focus:ring-2 focus:ring-amber-500">
+                    <input type="text" id="na_tel_cel" name="tel_cel" class="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded uppercase text-sm focus:ring-2 focus:ring-amber-500">
+                </div>
+
+                <!-- DADOS FATURAMENTO -->
+                <div class="md:col-span-3 mt-1 border-t border-gray-200 dark:border-gray-700 pt-3">
+                    <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Tipo de Atendimento</label>
+                    <select id="na_tipo_cobranca" name="tipo_cobranca" onchange="toggleFaturamento('na')" class="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded text-sm focus:ring-2 focus:ring-amber-500 font-bold uppercase">
+                        <option value="GARANTIA">GARANTIA (Sem custo)</option>
+                        <option value="FATURADA">FATURADA (Cobrar do cliente)</option>
+                    </select>
+                </div>
+
+                <div id="na_dados_faturamento" class="hidden md:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-3 bg-purple-50 dark:bg-purple-900/20 p-3 rounded border border-purple-200 dark:border-purple-800">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Valor Cobrado (R$)</label>
+                        <input type="number" step="0.01" id="na_valor" name="valor_cobrado" placeholder="0.00" class="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded text-sm focus:ring-2 focus:ring-purple-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Forma de Pagamento</label>
+                        <select id="na_forma_pagamento" name="forma_pagamento" class="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded text-sm focus:ring-2 focus:ring-purple-500 uppercase">
+                            <option value="">Selecione...</option>
+                            <option value="PIX">PIX</option>
+                            <option value="CARTAO CREDITO">Cartão de Crédito</option>
+                            <option value="CARTAO DEBITO">Cartão de Débito</option>
+                            <option value="BOLETO">Boleto</option>
+                            <option value="DINHEIRO">Dinheiro</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Anexar Comprovante</label>
+                        <input type="file" id="na_comprovante" name="comprovante" accept="image/*,.pdf" class="w-full text-xs text-gray-500 dark:text-gray-400 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-purple-100 file:text-purple-700 hover:file:bg-purple-200 dark:file:bg-purple-900/50 dark:file:text-purple-300 cursor-pointer">
+                    </div>
                 </div>
             </div>
+
             <div class="mb-4">
                 <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Defeito ou Problema Relatado</label>
-                <textarea id="na_observacao" rows="3" required class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-2 focus:ring-amber-500"></textarea>
+                <textarea id="na_observacao" name="observacao" rows="3" required class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-2 focus:ring-amber-500"></textarea>
             </div>
+
             <div class="flex justify-end space-x-3 border-t dark:border-gray-700 pt-4">
                 <button type="button" onclick="fecharModalNovaAssistencia()" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition font-medium">Cancelar</button>
                 <button type="submit" class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded font-bold transition shadow-sm">Registrar Chamado</button>
@@ -284,24 +317,22 @@ require_once 'includes/header.php';
     </div>
 </div>
 
+<!-- MODAL 2: EDIÇÃO -->
 <div id="modalEdicaoAssistencia" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 hidden opacity-0 transition-opacity duration-300">
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-2xl p-6 border border-gray-200 dark:border-gray-700 transform scale-95 transition-all duration-300 max-h-[90vh] overflow-y-auto" id="modalEdicaoAssistenciaConteudo">
         <div class="flex justify-between items-center mb-4 border-b dark:border-gray-700 pb-2">
             <h3 class="text-lg font-bold text-blue-600 dark:text-blue-400">Editar Chamado <span id="labelEditAstProjeto" class="text-gray-400 dark:text-gray-500 text-sm"></span></h3>
             <button onclick="fecharModalEdicaoAssistencia()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-2xl font-bold">&times;</button>
         </div>
-        <form id="formEdicaoAssistencia" onsubmit="salvarEdicaoAssistencia(event)">
-            <input type="hidden" id="ea_id">
+        
+        <form id="formEdicaoAssistencia" onsubmit="salvarEdicaoAssistencia(event)" enctype="multipart/form-data">
+            <input type="hidden" id="ea_id" name="id">
             <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
                 <div class="md:col-span-3">
                     <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Cliente</label>
-                    
-                    <!-- Campo de Pesquisa Editar Assistência -->
                     <input type="text" id="search_ea_cliente" onkeyup="filtrarSelect('search_ea_cliente', 'ea_cliente')" placeholder="Pesquisar cliente..." autocomplete="off" class="w-full px-3 py-1.5 mb-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-2 focus:ring-blue-500">
-                    
-                    <select id="ea_cliente" required size="4" onchange="autoPreencherFormulario(this.value, 'ea')" class="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded uppercase text-sm focus:ring-2 focus:ring-blue-500 scrollbar-thin">
+                    <select id="ea_cliente" name="cliente" required size="4" onchange="autoPreencherFormulario(this.value, 'ea')" class="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded uppercase text-sm focus:ring-2 focus:ring-blue-500 scrollbar-thin">
                         <?php foreach ($lista_clientes_base as $cb): 
-                        // Verifica se existe o código personalizado, se não, usa o ID padrão
                         $codigo_cb = !empty($cb['codigo_cliente']) ? $cb['codigo_cliente'] : "CLI-" . str_pad($cb['id'], 2, "0", STR_PAD_LEFT);
                         ?>
                         <option value="<?= htmlspecialchars($cb['nome_contrato']) ?>" class="p-1 border-b border-gray-100 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-gray-600">
@@ -310,51 +341,88 @@ require_once 'includes/header.php';
                         <?php endforeach; ?>
                     </select>
                 </div>
+                
                 <div class="md:col-span-2">
                     <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Endereço</label>
-                    <input type="text" id="ea_endereco" class="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded uppercase text-sm focus:ring-2 focus:ring-blue-500">
+                    <input type="text" id="ea_endereco" name="endereco" class="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded uppercase text-sm focus:ring-2 focus:ring-blue-500">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Número / Lote</label>
-                    <input type="text" id="ea_numero" class="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded uppercase text-sm focus:ring-2 focus:ring-blue-500">
+                    <input type="text" id="ea_numero" name="numero_lote" class="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded uppercase text-sm focus:ring-2 focus:ring-blue-500">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Quadra</label>
-                    <input type="text" id="ea_quadra" class="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded uppercase text-sm focus:ring-2 focus:ring-blue-500">
+                    <input type="text" id="ea_quadra" name="quadra" class="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded uppercase text-sm focus:ring-2 focus:ring-blue-500">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Bairro</label>
-                    <input type="text" id="ea_bairro" class="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded uppercase text-sm focus:ring-2 focus:ring-blue-500">
+                    <input type="text" id="ea_bairro" name="bairro" class="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded uppercase text-sm focus:ring-2 focus:ring-blue-500">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Condomínio</label>
-                    <input type="text" id="ea_condominio" class="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded uppercase text-sm focus:ring-2 focus:ring-blue-500">
+                    <input type="text" id="ea_condominio" name="condominio" class="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded uppercase text-sm focus:ring-2 focus:ring-blue-500">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Complemento</label>
-                    <input type="text" id="ea_complemento" class="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded uppercase text-sm focus:ring-2 focus:ring-blue-500">
+                    <input type="text" id="ea_complemento" name="complemento" class="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded uppercase text-sm focus:ring-2 focus:ring-blue-500">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Cidade / UF</label>
-                    <input type="text" id="ea_cidade" class="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded uppercase text-sm focus:ring-2 focus:ring-blue-500">
+                    <input type="text" id="ea_cidade" name="cidade" class="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded uppercase text-sm focus:ring-2 focus:ring-blue-500">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">CEP</label>
-                    <input type="text" id="ea_cep" class="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded uppercase text-sm focus:ring-2 focus:ring-blue-500">
+                    <input type="text" id="ea_cep" name="cep" class="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded uppercase text-sm focus:ring-2 focus:ring-blue-500">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Telefone Fixo</label>
-                    <input type="text" id="ea_tel_fixo" class="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded uppercase text-sm focus:ring-2 focus:ring-blue-500">
+                    <input type="text" id="ea_tel_fixo" name="tel_fixo" class="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded uppercase text-sm focus:ring-2 focus:ring-blue-500">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Celular / WhatsApp</label>
-                    <input type="text" id="ea_tel_cel" class="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded uppercase text-sm focus:ring-2 focus:ring-blue-500">
+                    <input type="text" id="ea_tel_cel" name="tel_cel" class="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded uppercase text-sm focus:ring-2 focus:ring-blue-500">
+                </div>
+
+                <!-- DADOS FATURAMENTO (EDIÇÃO) -->
+                <div class="md:col-span-3 mt-1 border-t border-gray-200 dark:border-gray-700 pt-3">
+                    <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Tipo de Atendimento</label>
+                    <select id="ea_tipo_cobranca" name="tipo_cobranca" onchange="toggleFaturamento('ea')" class="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded text-sm focus:ring-2 focus:ring-blue-500 font-bold uppercase">
+                        <option value="GARANTIA">GARANTIA (Sem custo)</option>
+                        <option value="FATURADA">FATURADA (Cobrar do cliente)</option>
+                    </select>
+                </div>
+
+                <div id="ea_dados_faturamento" class="hidden md:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-3 bg-purple-50 dark:bg-purple-900/20 p-3 rounded border border-purple-200 dark:border-purple-800">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Valor Cobrado (R$)</label>
+                        <input type="number" step="0.01" id="ea_valor" name="valor_cobrado" placeholder="0.00" class="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded text-sm focus:ring-2 focus:ring-purple-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Forma de Pagamento</label>
+                        <select id="ea_forma_pagamento" name="forma_pagamento" class="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded text-sm focus:ring-2 focus:ring-purple-500 uppercase">
+                            <option value="">Selecione...</option>
+                            <option value="PIX">PIX</option>
+                            <option value="CARTAO CREDITO">Cartão de Crédito</option>
+                            <option value="CARTAO DEBITO">Cartão de Débito</option>
+                            <option value="BOLETO">Boleto</option>
+                            <option value="DINHEIRO">Dinheiro</option>
+                        </select>
+                    </div>
+                    <div>
+                        <div class="flex justify-between items-end mb-1">
+                            <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300">Anexar Novo Comprovante</label>
+                            <a href="#" id="ea_link_comprovante" target="_blank" class="hidden text-[10px] font-bold text-blue-600 hover:underline">Ver Atual</a>
+                        </div>
+                        <input type="file" id="ea_comprovante" name="comprovante" accept="image/*,.pdf" class="w-full text-xs text-gray-500 dark:text-gray-400 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-purple-100 file:text-purple-700 hover:file:bg-purple-200 dark:file:bg-purple-900/50 dark:file:text-purple-300 cursor-pointer">
+                    </div>
                 </div>
             </div>
+
             <div class="mb-4">
                 <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Defeito ou Problema Relatado</label>
-                <textarea id="ea_observacao" rows="3" required class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-2 focus:ring-blue-500"></textarea>
+                <textarea id="ea_observacao" name="observacao" rows="3" required class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-2 focus:ring-blue-500"></textarea>
             </div>
+
             <div class="flex justify-end space-x-3 border-t dark:border-gray-700 pt-4">
                 <button type="button" onclick="fecharModalEdicaoAssistencia()" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition font-medium">Cancelar</button>
                 <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-bold transition shadow-sm">Salvar Alterações</button>
@@ -363,12 +431,14 @@ require_once 'includes/header.php';
     </div>
 </div>
 
+<!-- MODAL 3: BAIXA -->
 <div id="modalBaixa" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 hidden opacity-0 transition-opacity duration-300">
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md p-6 border border-gray-200 dark:border-gray-700 transform scale-95 transition-all duration-300" id="modalBaixaConteudo">
         <div class="flex justify-between items-center mb-4 border-b dark:border-gray-700 pb-2">
             <h3 class="text-lg font-bold text-green-600 dark:text-green-400">Baixa de Assistência <span id="labelAstProjeto" class="text-gray-400 dark:text-gray-500 text-sm"></span></h3>
             <button onclick="fecharModalBaixa()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-2xl font-bold">&times;</button>
         </div>
+        
         <form id="formBaixa" onsubmit="salvarBaixaServidor(event)">
             <input type="hidden" id="ast_id" name="id">
             <div class="mb-4">
