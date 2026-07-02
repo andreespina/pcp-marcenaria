@@ -102,7 +102,7 @@ $head_extras = '
     @media print {
         body { background: white !important; color: black !important; }
         .no-print { display: none !important; }
-        .tab-content.hidden { display: none !important; } /* Garante que só a aba ativa seja impressa */
+        .tab-content.hidden { display: none !important; }
         .tab-content { display: block !important; }
         .shadow-sm { box-shadow: none !important; border: 1px solid #ddd !important; }
         * { transition: none !important; }
@@ -271,11 +271,12 @@ require_once 'includes/header.php';
                             <td class="px-6 py-3 font-bold uppercase"><?= htmlspecialchars($a['cliente']) ?></td>
                             <td class="px-6 py-3 text-xs text-gray-500"><?= formatarData($a['data_solicitacao']) ?></td>
                             <td class="px-6 py-3"><span class="px-2 py-1 rounded text-[10px] font-bold uppercase border border-gray-200 dark:border-gray-600"><?= nomeStatus($a['status']) ?></span></td>
-                            <td class="px-6 py-3 font-bold text-[11px] <?= ($a['tipo_cobranca'] === 'FATURADA') ? 'text-purple-600 dark:text-purple-400' : 'text-emerald-600 dark:text-emerald-400' ?>">
-                                <?= $a['tipo_cobranca'] ?? 'GARANTIA' ?>
+                            
+                            <td class="px-6 py-3 font-bold text-[11px] <?= (isset($a['tipo_cobranca']) && $a['tipo_cobranca'] === 'FATURADA') ? 'text-purple-600 dark:text-purple-400' : 'text-emerald-600 dark:text-emerald-400' ?>">
+                                <?= !empty($a['tipo_cobranca']) ? $a['tipo_cobranca'] : 'GARANTIA' ?>
                             </td>
                             <td class="px-6 py-3 font-medium">
-                                <?= ($a['tipo_cobranca'] === 'FATURADA') ? 'R$ ' . number_format((float)$a['valor_cobrado'], 2, ',', '.') : '-' ?>
+                                <?= (isset($a['tipo_cobranca']) && $a['tipo_cobranca'] === 'FATURADA') ? 'R$ ' . number_format((float)$a['valor_cobrado'], 2, ',', '.') : '-' ?>
                             </td>
                         </tr>
                     <?php endforeach; ?>
