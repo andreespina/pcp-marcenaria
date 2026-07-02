@@ -53,13 +53,11 @@ $page_actions = '
 // Estilos extras para o Kanban
 $head_extras = '
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
-<link rel="stylesheet" href="assets/css/custom.css">
 ';
 
 require_once 'includes/header.php';
 ?>
 
-<!-- GUIA RÁPIDO: ASSISTÊNCIAS -->
 <details class="group bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg mb-6 shadow-sm transition-colors duration-300">
     <summary class="cursor-pointer p-4 font-bold text-lg text-amber-800 dark:text-amber-400 flex items-center justify-between select-none">
         <div class="flex items-center">
@@ -125,8 +123,10 @@ require_once 'includes/header.php';
                         'dt_solic_raw' => $a['data_solicitacao'], 'dt_agend_raw' => $a['data_assistencia'],
                         'dt_solic' => formatarDataPrint($a['data_solicitacao']), 'dt_agend' => formatarDataPrint($a['data_assistencia']),
                         'resolvido' => $a['resolvido_assistencia'], 'tecnico' => $a['tecnico_assistencia'],
-                        'tipo_cobranca' => $a['tipo_cobranca'], 'valor_cobrado' => $a['valor_cobrado'],
-                        'forma_pagamento' => $a['forma_pagamento'], 'comprovante_file' => $a['comprovante_file']
+                        'tipo_cobranca' => isset($a['tipo_cobranca']) ? $a['tipo_cobranca'] : 'GARANTIA', 
+                        'valor_cobrado' => isset($a['valor_cobrado']) ? $a['valor_cobrado'] : null,
+                        'forma_pagamento' => isset($a['forma_pagamento']) ? $a['forma_pagamento'] : null, 
+                        'comprovante_file' => isset($a['comprovante_file']) ? $a['comprovante_file'] : null
                     ]), ENT_QUOTES, 'UTF-8'); ?>
                     
                     <div class="bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 border border-gray-200 dark:border-gray-600 p-3 rounded shadow-sm cursor-grab active:cursor-grabbing transition-all duration-200" 
@@ -164,9 +164,8 @@ require_once 'includes/header.php';
                             <?= htmlspecialchars($a['cliente']) ?>
                         </p>
 
-                        <!-- STATUS DE FATURAMENTO / GARANTIA -->
                         <div class="mt-2 flex items-center flex-wrap gap-1">
-                            <?php if ($a['tipo_cobranca'] === 'FATURADA'): ?>
+                            <?php if (isset($a['tipo_cobranca']) && $a['tipo_cobranca'] === 'FATURADA'): ?>
                                 <span class="bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300 px-1.5 py-0.5 rounded text-[9px] font-bold border border-purple-200 dark:border-purple-800 uppercase">
                                     FATURADA (R$ <?= number_format((float)$a['valor_cobrado'], 2, ',', '.') ?>)
                                 </span>
@@ -207,7 +206,6 @@ require_once 'includes/header.php';
     <?php endforeach; ?>
 </div>
 
-<!-- MODAL 1: NOVA ASSISTÊNCIA -->
 <div id="modalNovaAssistencia" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 hidden opacity-0 transition-opacity duration-300">
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-2xl p-6 border border-gray-200 dark:border-gray-700 transform scale-95 transition-all duration-300 max-h-[90vh] overflow-y-auto" id="modalNovaAssistenciaConteudo">
         <div class="flex justify-between items-center mb-4 border-b dark:border-gray-700 pb-2">
@@ -272,7 +270,6 @@ require_once 'includes/header.php';
                     <input type="text" id="na_tel_cel" name="tel_cel" class="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded uppercase text-sm focus:ring-2 focus:ring-amber-500">
                 </div>
 
-                <!-- DADOS FATURAMENTO -->
                 <div class="md:col-span-3 mt-1 border-t border-gray-200 dark:border-gray-700 pt-3">
                     <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Tipo de Atendimento</label>
                     <select id="na_tipo_cobranca" name="tipo_cobranca" onchange="toggleFaturamento('na')" class="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded text-sm focus:ring-2 focus:ring-amber-500 font-bold uppercase">
@@ -317,7 +314,6 @@ require_once 'includes/header.php';
     </div>
 </div>
 
-<!-- MODAL 2: EDIÇÃO -->
 <div id="modalEdicaoAssistencia" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 hidden opacity-0 transition-opacity duration-300">
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-2xl p-6 border border-gray-200 dark:border-gray-700 transform scale-95 transition-all duration-300 max-h-[90vh] overflow-y-auto" id="modalEdicaoAssistenciaConteudo">
         <div class="flex justify-between items-center mb-4 border-b dark:border-gray-700 pb-2">
@@ -383,7 +379,6 @@ require_once 'includes/header.php';
                     <input type="text" id="ea_tel_cel" name="tel_cel" class="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded uppercase text-sm focus:ring-2 focus:ring-blue-500">
                 </div>
 
-                <!-- DADOS FATURAMENTO (EDIÇÃO) -->
                 <div class="md:col-span-3 mt-1 border-t border-gray-200 dark:border-gray-700 pt-3">
                     <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Tipo de Atendimento</label>
                     <select id="ea_tipo_cobranca" name="tipo_cobranca" onchange="toggleFaturamento('ea')" class="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded text-sm focus:ring-2 focus:ring-blue-500 font-bold uppercase">
@@ -395,7 +390,7 @@ require_once 'includes/header.php';
                 <div id="ea_dados_faturamento" class="hidden md:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-3 bg-purple-50 dark:bg-purple-900/20 p-3 rounded border border-purple-200 dark:border-purple-800">
                     <div>
                         <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Valor Cobrado (R$)</label>
-                        <input type="number" step="0.01" id="ea_valor" name="valor_cobrado" placeholder="0.00" class="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded text-sm focus:ring-2 focus:ring-purple-500">
+                        <input type="text" id="ea_valor" name="valor_cobrado" placeholder="0.00" class="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded text-sm focus:ring-2 focus:ring-purple-500">
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Forma de Pagamento</label>
@@ -431,7 +426,6 @@ require_once 'includes/header.php';
     </div>
 </div>
 
-<!-- MODAL 3: BAIXA -->
 <div id="modalBaixa" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 hidden opacity-0 transition-opacity duration-300">
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md p-6 border border-gray-200 dark:border-gray-700 transform scale-95 transition-all duration-300" id="modalBaixaConteudo">
         <div class="flex justify-between items-center mb-4 border-b dark:border-gray-700 pb-2">
@@ -473,5 +467,6 @@ require_once 'includes/header.php';
 <script>
     window.CLIENTES_BASE_DATA = <?= json_encode($lista_clientes_base) ?>;
 </script>
-<script src="assets/js/assistencias.js"></script>
+<script src="assets/js/assistencias.js?v=<?= time() ?>"></script>
+
 <?php require_once 'includes/footer.php'; ?>

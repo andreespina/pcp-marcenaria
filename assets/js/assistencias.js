@@ -1,3 +1,5 @@
+// assets/js/assistencias.js
+
 function filtrarSelect(inputId, selectId) {
     let filter = document.getElementById(inputId).value.toUpperCase();
     let select = document.getElementById(selectId);
@@ -12,16 +14,28 @@ function autoPreencherFormulario(nomeCliente, prefixo) {
     if (!nomeCliente) return;
     const match = window.CLIENTES_BASE_DATA.find(c => c.nome_contrato === nomeCliente);
     if (match) {
-        document.getElementById(prefixo + '_endereco').value = match.endereco || '';
-        document.getElementById(prefixo + '_numero').value = match.numero_lote || '';
-        document.getElementById(prefixo + '_quadra').value = match.quadra || '';
-        document.getElementById(prefixo + '_bairro').value = match.bairro || '';
-        document.getElementById(prefixo + '_condominio').value = match.condominio || '';
-        document.getElementById(prefixo + '_complemento').value = match.complemento || '';
-        document.getElementById(prefixo + '_cidade').value = match.cidade || '';
-        document.getElementById(prefixo + '_cep').value = match.cep || '';
-        document.getElementById(prefixo + '_tel_fixo').value = match.telefone || '';
-        document.getElementById(prefixo + '_tel_cel').value = match.whatsapp || '';
+        if(document.getElementById(prefixo + '_endereco')) document.getElementById(prefixo + '_endereco').value = match.endereco || '';
+        if(document.getElementById(prefixo + '_numero')) document.getElementById(prefixo + '_numero').value = match.numero_lote || '';
+        if(document.getElementById(prefixo + '_quadra')) document.getElementById(prefixo + '_quadra').value = match.quadra || '';
+        if(document.getElementById(prefixo + '_bairro')) document.getElementById(prefixo + '_bairro').value = match.bairro || '';
+        if(document.getElementById(prefixo + '_condominio')) document.getElementById(prefixo + '_condominio').value = match.condominio || '';
+        if(document.getElementById(prefixo + '_complemento')) document.getElementById(prefixo + '_complemento').value = match.complemento || '';
+        if(document.getElementById(prefixo + '_cidade')) document.getElementById(prefixo + '_cidade').value = match.cidade || '';
+        if(document.getElementById(prefixo + '_cep')) document.getElementById(prefixo + '_cep').value = match.cep || '';
+        if(document.getElementById(prefixo + '_tel_fixo')) document.getElementById(prefixo + '_tel_fixo').value = match.telefone || '';
+        if(document.getElementById(prefixo + '_tel_cel')) document.getElementById(prefixo + '_tel_cel').value = match.whatsapp || '';
+    }
+}
+
+function toggleFaturamento(prefix) {
+    const el = document.getElementById(prefix + '_tipo_cobranca');
+    if (!el) return;
+    const tipo = el.value;
+    const div = document.getElementById(prefix + '_dados_faturamento');
+    if (tipo === 'FATURADA') {
+        div.classList.remove('hidden');
+    } else {
+        div.classList.add('hidden');
     }
 }
 
@@ -57,26 +71,64 @@ function imprimirOSAssistencia(dados) {
 }
 
 const modalNA = document.getElementById('modalNovaAssistencia'); const modalNAConteudo = document.getElementById('modalNovaAssistenciaConteudo');
-function abrirModalNovaAssistencia() { document.getElementById('search_na_cliente').value = ''; filtrarSelect('search_na_cliente', 'na_cliente'); modalNA.classList.remove('hidden'); setTimeout(() => { modalNA.classList.remove('opacity-0'); modalNAConteudo.classList.remove('scale-95'); }, 10); }
-function fecharModalNovaAssistencia() { modalNA.classList.add('opacity-0'); modalNAConteudo.classList.add('scale-95'); setTimeout(() => { modalNA.classList.add('hidden'); document.getElementById('formNovaAssistencia').reset(); }, 300); }
+function abrirModalNovaAssistencia() { 
+    if(!document.getElementById('search_na_cliente')) return;
+    document.getElementById('search_na_cliente').value = ''; 
+    filtrarSelect('search_na_cliente', 'na_cliente'); 
+    modalNA.classList.remove('hidden'); setTimeout(() => { modalNA.classList.remove('opacity-0'); modalNAConteudo.classList.remove('scale-95'); }, 10); 
+}
+function fecharModalNovaAssistencia() { 
+    modalNA.classList.add('opacity-0'); modalNAConteudo.classList.add('scale-95'); 
+    setTimeout(() => { modalNA.classList.add('hidden'); document.getElementById('formNovaAssistencia').reset(); toggleFaturamento('na'); }, 300); 
+}
+
 async function salvarNovaAssistencia(event) {
     event.preventDefault();
-    const payload = { projeto_id: null, cliente: document.getElementById('na_cliente').value, observacao: document.getElementById('na_observacao').value, endereco: document.getElementById('na_endereco').value, numero_lote: document.getElementById('na_numero').value, quadra: document.getElementById('na_quadra').value, bairro: document.getElementById('na_bairro').value, condominio: document.getElementById('na_condominio').value, complemento: document.getElementById('na_complemento').value, cidade: document.getElementById('na_cidade').value, cep: document.getElementById('na_cep').value, tel_fixo: document.getElementById('na_tel_fixo').value, tel_cel: document.getElementById('na_tel_cel').value };
-    try { const response = await fetch('api/nova_assistencia.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); const result = await response.json(); if (result.success) { window.location.reload(); } else { alert('Erro: ' + (result.error || 'Erro desconhecido')); } } catch (error) { alert('Erro de rede.'); }
+    const form = document.getElementById('formNovaAssistencia');
+    const formData = new FormData(form);
+    
+    try { 
+        const response = await fetch('api/nova_assistencia.php', { method: 'POST', body: formData }); 
+        const result = await response.json(); 
+        if (result.success) { window.location.reload(); } else { alert('Erro: ' + (result.error || 'Erro desconhecido')); } 
+    } catch (error) { alert('Erro de comunicação. Execute o código SQL do banco se for sua primeira vez atualizando.'); }
 }
 
 const modalEA = document.getElementById('modalEdicaoAssistencia'); const modalEAConteudo = document.getElementById('modalEdicaoAssistenciaConteudo');
 function abrirModalEdicaoAssistencia(dados) {
+    if(!document.getElementById('search_ea_cliente')) return;
     document.getElementById('search_ea_cliente').value = ''; filtrarSelect('search_ea_cliente', 'ea_cliente');
     document.getElementById('ea_id').value = dados.id; document.getElementById('ea_cliente').value = dados.cliente || ''; document.getElementById('ea_observacao').value = dados.obs || ''; document.getElementById('ea_endereco').value = dados.end || ''; document.getElementById('ea_numero').value = dados.num || ''; document.getElementById('ea_quadra').value = dados.qd || ''; document.getElementById('ea_bairro').value = dados.bairro || ''; document.getElementById('ea_condominio').value = dados.cond || ''; document.getElementById('ea_complemento').value = dados.comp || ''; document.getElementById('ea_cidade').value = dados.cid || ''; document.getElementById('ea_cep').value = dados.cep || ''; document.getElementById('ea_tel_fixo').value = dados.fixo || ''; document.getElementById('ea_tel_cel').value = dados.cel || '';
+    
+    document.getElementById('ea_tipo_cobranca').value = dados.tipo_cobranca || 'GARANTIA';
+    document.getElementById('ea_valor').value = dados.valor_cobrado || '';
+    document.getElementById('ea_forma_pagamento').value = dados.forma_pagamento || '';
+    toggleFaturamento('ea');
+
+    const linkComprovante = document.getElementById('ea_link_comprovante');
+    if (dados.comprovante_file) {
+        linkComprovante.href = dados.comprovante_file;
+        linkComprovante.classList.remove('hidden');
+    } else {
+        linkComprovante.classList.add('hidden');
+    }
+
     const refProjeto = dados.projeto_id ? `(Ref. Projeto Original #${dados.projeto_id})` : ''; document.getElementById('labelEditAstProjeto').innerText = `(ID #${dados.id}) ${refProjeto}`;
     modalEA.classList.remove('hidden'); setTimeout(() => { modalEA.classList.remove('opacity-0'); modalEAConteudo.classList.remove('scale-95'); }, 10);
 }
+
 function fecharModalEdicaoAssistencia() { modalEA.classList.add('opacity-0'); modalEAConteudo.classList.add('scale-95'); setTimeout(() => { modalEA.classList.add('hidden'); document.getElementById('formEdicaoAssistencia').reset(); }, 300); }
+
 async function salvarEdicaoAssistencia(event) {
     event.preventDefault();
-    const payload = { id: document.getElementById('ea_id').value, cliente: document.getElementById('ea_cliente').value, observacao: document.getElementById('ea_observacao').value, endereco: document.getElementById('ea_endereco').value, numero_lote: document.getElementById('ea_numero').value, quadra: document.getElementById('ea_quadra').value, bairro: document.getElementById('ea_bairro').value, condominio: document.getElementById('ea_condominio').value, complemento: document.getElementById('ea_complemento').value, cidade: document.getElementById('ea_cidade').value, cep: document.getElementById('ea_cep').value, tel_fixo: document.getElementById('ea_tel_fixo').value, tel_cel: document.getElementById('ea_tel_cel').value };
-    try { const response = await fetch('api/edit_assistencia.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); const result = await response.json(); if (result.success) { window.location.reload(); } else { alert('Erro: ' + (result.error || 'Erro desconhecido')); } } catch (error) { alert('Erro de rede.'); }
+    const form = document.getElementById('formEdicaoAssistencia');
+    const formData = new FormData(form);
+
+    try { 
+        const response = await fetch('api/edit_assistencia.php', { method: 'POST', body: formData }); 
+        const result = await response.json(); 
+        if (result.success) { window.location.reload(); } else { alert('Erro: ' + (result.error || 'Erro desconhecido')); } 
+    } catch (error) { alert('Erro de comunicação. Certifique-se que executou o SQL.'); }
 }
 
 const modalBaixa = document.getElementById('modalBaixa'); const modalBaixaConteudo = document.getElementById('modalBaixaConteudo');
@@ -91,6 +143,6 @@ async function salvarBaixaServidor(event) {
     try { const response = await fetch('api/concluir_assistencia.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); const result = await response.json(); if (result.success) { window.location.reload(); } else { alert('Erro: ' + (result.error || 'Erro desconhecido')); } } catch (error) { alert('Erro de rede.'); }
 }
 
-if(modalNA) modalNA.addEventListener('click', (e) => { if (e.target === modalNA) fecharModalNovaAssistencia(); });
-if(modalEA) modalEA.addEventListener('click', (e) => { if (e.target === modalEA) fecharModalEdicaoAssistencia(); });
-if(modalBaixa) modalBaixa.addEventListener('click', (e) => { if (e.target === modalBaixa) fecharModalBaixa(); });
+if(document.getElementById('modalNovaAssistencia')) document.getElementById('modalNovaAssistencia').addEventListener('click', (e) => { if (e.target === document.getElementById('modalNovaAssistencia')) fecharModalNovaAssistencia(); });
+if(document.getElementById('modalEdicaoAssistencia')) document.getElementById('modalEdicaoAssistencia').addEventListener('click', (e) => { if (e.target === document.getElementById('modalEdicaoAssistencia')) fecharModalEdicaoAssistencia(); });
+if(document.getElementById('modalBaixa')) document.getElementById('modalBaixa').addEventListener('click', (e) => { if (e.target === document.getElementById('modalBaixa')) fecharModalBaixa(); });
