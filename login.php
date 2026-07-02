@@ -26,23 +26,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $usuario = isset($_POST['usuario']) ? trim($_POST['usuario']) : '';
     $senha   = isset($_POST['senha']) ? $_POST['senha'] : '';
 
-    if (!empty($usuario) && !empty($senha)) {
-        $stmt = $pdo->prepare("SELECT id, usuario, senha FROM usuarios WHERE usuario = :usuario");
-        $stmt->execute(['usuario' => $usuario]);
-        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+   if (!empty($usuario) && !empty($senha)) {
+    // Adicionamos 'role' e 'permissoes' no SELECT
+    $stmt = $pdo->prepare("SELECT id, usuario, senha, role, permissoes FROM usuarios WHERE usuario = :usuario");
+    $stmt->execute(['usuario' => $usuario]);
+    $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        if ($user && password_verify($senha, $user['senha'])) {
+    if ($user && password_verify($senha, $user['senha'])) {
             $_SESSION['logado'] = true;
             $_SESSION['usuario_id'] = $user['id'];
             $_SESSION['usuario_nome'] = $user['usuario'];
             
+            // Salvamos as permissões na sessão usando a sintaxe tradicional compatível
+            $_SESSION['usuario_role'] = !empty($user['role']) ? $user['role'] : 'USER';
+            $_SESSION['usuario_permissoes'] = !empty($user['permissoes']) ? json_decode($user['permissoes'], true) : [];
+                         
             header("Location: index.php");
             exit;
         } else {
             $erro = "Usuário ou senha incorretos.";
         }
-    } else {
-        $erro = "Preencha todos os campos.";
     }
 }
 ?>

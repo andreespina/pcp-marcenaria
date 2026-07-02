@@ -1,39 +1,48 @@
 <?php
 // api/add_user.php
 require_once '../includes/auth.php';
-protegerAPI();
+// Garante que APENAS administradores ou pessoas com permissão 'usuarios' possam criar contas
+protegerAPI('usuarios');
+
 require_once '../config/conexao.php';
+require_once '../includes/logger.php'; // Adicionamos nosso Logger
 
-header('Content-Type: application/json');
-$json = file_get_contents('php://input');
-$data = json_decode($json);
+$data = json_decode(file_get_contents('php://input'), true);
 
-$usuario = isset($data->usuario) ? trim($data->usuario) : '';
-$senha   = isset($data->senha) ? $data->senha : '';
+// Sintaxe tradicional compatível com versões anteriores do PHP
+$usuario = isset($data['usuario']) ? trim($data['usuario']) : '';
+$senha = isset($data['senha']) ? $data['senha'] : '';
+$role = isset($data['role']) ? $data['role'] : 'USER';
+$permissoes = isset($data['permissoes']) ? $data['permissoes'] : [];
 
-if (!empty($usuario) && !empty($senha)) {
-    try {
-        // Verifica se usuário já existe
-        $stmt = $pdo->prepare("SELECT id FROM usuarios WHERE usuario = :usuario");
-        $stmt->execute(['usuario' => $usuario]);
-        
-        if ($stmt->fetch()) {
-            http_response_code(400);
-            echo json_encode(['success' => false, 'error' => 'Este usuário já está cadastrado.']);
-        } else {
-            // Criptografa a senha e cadastra
-            $senha_hash = password_hash($senha, PASSWORD_DEFAULT);
-            $stmt = $pdo->prepare("INSERT INTO usuarios (usuario, senha) VALUES (:usuario, :senha)");
-            $stmt->execute(['usuario' => $usuario, 'senha' => $senha_hash]);
-            echo json_encode(['success' => true]);
-        }
-    } catch (\PDOException $e) {
-        http_response_code(500);
-        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+if (empty($usuario) || empty($senha)) {
+    echo json_encode(['success' => false, 'error' => 'Preencha todos os campos.']);
+    exit;
+}
+
+try {
+    // Verifica se o usuário já existe
+    $check = $pdo->prepare("SELECT COUNT(*) FROM usuarios WHERE usuario = ?");
+    $check->execute([$usuario]);
+    if ($check->fetchColumn() > 0) {
+        echo json_encode(['success' => false, 'error' => 'Usuário já cadastrado.']);
+        exit;
     }
-    $pdo = null;
-} else {
-    http_response_code(400);
-    echo json_encode(['success' => false, 'error' => 'Usuário e senha são obrigatórios.']);
+
+    $senha_hash = password_hash($senha, PASSWORD_DEFAULT);
+    $permissoes_json = json_encode($permissoes);
+
+    $stmt = $pdo->prepare("INSERT INTO usuarios (usuario, senha, role, permissoes) VALUES (?, ?, ?, ?)");
+    $stmt->execute([$usuario, $senha_hash, $role, $permissoes_json]);
+    
+    $novo_id = $pdo->lastInsertId();
+
+    // SUCESSO! Vamos registrar no log de auditoria
+    registrarLog($pdo, 'CREATE', 'usuarios', $novo_id, "Cadastrou um novo usuário ($usuario) com nível $role");
+
+    echo json_encode(['success' => true]);
+
+} catch (\PDOException $e) {
+    echo json_encode(['success' => false, 'error' => 'Erro ao salvar no banco de dados.']);
 }
 ?>

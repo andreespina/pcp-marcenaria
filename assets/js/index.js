@@ -115,7 +115,44 @@ async function salvarEdicaoServidor(event) {
 
 const modalUsuario = document.getElementById('modalUsuario'); function abrirModalUsuario() { modalUsuario.classList.remove('hidden'); setTimeout(() => { modalUsuario.classList.remove('opacity-0'); document.getElementById('modalUsuarioConteudo').classList.remove('scale-95'); }, 10); }
 function fecharModalUsuario() { modalUsuario.classList.add('opacity-0'); document.getElementById('modalUsuarioConteudo').classList.add('scale-95'); setTimeout(() => { modalUsuario.classList.add('hidden'); document.getElementById('formUsuario').reset(); }, 300); }
-async function salvarUsuarioServidor(event) { event.preventDefault(); const payload = { usuario: document.getElementById('novo_login').value, senha: document.getElementById('novo_senha').value }; try { const response = await fetch('api/add_user.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); const result = await response.json(); if (result.success) { alert('Usuário cadastrado!'); fecharModalUsuario(); } else { alert('Erro: ' + result.error); } } catch (error) { alert('Erro de rede.'); } }
+async function salvarUsuarioServidor(event) { 
+    event.preventDefault(); 
+    
+    // Captura o nível selecionado
+    const roleSelecionado = document.getElementById('novo_role') ? document.getElementById('novo_role').value : 'USER';
+    
+    // Captura as checkboxes que estiverem marcadas
+    const checkboxes = document.querySelectorAll('input[name="permissoes[]"]:checked');
+    let permissoesSelecionadas = [];
+    checkboxes.forEach((cb) => {
+        permissoesSelecionadas.push(cb.value);
+    });
+
+    const payload = { 
+        usuario: document.getElementById('novo_login').value, 
+        senha: document.getElementById('novo_senha').value,
+        role: roleSelecionado,
+        permissoes: permissoesSelecionadas
+    }; 
+    
+    try { 
+        const response = await fetch('api/add_user.php', { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' }, 
+            body: JSON.stringify(payload) 
+        }); 
+        const result = await response.json(); 
+        
+        if (result.success) { 
+            alert('Usuário cadastrado com sucesso!'); 
+            fecharModalUsuario(); 
+        } else { 
+            alert('Erro: ' + result.error); 
+        } 
+    } catch (error) { 
+        alert('Erro de rede.'); 
+    } 
+}
 
 const modalSenha = document.getElementById('modalSenha'); function abrirModalSenha() { modalSenha.classList.remove('hidden'); setTimeout(() => { modalSenha.classList.remove('opacity-0'); document.getElementById('modalSenhaConteudo').classList.remove('scale-95'); }, 10); }
 function fecharModalSenha() { modalSenha.classList.add('opacity-0'); document.getElementById('modalSenhaConteudo').classList.add('scale-95'); setTimeout(() => { modalSenha.classList.add('hidden'); document.getElementById('formSenha').reset(); }, 300); }
