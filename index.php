@@ -99,7 +99,6 @@ $main_class = 'flex-1';
 $menu_button_text = 'MENU';
 $menu_button_class = 'bg-[#1e3a8a] dark:bg-blue-600 hover:bg-blue-800 dark:hover:bg-blue-500 text-white';
 
-// AQUI ESTÁ O SCRIPT DO SORTABLE QUE TINHA SUMIDO!
 $head_extras = '
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
 <style>
@@ -296,9 +295,7 @@ require_once 'includes/header.php';
 
                     <div class="bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 border border-gray-200 dark:border-gray-600 p-3 rounded shadow-sm cursor-grab active:cursor-grabbing transition-all duration-200" data-id="<?= $p['id'] ?>">
                         <div class="flex justify-between items-start mb-1">
-                            <div class="flex items-center space-x-1.5">
-                                <span class="text-[10px] font-bold text-blue-600 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/50 px-1.5 py-0.5 rounded">ID #<?= $p['id'] ?></span>
-                                
+                            <div class="flex items-center space-x-1.5 w-full justify-end">
                                 <button onclick='imprimirFicha(<?= $p['id'] ?>, <?= jsSafe($p['cliente']) ?>, <?= jsSafe($conf['titulo']) ?>, <?= jsSafe($p['data_limite']) ?>, <?= jsSafe($p['observacao']) ?>, <?= jsSafe($p['promob']) ?>, <?= jsSafe($p['corte_furacao']) ?>, <?= jsSafe($p['lista_compras']) ?>, <?= jsSafe($p['lista_ferragens']) ?>, <?= jsSafe($chk_resp) ?>, <?= jsSafe($med_agen) ?>, <?= jsSafe($med_data) ?>, <?= jsSafe($equipe_inst) ?>, <?= jsSafe($dt_ini_inst) ?>, <?= jsSafe($dt_fim_inst) ?>, <?= jsSafe($dias_uteis) ?>, <?= jsSafe($proj_exec) ?>)' class="text-gray-400 hover:text-gray-800 dark:hover:text-gray-100 transition-colors text-xs px-1" title="Imprimir Ordem de Serviço">
                                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
                                 </button>
@@ -667,49 +664,48 @@ require_once 'includes/header.php';
             <h3 class="text-lg font-bold text-[#1e3a8a] dark:text-blue-400">Cadastrar Novo Usuário</h3>
             <button onclick="fecharModalUsuario()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-2xl font-bold">&times;</button>
         </div>
-       <form id="formUsuario" onsubmit="salvarUsuarioServidor(event)">
-    <div class="mb-4">
-        <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Login do Usuário</label>
-        <input type="text" id="novo_login" required class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-2 focus:ring-blue-500">
-    </div>
-    <div class="mb-4">
-        <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Criar Senha</label>
-        <input type="password" id="novo_senha" required class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-2 focus:ring-blue-500">
-    </div>
-    <div class="mb-4 border-t dark:border-gray-700 pt-4">
-        <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Nível de Acesso</label>
-        <select id="novo_role" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded mb-4 focus:ring-2 focus:ring-blue-500" onchange="togglePermissoes()">
-            <option value="USER">Usuário Padrão (Escolher Acessos)</option>
-            <option value="ADMIN">Administrador (Acesso Total)</option>
-        </select>
-
-        <div id="div_permissoes">
-            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Módulos Permitidos</label>
-            <div class="grid grid-cols-2 gap-2 text-sm text-gray-700 dark:text-gray-300">
-                <label><input type="checkbox" name="permissoes[]" value="projetos" class="mr-1"> Projetos (PCP)</label>
-                <label><input type="checkbox" name="permissoes[]" value="clientes" class="mr-1"> Clientes</label>
-                <label><input type="checkbox" name="permissoes[]" value="almoxarifado" class="mr-1"> Almoxarifado</label>
-                <label><input type="checkbox" name="permissoes[]" value="assistencias" class="mr-1"> Assistências</label>
-                <label><input type="checkbox" name="permissoes[]" value="recados" class="mr-1"> Recados</label>
-                <label><input type="checkbox" name="permissoes[]" value="relatorios" class="mr-1"> Relatórios</label>
+        <form id="formUsuario" onsubmit="salvarUsuarioServidor(event)">
+            <div class="mb-4">
+                <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Login do Usuário</label>
+                <input type="text" id="novo_login" required class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-2 focus:ring-blue-500">
             </div>
-        </div>
+            <div class="mb-4">
+                <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Criar Senha</label>
+                <input type="password" id="novo_senha" required class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div class="mb-4 border-t dark:border-gray-700 pt-4">
+                <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Nível de Acesso</label>
+                <select id="novo_role" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded mb-4 focus:ring-2 focus:ring-blue-500" onchange="togglePermissoes()">
+                    <option value="USER">Usuário Padrão (Escolher Acessos)</option>
+                    <option value="ADMIN">Administrador (Acesso Total)</option>
+                </select>
+
+                <div id="div_permissoes">
+                    <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Módulos Permitidos</label>
+                    <div class="grid grid-cols-2 gap-2 text-sm text-gray-700 dark:text-gray-300">
+                        <label><input type="checkbox" name="permissoes[]" value="projetos" class="mr-1"> Projetos (PCP)</label>
+                        <label><input type="checkbox" name="permissoes[]" value="clientes" class="mr-1"> Clientes</label>
+                        <label><input type="checkbox" name="permissoes[]" value="almoxarifado" class="mr-1"> Almoxarifado</label>
+                        <label><input type="checkbox" name="permissoes[]" value="assistencias" class="mr-1"> Assistências</label>
+                        <label><input type="checkbox" name="permissoes[]" value="recados" class="mr-1"> Recados</label>
+                        <label><input type="checkbox" name="permissoes[]" value="relatorios" class="mr-1"> Relatórios</label>
+                    </div>
+                </div>
+            </div>
+            <div class="flex justify-end space-x-3 border-t dark:border-gray-700 pt-4">
+                <button type="button" onclick="fecharModalUsuario()" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition font-medium">Cancelar</button>
+                <button type="submit" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded font-bold transition shadow-sm">Cadastrar</button>
+            </div>
+        </form>
     </div>
-    <div class="flex justify-end space-x-3 border-t dark:border-gray-700 pt-4">
-        <button type="button" onclick="fecharModalUsuario()" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition font-medium">Cancelar</button>
-        <button type="submit" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded font-bold transition shadow-sm">Cadastrar</button>
-    </div>
-</form>
+</div>
 
 <script>
-// Script simples para esconder as checkboxes se for selecionado ADMIN
 function togglePermissoes() {
     const role = document.getElementById('novo_role').value;
     document.getElementById('div_permissoes').style.display = (role === 'ADMIN') ? 'none' : 'block';
 }
 </script>
-    </div>
-</div>
 
 <div id="modalSenha" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 hidden opacity-0 transition-opacity duration-300">
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-sm p-6 border border-gray-200 dark:border-gray-700 transform scale-95 transition-all duration-300" id="modalSenhaConteudo">
