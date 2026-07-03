@@ -114,20 +114,32 @@ require_once 'includes/header.php';
 
             <div id="col-<?= $status_chave ?>" data-status="<?= $status_chave ?>" class="kanban-column flex-1 overflow-y-auto space-y-3 pr-1">
                 
-                <?php foreach ($lista_assistencias as $a): ?>
-                    <?php $cardData = htmlspecialchars(json_encode([
-                        'id' => $a['id'], 'projeto_id' => $a['projeto_id'], 'cliente' => $a['cliente'], 'obs' => $a['obs_assistencia'],
-                        'end' => $a['endereco'], 'num' => $a['numero_lote'], 'qd' => $a['quadra'],
-                        'bairro' => $a['bairro'], 'cond' => $a['condominio'], 'comp' => $a['complemento'],
-                        'cid' => $a['cidade'], 'cep' => $a['cep'], 'fixo' => $a['tel_fixo'], 'cel' => $a['tel_cel'],
-                        'dt_solic_raw' => $a['data_solicitacao'], 'dt_agend_raw' => $a['data_assistencia'],
-                        'dt_solic' => formatarDataPrint($a['data_solicitacao']), 'dt_agend' => formatarDataPrint($a['data_assistencia']),
-                        'resolvido' => $a['resolvido_assistencia'], 'tecnico' => $a['tecnico_assistencia'],
-                        'tipo_cobranca' => isset($a['tipo_cobranca']) ? $a['tipo_cobranca'] : 'GARANTIA', 
-                        'valor_cobrado' => isset($a['valor_cobrado']) ? $a['valor_cobrado'] : null,
-                        'forma_pagamento' => isset($a['forma_pagamento']) ? $a['forma_pagamento'] : null, 
-                        'comprovante_file' => isset($a['comprovante_file']) ? $a['comprovante_file'] : null
-                    ]), ENT_QUOTES, 'UTF-8'); ?>
+          <?php foreach ($lista_assistencias as $a): ?>
+                    <?php 
+                        // Calcula o código de exibição ANTES de gerar o JSON
+                        $codigo_exibicao = '';
+                        if (!empty($a['codigo_cliente'])) {
+                            $codigo_exibicao = $a['codigo_cliente'];
+                        } elseif (!empty($a['id_cadastro'])) {
+                            $codigo_exibicao = "CLI-" . str_pad($a['id_cadastro'], 2, "0", STR_PAD_LEFT);
+                        }
+
+                        // Cria os dados do Card injetando o código do cliente
+                        $cardData = htmlspecialchars(json_encode([
+                            'id' => $a['id'], 'projeto_id' => $a['projeto_id'], 'cliente' => $a['cliente'], 'obs' => $a['obs_assistencia'],
+                            'codigo_cli' => $codigo_exibicao,
+                            'end' => $a['endereco'], 'num' => $a['numero_lote'], 'qd' => $a['quadra'],
+                            'bairro' => $a['bairro'], 'cond' => $a['condominio'], 'comp' => $a['complemento'],
+                            'cid' => $a['cidade'], 'cep' => $a['cep'], 'fixo' => $a['tel_fixo'], 'cel' => $a['tel_cel'],
+                            'dt_solic_raw' => $a['data_solicitacao'], 'dt_agend_raw' => $a['data_assistencia'],
+                            'dt_solic' => formatarDataPrint($a['data_solicitacao']), 'dt_agend' => formatarDataPrint($a['data_assistencia']),
+                            'resolvido' => $a['resolvido_assistencia'], 'tecnico' => $a['tecnico_assistencia'],
+                            'tipo_cobranca' => isset($a['tipo_cobranca']) ? $a['tipo_cobranca'] : 'GARANTIA', 
+                            'valor_cobrado' => isset($a['valor_cobrado']) ? $a['valor_cobrado'] : null,
+                            'forma_pagamento' => isset($a['forma_pagamento']) ? $a['forma_pagamento'] : null, 
+                            'comprovante_file' => isset($a['comprovante_file']) ? $a['comprovante_file'] : null
+                        ]), ENT_QUOTES, 'UTF-8'); 
+                    ?>
                     
                     <div class="bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 border border-gray-200 dark:border-gray-600 p-3 rounded shadow-sm cursor-grab active:cursor-grabbing transition-all duration-200" 
                          data-id="<?= $a['id'] ?>" data-nome="<?= htmlspecialchars(strtolower($a['cliente'])) ?>" data-time="<?= strtotime($a['data_solicitacao']) ?>" data-json='<?= $cardData ?>'>
@@ -149,14 +161,6 @@ require_once 'includes/header.php';
                             <span class="text-[10px] font-semibold text-gray-500 dark:text-gray-400">Criada: <?= formatarData($a['data_solicitacao']) ?></span>
                         </div>
                         
-                        <?php 
-                            $codigo_exibicao = '';
-                            if (!empty($a['codigo_cliente'])) {
-                                $codigo_exibicao = $a['codigo_cliente'];
-                            } elseif (!empty($a['id_cadastro'])) {
-                                $codigo_exibicao = "CLI-" . str_pad($a['id_cadastro'], 2, "0", STR_PAD_LEFT);
-                            }
-                        ?>
                         <p class="font-bold text-gray-800 dark:text-gray-100 uppercase text-xs mt-1 flex items-center">
                             <?php if($codigo_exibicao): ?>
                                 <span class="text-amber-600 dark:text-amber-500 font-black mr-1.5">[<?= htmlspecialchars($codigo_exibicao) ?>]</span>

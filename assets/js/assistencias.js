@@ -65,9 +65,112 @@ function chamarBaixa(btn) { const dados = lerDadosCard(btn); abrirModalBaixa(dad
 
 function imprimirOSAssistencia(dados) {
     let obsItens = ''; 
-    if(dados.obs) { const linhas = dados.obs.split(/\r?\n/); linhas.forEach(linha => { if(linha.trim() !== '') obsItens += `<li>${linha.trim()}</li>`; }); } else { obsItens = `<li>Verificar defeito no local.</li>`; }
-    const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>OS Assistência - AST ${dados.id}</title><style>@media print { @page { margin: 1.5cm; } body { font-family: 'Times New Roman', Times, serif; color: #000; margin: 0; padding: 0; background: #fff; } .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; } .logo-img { max-width: 160px; height: auto; } .date-box { border: 1px solid #000; padding: 8px 12px; min-width: 250px; font-size: 14px; } .date-box p { margin: 4px 0; } .title-row { display: flex; justify-content: space-between; align-items: baseline; margin-top: 30px; margin-bottom: 20px; border-bottom: 1px solid #000; padding-bottom:10px; } .title-row h1 { font-size: 24px; font-weight: normal; margin: 0; } .title-row h2 { font-size: 20px; font-weight: normal; margin: 0; } .client-info { font-size: 14px; line-height: 2.2; width: 100%; border-bottom: 1px solid #000; padding-bottom: 15px; margin-bottom: 20px; } .client-info table { width: 100%; border-collapse: collapse; } .client-info td { vertical-align: bottom; } .tasks { margin-top: 20px; font-size: 15px; font-weight: bold; min-height: 350px; } .tasks ul { list-style-type: none; padding-left: 0; margin-top: 5px; line-height: 1.8; } .tasks li::before { content: "* "; } .footer-section { margin-top: auto; padding-top: 40px; } .warning { font-size: 14px; font-weight: bold; text-align: left; margin-bottom: 60px; } .signature-row { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 45px; } .sig-box-name { width: 65%; border-top: 1px solid #000; text-align: center; font-size: 12px; padding-top: 5px; } .sig-box-date { width: 25%; border-top: 1px solid #000; text-align: center; font-size: 12px; padding-top: 5px; } } body { font-family: 'Times New Roman', serif; max-width: 800px; margin: 40px auto; line-height: 1.8; color: #000;} .header { display: flex; justify-content: space-between; align-items: flex-start; } .logo-img { max-width: 160px; } .date-box { border: 1px solid #000; padding: 8px 12px; min-width: 250px; } .title-row { display: flex; justify-content: space-between; align-items: baseline; margin-top: 30px; border-bottom: 1px solid #000; padding-bottom:10px;} .client-info { border-bottom: 1px solid #000; padding-bottom: 15px; margin: 20px 0; font-size: 14px; } .client-info table { width: 100%; } .tasks { font-weight: bold; font-size: 15px; min-height: 200px; } .tasks ul { list-style-type: none; padding-left: 0; } .tasks li::before { content: "* "; } .warning { font-weight: bold; margin-bottom: 40px; margin-top: 60px; } .signature-row { display: flex; justify-content: space-between; margin-bottom: 40px; } .sig-box-name { width: 65%; border-top: 1px solid #000; text-align: center; font-size: 13px; padding-top: 5px; } .sig-box-date { width: 25%; border-top: 1px solid #000; text-align: center; font-size: 13px; padding-top: 5px; } </style></head><body><div class="header"><img src="assets/images/sbg_oficial.png" class="logo-img" alt="SBG Móveis & Design" onerror="this.style.display='none';"><div class="date-box"><p>Data da solicitação: <strong>${dados.dt_solic || ''}</strong></p><p>Data agendada: <strong>${dados.dt_agend || ''}</strong></p></div></div><div class="title-row"><h1>Assistência Técnica</h1><h2>AST ${dados.id}</h2><h2>ID </h2></div><div class="client-info"><table><tr><td colspan="2">Cliente: <strong>${dados.cliente || ''}</strong></td><td style="text-align: right;">Número: Lote</td></tr><tr><td colspan="2">Endereço: <strong>${dados.end || ''}</strong></td><td style="text-align: right;"><strong>${dados.num || ''}</strong>, Quadra <strong>${dados.qd || ''}</strong></td></tr><tr><td style="width: 40%;">Bairro: <strong>${dados.bairro || ''}</strong></td><td colspan="2">Condomínio: <strong>${dados.cond || ''}</strong></td></tr><tr><td>Complemento: <strong>${dados.comp || ''}</strong></td><td>Cidade: <strong>${dados.cid || ''}</strong></td><td style="text-align: right;">CEP: <strong>${dados.cep || ''}</strong></td></tr><tr><td>Tel. Fixo: <strong>${dados.fixo || ''}</strong></td><td colspan="2">Tel. Cel: <strong>${dados.cel || ''}</strong></td></tr></table></div><div class="tasks"><ul>${obsItens}</ul></div><div class="footer-section"><div class="warning">OBS: Não fazer nada a mais do que está descrito nesta ordem de serviço.</div><div class="signature-row"><div class="sig-box-name">Assinatura do Cliente</div><div class="sig-box-date">Data</div></div><div class="signature-row"><div class="sig-box-name">Assinatura do Montador</div><div class="sig-box-date">Data</div></div><div class="signature-row"><div class="sig-box-name">Assinatura do Responsável Técnico</div><div class="sig-box-date">Data</div></div></div></body></html>`;
-    const janelaPrint = window.open('', '_blank', 'width=800,height=800'); janelaPrint.document.write(html); janelaPrint.document.close(); janelaPrint.focus(); setTimeout(() => { janelaPrint.print(); janelaPrint.close(); }, 500);
+    if(dados.obs) { 
+        const linhas = dados.obs.split(/\r?\n/); 
+        linhas.forEach(linha => { 
+            if(linha.trim() !== '') obsItens += `<li>${linha.trim()}</li>`; 
+        }); 
+    } else { 
+        obsItens = `<li>Verificar defeito no local.</li>`; 
+    }
+    
+    // Configura o texto do Código do Cliente
+    const codigoCli = dados.codigo_cli ? `[${dados.codigo_cli}]` : '';
+
+    const html = `<!DOCTYPE html>
+    <html lang="pt-BR">
+    <head>
+        <meta charset="UTF-8">
+        <title>OS Assistência - AST #${dados.id}</title>
+        <style>
+            @media print { 
+                /* Remove as margens da página para tirar os cabeçalhos/links do navegador */
+                @page { margin: 0; } 
+                body { margin: 0; padding: 1.5cm; } 
+            } 
+            body { font-family: 'Times New Roman', Times, serif; color: #000; max-width: 800px; margin: 40px auto; line-height: 1.6; }
+            .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
+            .logo-img { max-width: 160px; height: auto; }
+            .date-box { border: 1px solid #000; padding: 8px 12px; min-width: 220px; font-size: 14px; }
+            .date-box p { margin: 4px 0; }
+            .title-row { display: flex; justify-content: space-between; align-items: baseline; margin-top: 20px; margin-bottom: 20px; border-bottom: 2px solid #000; padding-bottom: 10px; }
+            .title-row h1 { font-size: 24px; font-weight: bold; margin: 0; text-transform: uppercase; }
+            .title-row h2 { font-size: 18px; font-weight: bold; margin: 0; color: #333; }
+            .client-info { font-size: 14px; width: 100%; border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 20px; }
+            .client-info table { width: 100%; border-collapse: collapse; }
+            .client-info td { padding: 4px 0; vertical-align: top; }
+            .address-box { margin-top: 8px; padding: 12px; border: 1px solid #ccc; background-color: #f9f9f9; border-radius: 4px; }
+            .tasks { margin-top: 20px; font-size: 15px; font-weight: bold; min-height: 250px; }
+            .tasks ul { list-style-type: none; padding-left: 0; margin-top: 10px; line-height: 1.8; }
+            .tasks li::before { content: "- "; }
+            .footer-section { margin-top: 40px; padding-top: 20px; }
+            .warning { font-size: 13px; font-weight: bold; text-align: left; margin-bottom: 50px; text-transform: uppercase; }
+            .signature-row { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 40px; }
+            .sig-box-name { width: 60%; border-top: 1px solid #000; text-align: center; font-size: 12px; padding-top: 5px; }
+            .sig-box-date { width: 30%; border-top: 1px solid #000; text-align: center; font-size: 12px; padding-top: 5px; }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <img src="assets/images/sbg_oficial.png" class="logo-img" alt="SBG Móveis & Design" onerror="this.style.display='none';">
+            <div class="date-box">
+                <p>Solicitação: <strong>${dados.dt_solic || '-'}</strong></p>
+                <p>Agendado: <strong>${dados.dt_agend || '-'}</strong></p>
+            </div>
+        </div>
+        
+        <div class="title-row">
+            <h1>OS Assistência Técnica</h1>
+            <h2>AST #${dados.id} &nbsp; ${codigoCli}</h2>
+        </div>
+        
+        <div class="client-info">
+            <table>
+                <tr>
+                    <td colspan="2" style="font-size: 16px;">Cliente: <strong style="text-transform: uppercase;">${dados.cliente || '-'}</strong></td>
+                </tr>
+                <tr>
+                    <td colspan="2">
+                        <div class="address-box">
+                            <div style="margin-bottom: 4px;"><strong>Endereço:</strong> ${dados.end || '-'}, <strong>Nº/Lote:</strong> ${dados.num || '-'}, <strong>Quadra:</strong> ${dados.qd || '-'}</div>
+                            <div style="margin-bottom: 4px;"><strong>Bairro:</strong> ${dados.bairro || '-'} &nbsp;|&nbsp; <strong>Condomínio:</strong> ${dados.cond || '-'}</div>
+                            <div><strong>Complemento:</strong> ${dados.comp || '-'} &nbsp;|&nbsp; <strong>Cidade/UF:</strong> ${dados.cid || '-'} &nbsp;|&nbsp; <strong>CEP:</strong> ${dados.cep || '-'}</div>
+                        </div>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding-top: 15px; width: 50%;">Telefone Fixo: <strong>${dados.fixo || '-'}</strong></td>
+                    <td style="padding-top: 15px; width: 50%;">WhatsApp/Celular: <strong>${dados.cel || '-'}</strong></td>
+                </tr>
+            </table>
+        </div>
+        
+        <div class="tasks">
+            <p style="margin:0; text-transform: uppercase; border-bottom: 1px solid #ccc; display: inline-block;">Defeito / Relato / Serviço a executar:</p>
+            <ul>
+                ${obsItens}
+            </ul>
+        </div>
+        
+        <div class="footer-section">
+            <div class="warning">OBS: Não executar nenhum serviço a mais além do que está descrito nesta ordem de serviço.</div>
+            <div class="signature-row">
+                <div class="sig-box-name">Assinatura do Cliente</div>
+                <div class="sig-box-date">Data</div>
+            </div>
+            <div class="signature-row">
+                <div class="sig-box-name">Assinatura do Montador / Técnico</div>
+                <div class="sig-box-date">Data</div>
+            </div>
+        </div>
+    </body>
+    </html>`;
+
+    const janelaPrint = window.open('', '_blank', 'width=800,height=800'); 
+    janelaPrint.document.write(html); 
+    janelaPrint.document.close(); 
+    janelaPrint.focus(); 
+    setTimeout(() => { janelaPrint.print(); janelaPrint.close(); }, 500);
 }
 
 const modalNA = document.getElementById('modalNovaAssistencia'); const modalNAConteudo = document.getElementById('modalNovaAssistenciaConteudo');
