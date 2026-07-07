@@ -308,7 +308,9 @@ require_once 'includes/header.php';
 
                                 <button onclick='abrirModalEdicao(event, <?= $p['id'] ?>, <?= jsSafe($p['cliente']) ?>, <?= jsSafe($p['data_limite']) ?>, <?= jsSafe($p['observacao']) ?>, <?= jsSafe($p['promob']) ?>, <?= jsSafe($p['corte_furacao']) ?>, <?= jsSafe($p['lista_compras']) ?>, <?= jsSafe($p['lista_ferragens']) ?>, <?= jsSafe($chk_resp) ?>, <?= jsSafe($chk_link) ?>, <?= jsSafe($med_agen) ?>, <?= jsSafe($med_data) ?>, <?= jsSafe($equipe_inst) ?>, <?= jsSafe($dt_ini_inst) ?>, <?= jsSafe($dt_fim_inst) ?>, <?= jsSafe($proj_exec) ?>)' class="text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors text-xs px-1" title="Editar Projeto">&#9998;</button>
                                 
-                                <button onclick="deletarCliente(event, <?= $p['id'] ?>)" class="text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors text-sm px-1" title="Apagar Projeto">&times;</button>
+                                <?php if ($role === 'ADMIN'): ?>
+                                    <button onclick="deletarCliente(event, <?= $p['id'] ?>)" class="text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors text-sm px-1" title="Apagar Projeto">&times;</button>
+                                <?php endif; ?>
                             </div>
                         </div>
 

@@ -4,6 +4,9 @@ require_once 'includes/auth.php';
 protegerPagina();
 require_once 'config/conexao.php';
 
+// Define a permissão do usuário
+$role = isset($_SESSION['usuario_role']) ? $_SESSION['usuario_role'] : 'USER';
+
 // Colunas do Kanban de Assistências
 $titulos_colunas = [
     'pendente'  => ['titulo' => 'SOLICITAÇÕES PENDENTES', 'cor' => 'border-red-500 text-red-700 dark:text-red-400'],
@@ -157,6 +160,12 @@ require_once 'includes/header.php';
                                 <button onclick="chamarBaixa(this)" class="text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300 transition-colors text-sm px-1 font-bold" title="Gerenciar / Dar Baixa">
                                     <svg class="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
                                 </button>
+                                
+                                <?php if ($role === 'ADMIN'): ?>
+                                    <button onclick="deletarAssistencia(event, <?= $a['id'] ?>)" class="text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors text-sm px-1 font-bold" title="Apagar Assistência">
+                                        &times;
+                                    </button>
+                                <?php endif; ?>
                             </div>
                             <span class="text-[10px] font-semibold text-gray-500 dark:text-gray-400">Criada: <?= formatarData($a['data_solicitacao']) ?></span>
                         </div>
@@ -470,6 +479,37 @@ require_once 'includes/header.php';
 
 <script>
     window.CLIENTES_BASE_DATA = <?= json_encode($lista_clientes_base) ?>;
+    
+    // Função de Exclusão de Assistência
+    async function deletarAssistencia(event, id) {
+        event.stopPropagation();
+        if (!confirm(`Deseja realmente apagar a assistência #${id}? Esta ação não pode ser desfeita.`)) return;
+        
+        const cardElement = document.querySelector(`[data-id="${id}"]`);
+        
+        try {
+            const response = await fetch('api/delete_assistencia.php', { 
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json' }, 
+                body: JSON.stringify({ id: id }) 
+            });
+            const result = await response.json();
+            
+            if (result.success) { 
+                if(cardElement) {
+                    cardElement.style.opacity = '0'; 
+                    cardElement.style.transform = 'scale(0.9)'; 
+                    setTimeout(() => cardElement.remove(), 200); 
+                } else {
+                    window.location.reload();
+                }
+            } else {
+                alert('Erro ao excluir: ' + (result.error || 'Erro desconhecido'));
+            }
+        } catch (error) { 
+            alert('Erro de rede ao tentar excluir.'); 
+        }
+    }
 </script>
 <script src="assets/js/assistencias.js?v=<?= time() ?>"></script>
 
