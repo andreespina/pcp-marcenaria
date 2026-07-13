@@ -9,14 +9,10 @@ function calcularDiasUteis($data_inicial, $data_final) {
     if (!$data_inicial || !$data_final) return null;
     $inicio = new DateTime($data_inicial);
     $fim = new DateTime($data_final);
-    if ($inicio > $fim) return 0; // Prevenção de erro
-    
+    if ($inicio > $fim) return 0;
     $diasUteis = 0;
     while ($inicio <= $fim) {
-        // 'N' retorna 1 (segunda) até 7 (domingo)
-        if ($inicio->format('N') < 6) {
-            $diasUteis++;
-        }
+        if ($inicio->format('N') < 6) { $diasUteis++; }
         $inicio->modify('+1 day');
     }
     return $diasUteis;
@@ -705,6 +701,7 @@ require_once 'includes/header.php';
                         <label><input type="checkbox" name="permissoes[]" value="assistencias" class="mr-1"> Assistências</label>
                         <label><input type="checkbox" name="permissoes[]" value="recados" class="mr-1"> Recados</label>
                         <label><input type="checkbox" name="permissoes[]" value="relatorios" class="mr-1"> Relatórios</label>
+                        <label><input type="checkbox" name="permissoes[]" value="financeiro"> Financeiro</label>
                     </div>
                 </div>
             </div>
