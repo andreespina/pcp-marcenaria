@@ -5,40 +5,53 @@ protegerAPI();
 require_once '../config/conexao.php';
 
 header('Content-Type: application/json');
+$data = json_decode(file_get_contents('php://input'), true);
 
-$json = file_get_contents('php://input');
-$data = json_decode($json);
-
-if (isset($data->id) && isset($data->tipo) && isset($data->valor) && isset($data->descricao) && isset($data->data_vencimento)) {
+if ($data && isset($data['id'])) {
     try {
+        $entidade_id = !empty($data['entidade_id']) ? (int) $data['entidade_id'] : null;
+        $entidade_tipo = !empty($data['entidade_tipo']) ? $data['entidade_tipo'] : 'CLIENTE';
+        $forma_pagamento = !empty($data['forma_pagamento']) ? mb_strtoupper($data['forma_pagamento'], 'UTF-8') : null;
+        $num_parcelas = !empty($data['num_parcelas']) ? (int) $data['num_parcelas'] : 1;
+        $valor_parcela = !empty($data['valor_parcela']) ? (float) $data['valor_parcela'] : (float) $data['valor'];
+        $data_documento = !empty($data['data_documento']) ? $data['data_documento'] : null;
+        $data_vencimento = !empty($data['data_vencimento']) ? $data['data_vencimento'] : null;
+        $plano_contas = !empty($data['plano_contas']) ? mb_strtoupper($data['plano_contas'], 'UTF-8') : null;
+        $centro_custo = !empty($data['centro_custo']) ? mb_strtoupper($data['centro_custo'], 'UTF-8') : null;
+        $tipo_documento = !empty($data['tipo_documento']) ? mb_strtoupper($data['tipo_documento'], 'UTF-8') : null;
+        $num_documento = !empty($data['num_documento']) ? mb_strtoupper($data['num_documento'], 'UTF-8') : null;
+        $observacao = !empty($data['observacao']) ? $data['observacao'] : '';
+
         $stmt = $pdo->prepare("UPDATE financeiro SET 
-                                tipo = :tipo, 
-                                valor = :valor, 
-                                descricao = :descricao, 
-                                cliente_fornecedor = :cliente, 
-                                categoria = :categoria, 
-                                data_vencimento = :vencimento, 
-                                observacao = :observacao 
-                               WHERE id = :id");
+            tipo = :tipo, descricao = :desc, entidade_id = :ent_id, entidade_tipo = :ent_tipo, 
+            valor = :valor, data_vencimento = :venc, forma_pagamento = :forma, 
+            num_parcelas = :parcelas, valor_parcela = :vlr_parc, data_documento = :dt_doc, 
+            plano_contas = :plano, centro_custo = :custo, tipo_documento = :tipo_doc, 
+            num_documento = :num_doc, observacao = :obs
+            WHERE id = :id");
         
         $stmt->execute([
-            'id'         => (int) $data->id,
-            'tipo'       => $data->tipo,
-            'valor'      => (float) $data->valor,
-            'descricao'  => mb_strtoupper($data->descricao, 'UTF-8'),
-            'cliente'    => mb_strtoupper($data->cliente_fornecedor ?? '', 'UTF-8'),
-            'categoria'  => mb_strtoupper($data->categoria ?? '', 'UTF-8'),
-            'vencimento' => $data->data_vencimento,
-            'observacao' => $data->observacao ?? ''
+            'id'        => $data['id'],
+            'tipo'      => $data['tipo'],
+            'desc'      => mb_strtoupper($data['descricao'], 'UTF-8'),
+            'ent_id'    => $entidade_id,
+            'ent_tipo'  => $entidade_tipo,
+            'valor'     => (float) $data['valor'],
+            'venc'      => $data_vencimento,
+            'forma'     => $forma_pagamento,
+            'parcelas'  => $num_parcelas,
+            'vlr_parc'  => $valor_parcela,
+            'dt_doc'    => $data_documento,
+            'plano'     => $plano_contas,
+            'custo'     => $centro_custo,
+            'tipo_doc'  => $tipo_documento,
+            'num_doc'   => $num_documento,
+            'obs'       => $observacao
         ]);
 
         echo json_encode(['success' => true]);
-    } catch (\PDOException $e) {
-        http_response_code(500);
-        echo json_encode(['success' => false, 'error' => 'Erro no banco de dados: ' . $e->getMessage()]);
+    } catch (PDOException $e) {
+        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
     }
-} else {
-    http_response_code(400);
-    echo json_encode(['success' => false, 'error' => 'Dados incompletos para edição.']);
 }
 ?>

@@ -52,17 +52,17 @@ $menu_button_class = isset($menu_button_class) ? $menu_button_class : 'bg-gray-2
                     </button>
                     
                     <div id="dropdown-menu" class="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 hidden z-50 overflow-hidden transform opacity-0 scale-95 transition-all duration-200 origin-top-right">
+    
                         <?php 
                         // Captura os dados da sessão
                         $role = isset($_SESSION['usuario_role']) ? $_SESSION['usuario_role'] : 'USER';
-                        $permissoes = isset($_SESSION['usuario_permissoes']) ? $_SESSION['usuario_permissoes'] : [];
+                        $permissoes = isset($_SESSION['usuario_permissoes']) ? $_SESSION['usuario_permissoes'] : []; 
                         ?>
 
                         <?php if($role === 'ADMIN' || in_array('projetos', $permissoes)): ?>
                         <a href="index.php" class="w-full text-left px-4 py-3 text-sm font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center transition-colors">
                             <svg class="w-4 h-4 mr-2 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>PAINEL PCP
                         </a>
-                        
                         <a href="calendario.php" class="w-full text-left px-4 py-3 text-sm font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center border-t border-gray-100 dark:border-gray-700 transition-colors">
                             <svg class="w-4 h-4 mr-2 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>CALENDÁRIO
                         </a>
@@ -71,6 +71,12 @@ $menu_button_class = isset($menu_button_class) ? $menu_button_class : 'bg-gray-2
                         <?php if($role === 'ADMIN' || in_array('clientes', $permissoes)): ?>
                         <a href="clientes.php" class="w-full text-left px-4 py-3 text-sm font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center border-t border-gray-100 dark:border-gray-700 transition-colors">
                             <svg class="w-4 h-4 mr-2 text-pink-600 dark:text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>CLIENTES
+                        </a>
+                        <?php endif; ?>
+                        
+                        <?php if($role === 'ADMIN' || in_array('clientes', $permissoes) || in_array('financeiro', $permissoes) || in_array('almoxarifado', $permissoes)): ?>
+                        <a href="fornecedores.php" class="w-full text-left px-4 py-3 text-sm font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center border-t border-gray-100 dark:border-gray-700 transition-colors">
+                            <svg class="w-4 h-4 mr-2 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>FORNECEDORES
                         </a>
                         <?php endif; ?>
 
@@ -97,7 +103,7 @@ $menu_button_class = isset($menu_button_class) ? $menu_button_class : 'bg-gray-2
                             <svg class="w-4 h-4 mr-2 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>RELATÓRIOS
                         </a>
                         <?php endif; ?>
-
+                        
                         <?php if($role === 'ADMIN' || in_array('financeiro', $permissoes)): ?>
                         <a href="financeiro.php" class="w-full text-left px-4 py-3 text-sm font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center border-t border-gray-100 dark:border-gray-700 transition-colors">
                             <svg class="w-4 h-4 mr-2 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>FINANCEIRO
