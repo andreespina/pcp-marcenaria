@@ -4,7 +4,7 @@ $page_title = isset($page_title) ? $page_title : 'PCP Marcenaria';
 $page_subtitle = isset($page_subtitle) ? $page_subtitle : '';
 $page_title_color = isset($page_title_color) ? $page_title_color : 'text-[#1e3a8a] dark:text-blue-400';
 $main_class = isset($main_class) ? $main_class : 'flex-1 max-w-7xl mx-auto w-full';
-$menu_button_text = isset($menu_button_text) ? $menu_button_text : 'Ir para...';
+$menu_button_text = isset($menu_button_text) ? $menu_button_text : 'MENU';
 $menu_button_class = isset($menu_button_class) ? $menu_button_class : 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-white';
 ?>
 <!DOCTYPE html>
