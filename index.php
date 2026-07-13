@@ -657,6 +657,20 @@ require_once 'includes/header.php';
                 <button type="submit" class="px-4 py-2 bg-[#1e3a8a] dark:bg-blue-600 hover:bg-blue-800 dark:hover:bg-blue-500 text-white rounded font-bold transition shadow-sm">Salvar Alterações</button>
             </div>
         </form>
+        
+        <div class="mt-6 border-t border-gray-200 dark:border-gray-700 pt-4">
+            <h4 class="text-sm font-bold text-gray-700 dark:text-gray-300 mb-3 flex items-center uppercase tracking-wide">
+                <svg class="w-4 h-4 mr-2 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                Histórico de Movimentações (Lead Time)
+            </h4>
+            
+            <div id="timeline_projeto" class="space-y-3 max-h-48 overflow-y-auto pr-1 text-xs scrollbar-thin">
+                <p class="italic text-gray-400 dark:text-gray-500">Nenhum histórico registrado para este projeto.</p>
+            </div>
+        </div>
+
     </div>
 </div>
 

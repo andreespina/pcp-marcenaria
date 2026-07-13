@@ -20,6 +20,28 @@ try {
     // 4. DADOS DE CLIENTES
     $stmt_cli = $pdo->query("SELECT * FROM clientes_cadastro ORDER BY nome_contrato ASC");
     $clientes = $stmt_cli->fetchAll(PDO::FETCH_ASSOC);
+    
+    // 5. CÁLCULO DE LEAD TIME MÉDIO DE PRODUÇÃO (NOVO)
+    $stmt_lead = $pdo->query("SELECT projeto_id, status_anterior, status_novo, data_mudanca FROM historico_projetos ORDER BY data_mudanca ASC");
+    $logs = $stmt_lead->fetchAll(PDO::FETCH_ASSOC);
+    
+    $tempos_producao = [];
+    $entradas_producao = [];
+    
+    foreach ($logs as $log) {
+        if ($log['status_novo'] == 'producao') {
+            $entradas_producao[$log['projeto_id']] = strtotime($log['data_mudanca']);
+        }
+        if ($log['status_anterior'] == 'producao' && isset($entradas_producao[$log['projeto_id']])) {
+            $saida = strtotime($log['data_mudanca']);
+            $diferenca_dias = ($saida - $entradas_producao[$log['projeto_id']]) / (60 * 60 * 24);
+            $tempos_producao[] = $diferenca_dias;
+            unset($entradas_producao[$log['projeto_id']]); // Remove para não duplicar caso o card volte
+        }
+    }
+    
+    // Calcula a média arredondada
+    $lead_time_medio = count($tempos_producao) > 0 ? round(array_sum($tempos_producao) / count($tempos_producao), 1) : 0;
 
     // ==========================================
     // CÁLCULOS E ESTATÍSTICAS
@@ -122,7 +144,7 @@ require_once 'includes/header.php';
         </li>
         <li class="mr-2" role="presentation">
             <button id="btn_projetos" onclick="mudarAba('projetos')" class="tab-btn px-4 py-3 rounded-t-lg border-b-2 border-transparent text-gray-500 hover:text-gray-600 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300 uppercase font-black tracking-wider transition-colors whitespace-nowrap">
-                Projetos
+                Projetos & Lead Time
             </button>
         </li>
         <li class="mr-2" role="presentation">
@@ -178,7 +200,7 @@ require_once 'includes/header.php';
 </div>
 
 <div id="conteudo_projetos" class="tab-content hidden">
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
         <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
             <p class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Total de Projetos</p>
             <p class="text-2xl font-black text-gray-800 dark:text-white mt-1"><?= $proj_total ?></p>
@@ -194,6 +216,10 @@ require_once 'includes/header.php';
         <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-red-200 dark:border-red-800">
             <p class="text-xs font-bold text-red-500 dark:text-red-400 uppercase tracking-wide">Atrasados</p>
             <p class="text-2xl font-black text-red-600 dark:text-red-400 mt-1"><?= $proj_atrasados ?></p>
+        </div>
+        <div class="bg-indigo-50 dark:bg-indigo-900/20 p-4 rounded-lg shadow-sm border border-indigo-200 dark:border-indigo-800">
+            <p class="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wide">Lead Time (Produção)</p>
+            <p class="text-2xl font-black text-indigo-700 dark:text-indigo-300 mt-1"><?= $lead_time_medio ?> Dias</p>
         </div>
     </div>
 

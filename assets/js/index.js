@@ -1,3 +1,12 @@
+// Dicionário para deixar os nomes dos estados amigáveis no ecrã
+const nomesStatus = {
+    'desenvolvimento': 'DESENV. PCP',
+    'producao': 'PRODUÇÃO',
+    'expedicao': 'EXPEDIÇÃO',
+    'instalacao': 'INSTALAÇÃO',
+    'atrasou': 'OBRA ATRASOU'
+};
+
 function filtrarSelect(inputId, selectId) {
     let filter = document.getElementById(inputId).value.toUpperCase();
     let select = document.getElementById(selectId);
@@ -25,7 +34,7 @@ async function atualizarStatusNoServidor(id, status) {
 
 async function deletarCliente(event, id) {
     event.stopPropagation();
-    if (!confirm(`Deseja apagar o registro ID #${id}?`)) return;
+    if (!confirm(`Deseja apagar o registo ID #${id}?`)) return;
     const cardElement = document.querySelector(`[data-id="${id}"]`);
     try {
         const response = await fetch('api/delete_client.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: id }) });
@@ -39,7 +48,7 @@ function imprimirFicha(id, cliente, statusAtual, dataLimite, observacao, promob,
     let medDataFormatada = ''; if (medData) { const p = medData.split('-'); if (p.length === 3) medDataFormatada = ` (${p[2]}/${p[1]}/${p[0]})`; }
     let infoInstalacao = '';
     if (equipe || diasUteis !== null) {
-        infoInstalacao = `<div class="checklist" style="margin-top: 15px;"><h3 class="check-title">PLANEJAMENTO DE INSTALAÇÃO</h3><div class="grid"><div class="col"><div class="check-item"><span>Equipe:</span> <strong style="text-transform: uppercase;">${equipe || '-'}</strong></div></div><div class="col"><div class="check-item"><span>Previsão:</span> <strong>${dtIni ? dtIni.split('-').reverse().join('/') : '-'} até ${dtFim ? dtFim.split('-').reverse().join('/') : '-'} (${diasUteis || 0} dias úteis)</strong></div></div></div></div>`;
+        infoInstalacao = `<div class="checklist" style="margin-top: 15px;"><h3 class="check-title">PLANEAMENTO DE INSTALAÇÃO</h3><div class="grid"><div class="col"><div class="check-item"><span>Equipa:</span> <strong style="text-transform: uppercase;">${equipe || '-'}</strong></div></div><div class="col"><div class="check-item"><span>Previsão:</span> <strong>${dtIni ? dtIni.split('-').reverse().join('/') : '-'} até ${dtFim ? dtFim.split('-').reverse().join('/') : '-'} (${diasUteis || 0} dias úteis)</strong></div></div></div></div>`;
     }
 
     const html = `<!DOCTYPE html><html><head><title>Ficha - #${id}</title><style>
@@ -48,8 +57,52 @@ function imprimirFicha(id, cliente, statusAtual, dataLimite, observacao, promob,
     .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 15px; }
     .info-label { font-weight: bold; font-size: 12px; color: #333; text-transform: uppercase; border-bottom: 1px solid #ccc; padding-bottom: 3px; } .info-value { font-size: 16px; margin-top: 4px; padding: 6px 0; } .grid { display: flex; flex-wrap: wrap; gap: 20px; } .col { flex: 1; min-width: 45%; } .checklist { margin-top: 20px; border-top: 2px solid #000; padding-top: 15px; } .check-title { background: #eee; padding: 5px; border: 1px solid #ccc; font-size: 16px; text-align: center;} .check-item { display: flex; justify-content: space-between; border-bottom: 1px dashed #aaa; padding: 8px 0; font-size: 14px; } .box-obs { min-height: 80px; border: 1px solid #aaa; padding: 10px; font-style: italic; background: #fafafa; } .footer { text-align: center; font-size: 11px; color: #666; margin-top: 30px; }</style></head><body><div class="container">
     <div class="header"><img src="assets/images/sbg_oficial.png" alt="SBG" style="max-width: 150px; height: auto;" onerror="this.style.display='none';"><div style="text-align: right;"><h1 style="margin:0; font-size: 24px;">FICHA DE PRODUÇÃO - PCP</h1><p style="margin:5px 0 0 0; font-size: 14px;">Ordem de Serviço #${id}</p></div></div>
-    <div style="margin-top:15px;"><div class="info-label">Nome do Cliente</div><div class="info-value" style="font-size: 22px; font-weight: bold; text-transform: uppercase;">${cliente}</div></div><div class="grid"><div class="col"><div class="info-label">Data Limite</div><div class="info-value"><b>${dataFormatada}</b></div></div><div class="col"><div class="info-label">Status Atual</div><div class="info-value"><b>${statusAtual}</b></div></div></div><div style="margin-top:15px;"><div class="info-label">Observações Gerais</div><div class="info-value box-obs">${observacao || 'Nenhuma observação.'}</div></div><div class="checklist"><h3 class="check-title">VERIFICAÇÃO DE PRÉ-PRODUÇÃO E PROJETOS</h3><div class="grid"><div class="col"><div class="check-item"><span>Checklist Obra:</span> <strong>${chkResp}</strong></div><div class="check-item"><span>Medição Obra:</span> <strong>${medAgen} ${medDataFormatada}</strong></div><div class="check-item"><span>Projeto Promob:</span> <strong>${promob}</strong></div><div class="check-item"><span>Projeto Executivo:</span> <strong>${projExec}</strong></div></div><div class="col"><div class="check-item"><span>Corte/Furação:</span> <strong>${corte}</strong></div><div class="check-item"><span>Lista Compras:</span> <strong>${compras}</strong></div><div class="check-item"><span>Lista Ferragens:</span> <strong>${ferragens}</strong></div></div></div></div>${infoInstalacao}<div class="footer">Impresso via PCP AESPINA em ${new Date().toLocaleString('pt-BR')}</div></div></body></html>`;
+    <div style="margin-top:15px;"><div class="info-label">Nome do Cliente</div><div class="info-value" style="font-size: 22px; font-weight: bold; text-transform: uppercase;">${cliente}</div></div><div class="grid"><div class="col"><div class="info-label">Data Limite</div><div class="info-value"><b>${dataFormatada}</b></div></div><div class="col"><div class="info-label">Status Atual</div><div class="info-value"><b>${statusAtual}</b></div></div></div><div style="margin-top:15px;"><div class="info-label">Observações Gerais</div><div class="info-value box-obs">${observacao || 'Nenhuma observação.'}</div></div><div class="checklist"><h3 class="check-title">VERIFICAÇÃO DE PRÉ-PRODUÇÃO E PROJETOS</h3><div class="grid"><div class="col"><div class="check-item"><span>Checklist Obra:</span> <strong>${chkResp}</strong></div><div class="check-item"><span>Medição Obra:</span> <strong>${medAgen} ${medDataFormatada}</strong></div><div class="check-item"><span>Projeto Promob:</span> <strong>${promob}</strong></div><div class="check-item"><span>Projeto Executivo:</span> <strong>${projExec}</strong></div></div><div class="col"><div class="check-item"><span>Corte/Furação:</span> <strong>${corte}</strong></div><div class="check-item"><span>Lista Compras:</span> <strong>${compras}</strong></div><div class="check-item"><span>Lista Ferragens:</span> <strong>${ferragens}</strong></div></div></div></div>${infoInstalacao}<div class="footer">Impresso via PCP AESPINA em ${new Date().toLocaleString('pt-PT')}</div></div></body></html>`;
     const janelaPrint = window.open('', '_blank', 'width=800,height=600'); janelaPrint.document.write(html); janelaPrint.document.close(); janelaPrint.focus(); setTimeout(() => { janelaPrint.print(); janelaPrint.close(); }, 500);
+}
+
+// FUNÇÃO NOVA: CARREGAR HISTÓRICO DE LOG
+function carregarHistoricoProjeto(projetoId) {
+    const timelineContainer = document.getElementById('timeline_projeto');
+    if (!timelineContainer) return;
+
+    // Reset de carregamento
+    timelineContainer.innerHTML = '<p class="italic text-gray-400 animate-pulse">A carregar histórico...</p>';
+
+    fetch(`api/get_project_logs.php?id=${projetoId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.logs.length > 0) {
+                timelineContainer.innerHTML = ''; // Limpa o carregando
+
+                data.logs.forEach(log => {
+                    const dataFormatada = new Date(log.data_mudanca).toLocaleString('pt-PT');
+                    const statusAnt = nomesStatus[log.status_anterior] || 'NÃO DEFINIDO';
+                    const statusNovo = nomesStatus[log.status_novo] || 'NÃO DEFINIDO';
+
+                    // Define cores dependendo se foi um status de alerta
+                    const badgeCor = log.status_novo === 'atrasou' ? 'text-red-600 bg-red-50 dark:bg-red-900/20' : 'text-blue-600 bg-blue-50 dark:bg-blue-900/20';
+
+                    const itemHtml = `
+                        <div class="flex items-start justify-between p-2 rounded bg-gray-50 dark:bg-gray-700/50 border border-gray-100 dark:border-gray-700">
+                            <div>
+                                <span class="font-bold text-gray-700 dark:text-gray-300">${log.usuario}</span> 
+                                moveu de <span class="text-gray-500 line-through">${statusAnt}</span> 
+                                para <span class="font-bold px-1.5 py-0.5 rounded text-[10px] ${badgeCor}">${statusNovo}</span>
+                            </div>
+                            <span class="text-gray-400 text-[11px] font-medium whitespace-nowrap ml-2">${dataFormatada}</span>
+                        </div>
+                    `;
+                    timelineContainer.insertAdjacentHTML('beforeend', itemHtml);
+                });
+            } else {
+                timelineContainer.innerHTML = '<p class="italic text-gray-400 dark:text-gray-500">Nenhum histórico de movimentação registado ainda.</p>';
+            }
+        })
+        .catch(error => {
+            console.error('Erro ao buscar histórico:', error);
+            timelineContainer.innerHTML = '<p class="text-red-500 italic">Erro ao carregar trilha de auditoria.</p>';
+        });
 }
 
 // MODAL CONTROLLERS
@@ -91,6 +144,10 @@ function abrirModalEdicao(event, id, cliente, dataLimite, observacao, promob, co
     document.getElementById('edit_checklist').value = chkResp || 'NAO'; document.getElementById('edit_checklist_link').value = chkLink || ''; document.getElementById('edit_medicao').value = medAgen || 'NAO'; document.getElementById('edit_medicao_data').value = medData || '';
     document.getElementById('edit_equipe').value = equipe || ''; document.getElementById('edit_dt_ini_inst').value = dtIni || ''; document.getElementById('edit_dt_fim_inst').value = dtFim || '';
     document.getElementById('labelIdProjeto').innerText = `(ID #${id})`;
+    
+    // CARREGA A NOVA ROTINA DA LINHA DO TEMPO
+    carregarHistoricoProjeto(id);
+    
     modalEdicao.classList.remove('hidden'); setTimeout(() => { modalEdicao.classList.remove('opacity-0'); modalConteudo.classList.remove('scale-95'); }, 10);
 }
 function fecharModalEdicao() { modalEdicao.classList.add('opacity-0'); modalConteudo.classList.add('scale-95'); setTimeout(() => { modalEdicao.classList.add('hidden'); document.getElementById('formEdicao').reset(); }, 300); }
@@ -121,7 +178,7 @@ async function salvarUsuarioServidor(event) {
     // Captura o nível selecionado
     const roleSelecionado = document.getElementById('novo_role') ? document.getElementById('novo_role').value : 'USER';
     
-    // Captura as checkboxes que estiverem marcadas
+    // Captura as caixas de seleção que estiverem marcadas
     const checkboxes = document.querySelectorAll('input[name="permissoes[]"]:checked');
     let permissoesSelecionadas = [];
     checkboxes.forEach((cb) => {
@@ -144,7 +201,7 @@ async function salvarUsuarioServidor(event) {
         const result = await response.json(); 
         
         if (result.success) { 
-            alert('Usuário cadastrado com sucesso!'); 
+            alert('Utilizador registado com sucesso!'); 
             fecharModalUsuario(); 
         } else { 
             alert('Erro: ' + result.error); 
@@ -160,7 +217,7 @@ async function salvarSenhaServidor(event) { event.preventDefault(); const payloa
 
 const modalNA = document.getElementById('modalNovaAssistencia'); function abrirModalNovaAssistencia(event, projeto_id, cliente) { event.stopPropagation(); document.getElementById('na_projeto_id').value = projeto_id; document.getElementById('na_cliente_nome').value = cliente; document.getElementById('label_na_cliente').innerText = cliente + ` (Projeto #${projeto_id})`; modalNA.classList.remove('hidden'); setTimeout(() => { modalNA.classList.remove('opacity-0'); document.getElementById('modalNovaAssistenciaConteudo').classList.remove('scale-95'); }, 10); }
 function fecharModalNovaAssistencia() { modalNA.classList.add('opacity-0'); document.getElementById('modalNovaAssistenciaConteudo').classList.add('scale-95'); setTimeout(() => { modalNA.classList.add('hidden'); document.getElementById('formNovaAssistencia').reset(); }, 300); }
-async function salvarNovaAssistencia(event) { event.preventDefault(); const payload = { projeto_id: document.getElementById('na_projeto_id').value, cliente: document.getElementById('na_cliente_nome').value, observacao: document.getElementById('na_observacao').value }; try { const response = await fetch('api/nova_assistencia.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); const result = await response.json(); if (result.success) { alert('Assistência registrada!'); fecharModalNovaAssistencia(); window.location.reload(); } else { alert('Erro: ' + result.error); } } catch (error) { alert('Erro de rede.'); } }
+async function salvarNovaAssistencia(event) { event.preventDefault(); const payload = { projeto_id: document.getElementById('na_projeto_id').value, cliente: document.getElementById('na_cliente_nome').value, observacao: document.getElementById('na_observacao').value }; try { const response = await fetch('api/nova_assistencia.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); const result = await response.json(); if (result.success) { alert('Assistência registada!'); fecharModalNovaAssistencia(); window.location.reload(); } else { alert('Erro: ' + result.error); } } catch (error) { alert('Erro de rede.'); } }
 
 // LISTENERS FECHAR CLICK FORA
 if(modalNovo) modalNovo.addEventListener('click', (e) => { if (e.target === modalNovo) fecharModalNovo(); });
