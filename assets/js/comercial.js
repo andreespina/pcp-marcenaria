@@ -13,7 +13,6 @@ function toggleNovoCliente() {
     }
 }
 
-// Drag & Drop
 document.addEventListener('DOMContentLoaded', () => {
     toggleNovoCliente();
     const columns = document.querySelectorAll('.kanban-col');
@@ -69,15 +68,17 @@ function editarLead(lead) {
     document.getElementById('lead_telefone').value = lead.telefone || '';
     document.getElementById('lead_origem').value = lead.origem || 'INSTAGRAM';
     document.getElementById('lead_arquiteto').value = lead.arquiteto_nome || '';
-    
-    // Novos Campos
     document.getElementById('lead_projetista').value = lead.projetista_responsavel || '';
     document.getElementById('lead_ambientes').value = lead.ambientes || '';
     document.getElementById('lead_prob').value = lead.probabilidade || 50;
     document.getElementById('lead_memorial').value = lead.memorial_descritivo || 'PRA FAZER';
-    
     document.getElementById('lead_valor').value = lead.valor_estimado || '';
     document.getElementById('lead_apresentacao').value = lead.data_apresentacao || '';
+    
+    // SLA e Prazos
+    document.getElementById('lead_inicio_projeto').value = lead.data_inicio_projeto || '';
+    document.getElementById('lead_prazo_dias').value = lead.prazo_projeto_dias || '';
+    
     document.getElementById('lead_obs').value = lead.observacao || '';
     
     document.getElementById('modalTitulo').innerText = 'Editar Detalhes do Lead';
@@ -110,4 +111,21 @@ async function salvarLead(event) {
             alert("Ocorreu um erro no servidor. Verifique o console do navegador (F12)."); 
         }
     } catch(e) { alert('Falha na API.'); }
+}
+
+async function excluirLead(id) {
+    if(!confirm("Deseja realmente cancelar/ocultar este lead?\nEle desaparecerá da tela, mas continuará salvo na base de dados para o histórico.")) return;
+    
+    try {
+        const res = await fetch('api/delete_lead_soft.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({id: id})
+        });
+        const result = await res.json();
+        if(result.success) window.location.reload();
+        else alert('Erro ao ocultar lead: ' + result.error);
+    } catch(e) {
+        alert('Falha na conexão com a API de exclusão.');
+    }
 }

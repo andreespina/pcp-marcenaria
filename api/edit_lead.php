@@ -23,30 +23,26 @@ if ($data && isset($data['id'])) {
             $cliente_nome = $stmtName->fetchColumn();
         }
 
-        // Prevenção de Erros para PHP mais antigos (sem usar '??')
         $origem = !empty($data['origem']) ? mb_strtoupper($data['origem'], 'UTF-8') : 'OUTROS';
         $arq = !empty($data['arquiteto_nome']) ? mb_strtoupper($data['arquiteto_nome'], 'UTF-8') : '';
         $proj = !empty($data['projetista_responsavel']) ? mb_strtoupper($data['projetista_responsavel'], 'UTF-8') : '';
         $amb = !empty($data['ambientes']) ? mb_strtoupper($data['ambientes'], 'UTF-8') : '';
         $valor = !empty($data['valor_estimado']) ? (float) $data['valor_estimado'] : 0.00;
         $prob = !empty($data['probabilidade']) ? (int) $data['probabilidade'] : 50;
-        $dt = !empty($data['data_apresentacao']) ? $data['data_apresentacao'] : null;
+        $dt_apres = !empty($data['data_apresentacao']) ? $data['data_apresentacao'] : null;
         $obs = !empty($data['observacao']) ? $data['observacao'] : '';
         $memorial = !empty($data['memorial_descritivo']) ? mb_strtoupper($data['memorial_descritivo'], 'UTF-8') : 'PRA FAZER';
+        
+        // SLA e Prazos
+        $dt_inicio = !empty($data['data_inicio_projeto']) ? $data['data_inicio_projeto'] : null;
+        $prazo_dias = !empty($data['prazo_projeto_dias']) ? (int) $data['prazo_projeto_dias'] : 0;
 
         $stmt = $pdo->prepare("UPDATE comercial_leads SET 
-            cliente_id = :cid, 
-            cliente_nome = :nome, 
-            telefone = :tel,
-            origem = :origem, 
-            arquiteto_nome = :arq, 
-            projetista_responsavel = :proj, 
-            ambientes = :amb, 
-            valor_estimado = :valor, 
-            probabilidade = :prob, 
-            data_apresentacao = :dt, 
-            observacao = :obs, 
-            memorial_descritivo = :memorial
+            cliente_id = :cid, cliente_nome = :nome, telefone = :tel, origem = :origem, 
+            arquiteto_nome = :arq, projetista_responsavel = :proj, ambientes = :amb, 
+            valor_estimado = :valor, probabilidade = :prob, data_apresentacao = :dt_apres, 
+            data_inicio_projeto = :dt_ini, prazo_projeto_dias = :prazo, 
+            observacao = :obs, memorial_descritivo = :memorial
             WHERE id = :id");
         
         $stmt->execute([
@@ -60,7 +56,9 @@ if ($data && isset($data['id'])) {
             'amb'      => $amb,
             'valor'    => $valor,
             'prob'     => $prob,
-            'dt'       => $dt,
+            'dt_apres' => $dt_apres,
+            'dt_ini'   => $dt_inicio,
+            'prazo'    => $prazo_dias,
             'obs'      => $obs,
             'memorial' => $memorial
         ]);
