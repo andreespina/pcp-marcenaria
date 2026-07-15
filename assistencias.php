@@ -47,6 +47,7 @@ function formatarDataPrint($data) {
 // Variáveis para o header
 $page_title = 'ASSISTÊNCIAS TÉCNICAS';
 $page_subtitle = 'CHAMADOS ABERTOS, AGENDADOS E RESOLVIDOS';
+$main_class = 'flex-1'; 
 $menu_button_text = 'MENU';
 $page_actions = '
 <button onclick="abrirModalNovaAssistencia()" class="bg-[#1e3a8a] dark:bg-blue-600 hover:bg-blue-800 dark:hover:bg-blue-500 text-white px-4 py-2 rounded text-sm font-bold shadow-sm transition-colors">
