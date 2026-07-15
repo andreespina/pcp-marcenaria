@@ -9,8 +9,25 @@ $data = json_decode(file_get_contents('php://input'), true);
 
 if ($data && isset($data['id']) && isset($data['fase'])) {
     try {
+        // 1. GARANTIA DE ESTRUTURA: Força a existência da tabela para evitar falhas silenciosas de banco de dados
+        $pdo->exec("CREATE TABLE IF NOT EXISTS administrativo_contratos (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            lead_id INT NOT NULL,
+            cliente_nome VARCHAR(255) NOT NULL,
+            valor DECIMAL(10,2) DEFAULT 0.00,
+            status_contrato VARCHAR(50) DEFAULT 'PENDENTE',
+            status_financeiro VARCHAR(50) DEFAULT 'A FATURAR',
+            numero_nf VARCHAR(50) NULL,
+            custo_mdf DECIMAL(10,2) DEFAULT 0.00,
+            custo_ferragens DECIMAL(10,2) DEFAULT 0.00,
+            custo_comissao DECIMAL(10,2) DEFAULT 0.00,
+            custo_outros DECIMAL(10,2) DEFAULT 0.00,
+            data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )");
+
         $pdo->beginTransaction();
 
+        // Busca informações completas do Lead
         $stmtLead = $pdo->prepare("
             SELECT cl.*, c.codigo_cliente, c.nome_contrato 
             FROM comercial_leads cl
@@ -21,6 +38,8 @@ if ($data && isset($data['id']) && isset($data['fase'])) {
         $lead = $stmtLead->fetch(PDO::FETCH_ASSOC);
 
         if (!$lead) { echo json_encode(['success' => false, 'error' => 'Lead não encontrado.']); exit; }
+        
+        // Bloqueia execução fantasma
         if ($lead['fase'] === $data['fase']) { $pdo->rollBack(); echo json_encode(['success' => true]); exit; }
 
         $dt_fechamento = ($data['fase'] === 'FECHADO') ? date('Y-m-d') : null;
@@ -29,20 +48,23 @@ if ($data && isset($data['id']) && isset($data['fase'])) {
             $motivo = mb_strtoupper($data['motivo'], 'UTF-8');
         }
 
+        // Atualiza a fase no Comercial
         $stmt = $pdo->prepare("UPDATE comercial_leads SET fase = :fase, data_fechamento = :dt, motivo_status = :motivo WHERE id = :id");
         $stmt->execute(['fase' => $data['fase'], 'dt' => $dt_fechamento, 'motivo' => $motivo, 'id' => $data['id']]);
 
-        // INTEGRAÇÃO NA VENDA FECHADA
+        // ROTINA EXCLUSIVA DE VENDA FECHADA
         if ($data['fase'] === 'FECHADO') {
-            // Usa o NOME OFICIAL do cadastro para não dar erro no Select do PCP
             $nome_base = !empty($lead['nome_contrato']) ? $lead['nome_contrato'] : $lead['cliente_nome'];
             $nome_base = mb_strtoupper(trim($nome_base), 'UTF-8');
             
             $codigo = !empty($lead['codigo_cliente']) ? $lead['codigo_cliente'] : 'CLI-' . $lead['id'];
             $nome_com_codigo = "[" . $codigo . "] " . $nome_base;
+            
+            // 2. CONVERSÃO SEGURA DE DADOS: Impede que MySQL trave ao receber valores vazios
+            $valorProjeto = is_numeric($lead['valor_estimado']) ? (float)$lead['valor_estimado'] : 0.00;
 
+            // INTEGRAÇÃO PCP
             if (!empty($data['gerarPCP']) && $data['gerarPCP'] == true) {
-                // Aspirador de pó anti-duplicação
                 $stmtCheckPCP = $pdo->prepare("SELECT id FROM projetos_pcp WHERE lead_id = :lead_id ORDER BY id ASC");
                 $stmtCheckPCP->execute(['lead_id' => $lead['id']]);
                 $rows = $stmtCheckPCP->fetchAll(PDO::FETCH_ASSOC);
@@ -60,20 +82,31 @@ if ($data && isset($data['id']) && isset($data['fase'])) {
                     $stmtPCP->execute([
                         'lead_id' => $lead['id'],
                         'cliente' => $nome_com_codigo,
-                        'obs' => "Obra Comercial. Vlr: R$ " . number_format($lead['valor_estimado'], 2, ',', '.') . " | Obs: " . $lead['observacao']
+                        'obs' => "Obra Comercial. Vlr: R$ " . number_format($valorProjeto, 2, ',', '.') . " | Obs: " . $lead['observacao']
                     ]);
                 }
             }
 
-            // Integração com o Administrativo
+            // INTEGRAÇÃO ADMINISTRATIVO / FINANCEIRO
             $stmtCheckAdmin = $pdo->prepare("SELECT id FROM administrativo_contratos WHERE lead_id = :lead_id");
             $stmtCheckAdmin->execute(['lead_id' => $lead['id']]);
-            if (!$stmtCheckAdmin->fetch()) {
+            $adminCad = $stmtCheckAdmin->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$adminCad) {
+                // Criação limpa
                 $stmtAdmin = $pdo->prepare("INSERT INTO administrativo_contratos (lead_id, cliente_nome, valor) VALUES (:lead_id, :cliente_nome, :valor)");
                 $stmtAdmin->execute([
                     'lead_id' => $lead['id'],
                     'cliente_nome' => $nome_com_codigo,
-                    'valor' => $lead['valor_estimado']
+                    'valor' => $valorProjeto
+                ]);
+            } else {
+                // Se já existir, atualiza o nome e o valor para garantir a sincronia de dados
+                $stmtAdminUpd = $pdo->prepare("UPDATE administrativo_contratos SET cliente_nome = :cliente_nome, valor = :valor WHERE id = :id");
+                $stmtAdminUpd->execute([
+                    'cliente_nome' => $nome_com_codigo,
+                    'valor' => $valorProjeto,
+                    'id' => $adminCad['id']
                 ]);
             }
         }
@@ -81,9 +114,14 @@ if ($data && isset($data['id']) && isset($data['fase'])) {
         $pdo->commit();
         echo json_encode(['success' => true]);
 
-    } catch (PDOException $e) {
-        $pdo->rollBack();
+    } catch (\Throwable $e) { 
+        // 3. LOG COMPLETO: Agora captura falhas do PDO e falhas de tipo (TypeErrors)
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
         echo json_encode(['success' => false, 'error' => $e->getMessage()]);
     }
+} else {
+    echo json_encode(['success' => false, 'error' => 'Dados inválidos recebidos.']);
 }
 ?>
