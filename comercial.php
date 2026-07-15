@@ -80,17 +80,39 @@ function corMemorial($status) {
 
 $page_title = 'COMERCIAL & CRM';
 $page_subtitle = 'SBG Móveis & Design';
-$main_class = 'flex-1';
+$main_class = 'flex-1'; 
+// $main_class = 'flex-1 w-full max-w-full px-2 lg:px-6'; 
 $menu_button_text = 'MENU';
+
+// GERA O MENU DE FILTROS BASEADO NO FUNIL DINÂMICO
+$filtro_colunas_html = '';
+foreach ($funil as $fase_chave => $col) {
+    $filtro_colunas_html .= '
+    <label class="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 p-1 rounded transition-colors">
+        <input type="checkbox" checked value="'.$fase_chave.'" onchange="aplicarFiltroColunas()" class="col-filter-cb rounded text-blue-600 border-gray-300 dark:border-gray-600 dark:bg-gray-700 focus:ring-blue-500">
+        <span class="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase select-none">'.$col['titulo'].'</span>
+    </label>';
+}
+
 $page_actions = '
-<div class="flex space-x-2">
-    <button onclick="toggleViewMode()" id="btnToggleView" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded text-sm font-bold shadow-sm transition-colors flex items-center">
-        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-        VER CALENDÁRIO
+<div class="flex space-x-2 relative">
+    <button onclick="document.getElementById(\'menuFiltros\').classList.toggle(\'hidden\')" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded text-sm font-bold shadow-sm transition-colors flex items-center relative z-20">
+        <svg class="w-4 h-4 md:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path></svg>
+        <span class="hidden md:inline">FILTROS</span>
     </button>
-    <button onclick="abrirModalLead()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm font-bold shadow-sm transition-colors flex items-center">
-        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-        NOVO LEAD
+    <div id="menuFiltros" class="hidden absolute top-full right-0 lg:left-0 mt-2 w-56 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-2xl z-[60] p-3">
+        <h4 class="text-[10px] font-black text-gray-400 dark:text-gray-500 mb-2 uppercase border-b border-gray-100 dark:border-gray-700 pb-1">Exibir Colunas:</h4>
+        <div class="space-y-1">
+            ' . $filtro_colunas_html . '
+        </div>
+    </div>
+    <button onclick="toggleViewMode()" id="btnToggleView" class="bg-gray-600 hover:bg-gray-700 text-white px-3 py-2 md:px-4 rounded text-sm font-bold shadow-sm transition-colors flex items-center">
+        <svg class="w-4 h-4 md:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+        <span class="hidden md:inline">CALENDÁRIO</span>
+    </button>
+    <button onclick="abrirModalLead()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 md:px-4 rounded text-sm font-bold shadow-sm transition-colors flex items-center">
+        <svg class="w-4 h-4 md:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+        <span class="hidden md:inline">NOVO LEAD</span>
     </button>
 </div>';
 
@@ -98,15 +120,20 @@ $head_extras = '
 <style>
     .app-container { display: flex; flex-direction: column; gap: 1.5rem; width: 100%; }
     .kanban-wrapper { display: flex; flex-direction: column; gap: 1.5rem; width: 100%; }
-    .kanban-column-container { width: 100%; display: flex; flex-direction: column; }
-    .kanban-col { max-height: 420px; overflow-y: auto; }
+    
+    /* Configuração de Altura Mínima EXCLUSIVA para os containers do Kanban */
+    .kanban-column-container { width: 100%; display: flex; flex-direction: column; min-height: 500px; }
+    
+    /* AQUI ESTÁ A CORREÇÃO: Aplica min-height APENAS se a coluna estiver dentro do funil, protegendo a sidebar */
+    .kanban-column-container .kanban-col { min-height: 500px; overflow-y: auto; padding-bottom: 2rem; }
 
     @media (min-width: 1280px) {
         .dark body { background-color: #1a1e2b !important; }
-        .app-container { height: calc(100vh - 120px); }
-        .kanban-wrapper { flex-direction: row; overflow-x: auto; flex: 1 1 0%; min-height: 0; align-items: flex-start; }
-        .kanban-column-container { min-width: 295px; max-width: 330px; flex: 1 1 0%; height: 100%; }
-        .kanban-col { max-height: none; flex: 1 1 0%; min-height: 150px; }
+        .app-container { min-height: calc(100vh - 120px); height: auto; }
+        .kanban-wrapper { flex-direction: row; overflow-x: auto; flex: 1 1 0%; min-height: 0; align-items: flex-start; padding-bottom: 1.5rem; }
+        
+        .kanban-column-container { min-width: 270px; max-width: 320px; flex: 1 1 0%; height: 100%; min-height: 500px; display: flex; flex-direction: column; }
+        .kanban-column-container .kanban-col { max-height: none; flex: 1 1 auto; min-height: 500px; overflow-y: auto; padding-bottom: 6rem; }
     }
     
     .kanban-col::-webkit-scrollbar { width: 6px; }
@@ -131,7 +158,6 @@ require_once 'includes/header.php';
 
 <div class="app-container gap-6">
     <div class="flex flex-col xl:flex-row gap-6 shrink-0">
-        <!-- DASHBOARD -->
         <div class="flex-1 bg-white dark:bg-[#222736] rounded-lg border border-gray-200 dark:border-[#2a3142] shadow-sm p-4 transition-colors duration-300">
             <h2 class="text-blue-700 dark:text-blue-400 font-bold mb-4 flex items-center text-lg tracking-wide">
                 <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
@@ -149,7 +175,6 @@ require_once 'includes/header.php';
             </div>
         </div>
 
-        <!-- SIDEBAR -->
         <div class="w-full xl:w-96 flex flex-col gap-4">
             <div class="bg-white dark:bg-[#222736] border border-gray-200 dark:border-[#2a3142] rounded-lg shadow-sm p-4 flex-1 transition-colors duration-300">
                 <span class="bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white text-xs font-bold px-3 py-1 inline-block mb-3 rounded-sm shadow-sm border border-gray-200 dark:border-gray-600">Próximas Apresentações</span>
@@ -189,13 +214,12 @@ require_once 'includes/header.php';
         </div>
     </div>
 
-    <!-- MODO 1: KANBAN -->
     <div id="view-kanban" class="kanban-wrapper">
         <?php foreach ($funil as $fase_chave => $col): ?>
-            <div class="kanban-column-container bg-white dark:bg-[#222736] border border-gray-200 dark:border-[#2a3142] rounded shadow-sm transition-colors duration-300">
+            <div id="coluna-container-<?= $fase_chave ?>" class="kanban-column-container bg-white dark:bg-[#222736] border border-gray-200 dark:border-[#2a3142] rounded shadow-sm transition-colors duration-300">
                 <div class="px-4 py-3 border-b border-gray-200 dark:border-gray-700 <?= $col['cor'] ?> border-t-4 flex justify-between items-center bg-gray-50 dark:bg-gray-800 rounded-t transition-colors duration-300">
-                    <h2 class="text-sm font-bold text-gray-800 dark:text-gray-100"><?= $col['titulo'] ?></h2>
-                    <span class="text-[10px] text-gray-500 dark:text-gray-400 font-bold"><?= count($col['leads']) ?></span>
+                    <h2 class="text-sm font-bold text-gray-800 dark:text-gray-100 truncate pr-2" title="<?= $col['titulo'] ?>"><?= $col['titulo'] ?></h2>
+                    <span class="text-[10px] text-gray-500 dark:text-gray-400 font-bold bg-gray-200 dark:bg-gray-700 px-2 py-0.5 rounded-full"><?= count($col['leads']) ?></span>
                 </div>
                 
                 <div id="fase-<?= $fase_chave ?>" data-fase="<?= $fase_chave ?>" class="kanban-col p-3 space-y-3 <?= $col['bg'] ?> transition-colors duration-300">
@@ -234,13 +258,11 @@ require_once 'includes/header.php';
                     ?>
                         <div class="bg-white dark:bg-gray-800 border <?= $card_border ?> rounded p-3 cursor-grab transition-colors duration-200" data-id="<?= $l['id'] ?>">
                             
-                            <!-- Cabeçalho do Card e Google Calendar Integrado -->
                             <div class="flex justify-between items-center border-b border-gray-100 dark:border-gray-700 pb-2 mb-2">
                                 <span class="text-[10px] text-gray-500 dark:text-gray-400 font-medium">Entrada: <?= date('d/m/y', strtotime($l['data_entrada'])) ?></span>
                                 <div class="flex items-center">
                                     <span class="text-[9px] text-gray-800 dark:text-gray-200 bg-gray-200 dark:bg-gray-700 px-1 font-bold rounded uppercase mr-2"><?= $l['origem'] ?></span>
                                     
-                                    <!-- Google Calendar (CORRIGIDO SEM NULL COALESCING ??) -->
                                     <a href="#" onclick="abrirGoogleCalendar('<?= $nome_formatado ?>', '<?= !empty($l['data_apresentacao']) ? $l['data_apresentacao'] : '' ?>', '<?= $obs_formatada ?>'); return false;" class="text-gray-400 hover:text-green-600 dark:hover:text-green-400 mr-2" title="Salvar no Google Agenda">
                                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                                     </a>
@@ -308,14 +330,11 @@ require_once 'includes/header.php';
         <?php endforeach; ?>
     </div>
 
-    <!-- MODO 2: CALENDÁRIO (FULLCALENDAR) -->
     <div id="view-calendario" class="hidden flex-1 bg-white dark:bg-[#222736] border border-gray-200 dark:border-[#2a3142] rounded-lg shadow-sm p-4 w-full h-[600px] xl:h-full transition-colors duration-300">
         <div id="calendario_sbg" class="w-full h-full"></div>
     </div>
-
 </div>
 
-<!-- Modal Novo / Editar Lead -->
 <div id="modalLead" class="fixed inset-0 bg-black bg-opacity-60 dark:bg-opacity-70 flex items-center justify-center z-50 hidden opacity-0 transition-opacity duration-300">
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-2xl p-6 border border-gray-200 dark:border-gray-700 transform scale-95 transition-all duration-300 max-h-[90vh] overflow-y-auto" id="modalLeadConteudo">
         <div class="flex justify-between items-center mb-4 border-b border-gray-200 dark:border-gray-700 pb-2">
@@ -418,7 +437,6 @@ require_once 'includes/header.php';
     </div>
 </div>
 
-<!-- Modal Motivo de Pausa / Perda -->
 <div id="modalMotivo" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[60] hidden opacity-0 transition-opacity duration-300">
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md p-6 border border-gray-200 dark:border-gray-700 transform scale-95 transition-all duration-300" id="modalMotivoConteudo">
         <h3 id="modalMotivoTitulo" class="text-lg font-bold text-red-600 dark:text-red-400 mb-4 uppercase">Informar Motivo</h3>
@@ -450,7 +468,6 @@ require_once 'includes/header.php';
     </div>
 </div>
 
-<!-- Modal Reprojeto -->
 <div id="modalReprojeto" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[70] hidden opacity-0 transition-opacity duration-300">
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-sm p-6 border border-gray-200 dark:border-gray-700 transform scale-95 transition-all duration-300" id="modalReprojetoConteudo">
         <h3 class="text-lg font-bold text-orange-600 dark:text-orange-400 mb-4 uppercase flex items-center">
