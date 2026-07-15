@@ -39,7 +39,15 @@ $menu_button_class = isset($menu_button_class) ? $menu_button_class : 'bg-gray-2
                 </button>
                 
                 <?php if(!isset($hide_user_greeting) || !$hide_user_greeting): ?>
-                <span class="text-sm font-semibold text-gray-600 dark:text-gray-300 hidden md:inline">Olá, <?= htmlspecialchars(isset($_SESSION['usuario_nome']) ? $_SESSION['usuario_nome'] : 'Usuário') ?></span>
+                <?php 
+                    $nomeExibicao = 'Usuário';
+                    if (isset($_SESSION['usuario_nome_completo']) && !empty($_SESSION['usuario_nome_completo'])) {
+                        $nomeExibicao = $_SESSION['usuario_nome_completo'];
+                    } elseif (isset($_SESSION['usuario_nome']) && !empty($_SESSION['usuario_nome'])) {
+                        $nomeExibicao = $_SESSION['usuario_nome'];
+                    }
+                ?>
+                <span class="text-sm font-semibold text-gray-600 dark:text-gray-300 hidden md:inline">Olá, <?= htmlspecialchars($nomeExibicao) ?></span>
                 <?php endif; ?>
                 
                 <?= isset($page_actions) ? $page_actions : '' ?>
