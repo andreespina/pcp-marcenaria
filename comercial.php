@@ -5,11 +5,9 @@ protegerPagina();
 require_once 'config/conexao.php';
 
 try {
-    // Busca Clientes Cadastrados
     $stmt_cli = $pdo->query("SELECT id, codigo_cliente, nome_contrato FROM clientes_cadastro ORDER BY nome_contrato ASC");
     $clientes_db = $stmt_cli->fetchAll(PDO::FETCH_ASSOC);
 
-    // Busca todos os leads trazendo o codigo_cliente
     $stmt = $pdo->query("SELECT cl.*, c.nome_contrato as nome_cadastrado, c.codigo_cliente 
                          FROM comercial_leads cl 
                          LEFT JOIN clientes_cadastro c ON cl.cliente_id = c.id 
@@ -17,7 +15,6 @@ try {
                          ORDER BY cl.data_entrada DESC");
     $leads = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // Estrutura do Funil
     $funil = [
         'CONTATO'    => ['titulo' => 'Novo Contato', 'cor' => 'border-gray-500', 'bg' => 'bg-gray-100 dark:bg-gray-800/50', 'leads' => []],
         'BRIEFING'   => ['titulo' => 'Reunião / Briefing', 'cor' => 'border-blue-500', 'bg' => 'bg-blue-50 dark:bg-[#1c2333]/50', 'leads' => []],
@@ -28,12 +25,13 @@ try {
         'PERDIDO'    => ['titulo' => 'Perdido', 'cor' => 'border-red-500', 'bg' => 'bg-red-50 dark:bg-red-900/20', 'leads' => []]
     ];
 
-    // Variáveis das 8 Caixas do Dashboard
     $total_projetos = count($leads);
     $fechados_ano = 0; $cancelados = 0; $para_inicio = 0;
     $em_andamento = 0; $finalizados = 0; $para_orcamento = 0; $projetos_memorial = 0; 
 
     $proximas_apresentacoes = []; $projetos_atraso = [];
+    $eventos_calendario = []; 
+    
     $hoje = date('Y-m-d'); $ano_atual = date('Y');
 
     foreach ($leads as $l) {
@@ -56,6 +54,15 @@ try {
             if(!empty($l['data_apresentacao']) && $fase != 'FECHADO' && $fase != 'PERDIDO' && $fase != 'PAUSADO' && empty($l['apresentacao_realizada'])) {
                 if ($l['data_apresentacao'] >= $hoje) $proximas_apresentacoes[] = $l;
                 else $projetos_atraso[] = $l;
+                
+                $nome_cli = !empty($l['nome_cadastrado']) ? $l['nome_cadastrado'] : $l['cliente_nome'];
+                $eventos_calendario[] = [
+                    'id' => $l['id'],
+                    'title' => $nome_cli . ' (' . $funil[$fase]['titulo'] . ')',
+                    'start' => $l['data_apresentacao'],
+                    'color' => ($l['data_apresentacao'] < $hoje) ? '#ef4444' : '#3b82f6',
+                    'extendedProps' => ['obs' => $l['observacao']]
+                ];
             }
         }
     }
@@ -74,33 +81,34 @@ function corMemorial($status) {
 $page_title = 'COMERCIAL & CRM';
 $page_subtitle = 'SBG Móveis & Design';
 $main_class = 'flex-1';
-// $main_class = 'flex-1 w-full max-w-full px-2 lg:px-6'; 
 $menu_button_text = 'MENU';
 $page_actions = '
-<button onclick="abrirModalLead()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm font-bold shadow-sm transition-colors flex items-center">
-    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-    NOVO LEAD
-</button>';
+<div class="flex space-x-2">
+    <button onclick="toggleViewMode()" id="btnToggleView" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded text-sm font-bold shadow-sm transition-colors flex items-center">
+        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+        VER CALENDÁRIO
+    </button>
+    <button onclick="abrirModalLead()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm font-bold shadow-sm transition-colors flex items-center">
+        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+        NOVO LEAD
+    </button>
+</div>';
 
-// CSS Inteligente com Media Queries para total responsividade
 $head_extras = '
 <style>
-    /* Padrão de comportamento para Mobile/Tablets (Scroll livre da página) */
     .app-container { display: flex; flex-direction: column; gap: 1.5rem; width: 100%; }
     .kanban-wrapper { display: flex; flex-direction: column; gap: 1.5rem; width: 100%; }
     .kanban-column-container { width: 100%; display: flex; flex-direction: column; }
     .kanban-col { max-height: 420px; overflow-y: auto; }
 
-    /* Ajustes exclusivos para Computador / Telas Grandes (Painel Fixo ERP) */
     @media (min-width: 1280px) {
         .dark body { background-color: #1a1e2b !important; }
         .app-container { height: calc(100vh - 120px); }
-        .kanban-wrapper { flex-direction: row; overflow-x: auto; flex: 1 1 0%; min-height: 0; items: flex-start; }
+        .kanban-wrapper { flex-direction: row; overflow-x: auto; flex: 1 1 0%; min-height: 0; align-items: flex-start; }
         .kanban-column-container { min-width: 295px; max-width: 330px; flex: 1 1 0%; height: 100%; }
         .kanban-col { max-height: none; flex: 1 1 0%; min-height: 150px; }
     }
     
-    /* Scrollbars estilizadas */
     .kanban-col::-webkit-scrollbar { width: 6px; }
     .kanban-col::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 4px; }
     .dark .kanban-col::-webkit-scrollbar-thumb { background-color: #3f4865; }
@@ -108,14 +116,22 @@ $head_extras = '
     
     .sortable-ghost { opacity: 0.3; background-color: #f1f5f9; border: 2px dashed #94a3b8; }
     .dark .sortable-ghost { background-color: #2a3142; border-color: #4b5563; }
+    
+    .dark .fc-theme-standard td, .dark .fc-theme-standard th, .dark .fc-theme-standard .fc-scrollgrid { border-color: #374151; }
+    .dark .fc-view-harness { background-color: #1f2937; color: #fff; }
+    .dark .fc-col-header-cell-cushion, .dark .fc-daygrid-day-number { color: #d1d5db; text-decoration: none; }
+    .dark .fc-toolbar-title { color: #e5e7eb; }
+    .fc-event { cursor: pointer; }
 </style>
-<script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>';
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>';
 
 require_once 'includes/header.php';
 ?>
 
 <div class="app-container gap-6">
     <div class="flex flex-col xl:flex-row gap-6 shrink-0">
+        <!-- DASHBOARD -->
         <div class="flex-1 bg-white dark:bg-[#222736] rounded-lg border border-gray-200 dark:border-[#2a3142] shadow-sm p-4 transition-colors duration-300">
             <h2 class="text-blue-700 dark:text-blue-400 font-bold mb-4 flex items-center text-lg tracking-wide">
                 <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
@@ -133,6 +149,7 @@ require_once 'includes/header.php';
             </div>
         </div>
 
+        <!-- SIDEBAR -->
         <div class="w-full xl:w-96 flex flex-col gap-4">
             <div class="bg-white dark:bg-[#222736] border border-gray-200 dark:border-[#2a3142] rounded-lg shadow-sm p-4 flex-1 transition-colors duration-300">
                 <span class="bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white text-xs font-bold px-3 py-1 inline-block mb-3 rounded-sm shadow-sm border border-gray-200 dark:border-gray-600">Próximas Apresentações</span>
@@ -146,7 +163,7 @@ require_once 'includes/header.php';
                                 <p class="text-xs font-bold text-gray-800 dark:text-gray-200 uppercase"><?= htmlspecialchars($ap['nome_cadastrado'] ?: $ap['cliente_nome']) ?></p>
                                 <p class="text-[10px] text-gray-500 uppercase mt-0.5"><?= $funil[$ap['fase']]['titulo'] ?></p>
                             </div>
-                            <span class="text-xs text-red-600 dark:text-red-400 font-bold"><?= date('d/m/Y', strtotime($ap['data_apresentacao'])) ?></span>
+                            <span class="text-xs text-blue-600 dark:text-blue-400 font-bold"><?= date('d/m/Y', strtotime($ap['data_apresentacao'])) ?></span>
                         </div>
                     <?php endforeach; ?>
                 </div>
@@ -172,7 +189,8 @@ require_once 'includes/header.php';
         </div>
     </div>
 
-    <div class="kanban-wrapper">
+    <!-- MODO 1: KANBAN -->
+    <div id="view-kanban" class="kanban-wrapper">
         <?php foreach ($funil as $fase_chave => $col): ?>
             <div class="kanban-column-container bg-white dark:bg-[#222736] border border-gray-200 dark:border-[#2a3142] rounded shadow-sm transition-colors duration-300">
                 <div class="px-4 py-3 border-b border-gray-200 dark:border-gray-700 <?= $col['cor'] ?> border-t-4 flex justify-between items-center bg-gray-50 dark:bg-gray-800 rounded-t transition-colors duration-300">
@@ -210,20 +228,33 @@ require_once 'includes/header.php';
                                 }
                             }
                         }
+                        
+                        $nome_formatado = htmlspecialchars(!empty($l['nome_cadastrado']) ? $l['nome_cadastrado'] : $l['cliente_nome'], ENT_QUOTES, 'UTF-8');
+                        $obs_formatada = htmlspecialchars(!empty($l['observacao']) ? $l['observacao'] : '', ENT_QUOTES, 'UTF-8');
                     ?>
                         <div class="bg-white dark:bg-gray-800 border <?= $card_border ?> rounded p-3 cursor-grab transition-colors duration-200" data-id="<?= $l['id'] ?>">
+                            
+                            <!-- Cabeçalho do Card e Google Calendar Integrado -->
                             <div class="flex justify-between items-center border-b border-gray-100 dark:border-gray-700 pb-2 mb-2">
                                 <span class="text-[10px] text-gray-500 dark:text-gray-400 font-medium">Entrada: <?= date('d/m/y', strtotime($l['data_entrada'])) ?></span>
                                 <div class="flex items-center">
                                     <span class="text-[9px] text-gray-800 dark:text-gray-200 bg-gray-200 dark:bg-gray-700 px-1 font-bold rounded uppercase mr-2"><?= $l['origem'] ?></span>
+                                    
+                                    <!-- Google Calendar (CORRIGIDO SEM NULL COALESCING ??) -->
+                                    <a href="#" onclick="abrirGoogleCalendar('<?= $nome_formatado ?>', '<?= !empty($l['data_apresentacao']) ? $l['data_apresentacao'] : '' ?>', '<?= $obs_formatada ?>'); return false;" class="text-gray-400 hover:text-green-600 dark:hover:text-green-400 mr-2" title="Salvar no Google Agenda">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                    </a>
+
                                     <button onclick="abrirEdicaoPorId(<?= $l['id'] ?>)" class="text-gray-400 hover:text-blue-600 dark:hover:text-blue-400" title="Editar">
                                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
                                     </button>
+                                    
                                     <?php if(!in_array($fase_chave, ['FECHADO', 'PERDIDO', 'PAUSADO'])): ?>
                                     <button onclick='abrirModalReprojeto(<?= $l['id'] ?>)' class="text-gray-400 hover:text-orange-500 dark:hover:text-orange-400 ml-1.5" title="Solicitar Reprojeto">
                                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
                                     </button>
                                     <?php endif; ?>
+
                                     <button onclick='excluirLead(<?= $l['id'] ?>)' class="text-gray-400 hover:text-red-600 dark:hover:text-red-400 ml-1.5" title="Excluir / Ocultar">
                                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                                     </button>
@@ -231,7 +262,7 @@ require_once 'includes/header.php';
                             </div>
                             
                             <h4 class="font-bold text-xs text-blue-700 dark:text-blue-400 uppercase leading-snug mb-1 flex items-center">
-                                <?= htmlspecialchars(!empty($l['nome_cadastrado']) ? $l['nome_cadastrado'] : $l['cliente_nome']) ?>
+                                <?= $nome_formatado ?>
                                 <?= $sla_tag ?>
                                 <?php if(!empty($l['revisao']) && $l['revisao'] > 0): ?>
                                     <span class="text-[9px] bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300 px-1.5 py-0.5 rounded font-bold border border-orange-200 dark:border-orange-800 uppercase ml-2">REV. <?= str_pad($l['revisao'], 2, '0', STR_PAD_LEFT) ?></span>
@@ -257,18 +288,14 @@ require_once 'includes/header.php';
                                 <p class="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5 mb-2">Ambs: <span class="text-gray-800 dark:text-gray-200 font-semibold uppercase"><?= htmlspecialchars($l['ambientes']) ?></span></p>
                             <?php endif; ?>
                             
-                            <?php if(!empty($l['observacao'])): ?>
-                                <p class="text-[10px] text-yellow-600 dark:text-yellow-500 italic mb-2 line-clamp-2 mt-2">Obs: <?= htmlspecialchars($l['observacao']) ?></p>
-                            <?php endif; ?>
-                            
-                            <div class="text-[10px] text-gray-600 dark:text-gray-400 space-y-1.5 pt-2 border-t border-gray-100 dark:border-gray-700">
+                            <div class="text-[10px] text-gray-600 dark:text-gray-400 space-y-1.5 pt-2 border-t border-gray-100 dark:border-gray-700 mt-2">
                                 <div class="flex justify-between"><span>Probabilidade:</span> <span class="font-bold <?= $l['probabilidade']>70?'text-green-600 dark:text-green-500':'text-orange-500' ?>"><?= $l['probabilidade'] ?>%</span></div>
                                 <div class="flex justify-between"><span>Memorial:</span> <span class="font-bold <?= corMemorial($l['memorial_descritivo']) ?>"><?= $l['memorial_descritivo'] ?></span></div>
                                 <div class="flex justify-between"><span>Vlr. Estimado:</span> <span class="font-bold text-emerald-600 dark:text-emerald-400">R$ <?= number_format($l['valor_estimado'], 2, ',', '.') ?></span></div>
                                 <div class="flex justify-between items-center">
                                     <span>Apresentação:</span> 
                                     <?php if(!empty($l['apresentacao_realizada'])): ?>
-                                        <span class="font-bold text-green-600 dark:text-green-400 line-through decoration-green-600 dark:decoration-green-400"><?= $l['data_apresentacao'] ? date('d/m/Y', strtotime($l['data_apresentacao'])) : '---' ?> &#10003;</span>
+                                        <span class="font-bold text-green-600 dark:text-green-400 line-through decoration-green-600 dark:decoration-green-400"><?= !empty($l['data_apresentacao']) ? date('d/m/Y', strtotime($l['data_apresentacao'])) : '---' ?> &#10003;</span>
                                     <?php else: ?>
                                         <span class="font-bold <?= $is_atrasado ? 'text-red-500' : 'text-blue-600 dark:text-blue-400' ?>"><?= !empty($l['data_apresentacao']) ? date('d/m/Y', strtotime($l['data_apresentacao'])) : 'NÃO AGENDADO' ?></span>
                                     <?php endif; ?>
@@ -280,15 +307,21 @@ require_once 'includes/header.php';
             </div>
         <?php endforeach; ?>
     </div>
+
+    <!-- MODO 2: CALENDÁRIO (FULLCALENDAR) -->
+    <div id="view-calendario" class="hidden flex-1 bg-white dark:bg-[#222736] border border-gray-200 dark:border-[#2a3142] rounded-lg shadow-sm p-4 w-full h-[600px] xl:h-full transition-colors duration-300">
+        <div id="calendario_sbg" class="w-full h-full"></div>
+    </div>
+
 </div>
 
+<!-- Modal Novo / Editar Lead -->
 <div id="modalLead" class="fixed inset-0 bg-black bg-opacity-60 dark:bg-opacity-70 flex items-center justify-center z-50 hidden opacity-0 transition-opacity duration-300">
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-2xl p-6 border border-gray-200 dark:border-gray-700 transform scale-95 transition-all duration-300 max-h-[90vh] overflow-y-auto" id="modalLeadConteudo">
         <div class="flex justify-between items-center mb-4 border-b border-gray-200 dark:border-gray-700 pb-2">
             <h3 id="modalTitulo" class="text-lg font-bold text-blue-700 dark:text-blue-400">Detalhes do Lead</h3>
             <button type="button" onclick="fecharModalLead()" class="text-gray-400 hover:text-gray-800 dark:hover:text-white text-2xl font-bold">&times;</button>
         </div>
-        
         <form id="formLead" onsubmit="salvarLead(event)">
             <input type="hidden" id="lead_id" name="id">
             
@@ -300,7 +333,6 @@ require_once 'includes/header.php';
                         <option value="<?= $c['id'] ?>"><?= !empty($c['codigo_cliente']) ? htmlspecialchars($c['codigo_cliente']) . ' - ' : '' ?><?= htmlspecialchars($c['nome_contrato']) ?></option>
                     <?php endforeach; ?>
                 </select>
-                
                 <div id="div_novo_cliente" class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3 pt-3 border-t border-gray-200 dark:border-gray-600">
                     <div>
                         <label class="block text-xs font-semibold text-green-600 dark:text-green-400 mb-1">Nome do Novo Cliente</label>
@@ -328,7 +360,7 @@ require_once 'includes/header.php';
                         <input type="number" id="lead_prazo_dias" name="prazo_projeto_dias" placeholder="Ex: 5" min="0" class="w-full px-2 py-1.5 bg-white dark:bg-gray-700 border border-blue-300 dark:border-blue-600 text-gray-800 dark:text-white rounded font-bold text-blue-600 dark:text-blue-400 focus:ring-2 focus:ring-blue-500">
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-green-700 dark:text-green-400 mb-1">Data de Entrega (Baixa)</label>
+                        <label class="block text-xs font-bold text-green-700 dark:text-green-400 mb-1">Data de Entrega</label>
                         <input type="date" id="lead_entrega_projeto" name="data_entrega_projeto" class="w-full px-2 py-1.5 bg-white dark:bg-gray-700 border border-green-300 dark:border-green-600 text-gray-800 dark:text-white rounded focus:ring-2 focus:ring-green-500">
                     </div>
                 </div>
@@ -345,14 +377,12 @@ require_once 'includes/header.php';
                         </label>
                     </div>
                 </div>
-                
                 <div>
                     <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Origem do Lead</label>
                     <select id="lead_origem" name="origem" class="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white rounded uppercase focus:ring-2 focus:ring-blue-500">
                         <option value="INSTAGRAM">Instagram</option><option value="INDICACAO">Indicação</option><option value="ARQUITETO">Arquiteto(a)</option><option value="SHOWROOM">Visita Loja</option><option value="OUTROS">Outros</option>
                     </select>
                 </div>
-                
                 <div>
                     <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Projetista Responsável</label>
                     <input type="text" id="lead_projetista" name="projetista_responsavel" class="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white rounded uppercase">
@@ -361,7 +391,6 @@ require_once 'includes/header.php';
                     <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Ambientes</label>
                     <input type="text" id="lead_ambientes" name="ambientes" class="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white rounded uppercase">
                 </div>
-                
                 <div>
                     <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Memorial Descritivo</label>
                     <select id="lead_memorial" name="memorial_descritivo" class="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white rounded uppercase">
@@ -381,7 +410,6 @@ require_once 'includes/header.php';
                     <textarea id="lead_obs" name="observacao" rows="2" class="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white rounded"></textarea>
                 </div>
             </div>
-            
             <div class="flex justify-end space-x-3 border-t border-gray-200 dark:border-gray-700 pt-4">
                 <button type="button" onclick="fecharModalLead()" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition">Cancelar</button>
                 <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-bold transition shadow-sm">Salvar Informações</button>
@@ -390,6 +418,7 @@ require_once 'includes/header.php';
     </div>
 </div>
 
+<!-- Modal Motivo de Pausa / Perda -->
 <div id="modalMotivo" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[60] hidden opacity-0 transition-opacity duration-300">
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md p-6 border border-gray-200 dark:border-gray-700 transform scale-95 transition-all duration-300" id="modalMotivoConteudo">
         <h3 id="modalMotivoTitulo" class="text-lg font-bold text-red-600 dark:text-red-400 mb-4 uppercase">Informar Motivo</h3>
@@ -410,8 +439,8 @@ require_once 'includes/header.php';
                 </select>
             </div>
             <div class="mb-6">
-                <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Detalhes Adicionais (Opcional)</label>
-                <textarea id="motivo_detalhes" rows="3" class="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white rounded" placeholder="Descreva brevemente o que aconteceu..."></textarea>
+                <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Detalhes Adicionais</label>
+                <textarea id="motivo_detalhes" rows="3" class="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white rounded"></textarea>
             </div>
             <div class="flex justify-end space-x-3">
                 <button type="button" onclick="cancelarMotivo()" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition font-medium">Cancelar Mudança</button>
@@ -421,13 +450,13 @@ require_once 'includes/header.php';
     </div>
 </div>
 
+<!-- Modal Reprojeto -->
 <div id="modalReprojeto" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[70] hidden opacity-0 transition-opacity duration-300">
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-sm p-6 border border-gray-200 dark:border-gray-700 transform scale-95 transition-all duration-300" id="modalReprojetoConteudo">
         <h3 class="text-lg font-bold text-orange-600 dark:text-orange-400 mb-4 uppercase flex items-center">
-            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
-            Solicitar Reprojeto
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg> Solicitar Reprojeto
         </h3>
-        <p class="text-xs text-gray-600 dark:text-gray-400 mb-4">O projeto retornará para a fase de <strong>Desenvolvimento 3D</strong> e ganhará uma tag de Revisão.</p>
+        <p class="text-xs text-gray-600 dark:text-gray-400 mb-4">O projeto retornará para a fase de Desenvolvimento 3D.</p>
         <form id="formReprojeto" onsubmit="salvarReprojeto(event)">
             <input type="hidden" id="reprojeto_lead_id">
             <div class="mb-5">
@@ -435,7 +464,7 @@ require_once 'includes/header.php';
                 <input type="date" id="reprojeto_data" required class="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white rounded focus:ring-2 focus:ring-orange-500">
             </div>
             <div class="flex justify-end space-x-3">
-                <button type="button" onclick="fecharModalReprojeto()" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition font-medium">Cancelar</button>
+                <button type="button" onclick="fecharModalReprojeto()" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition">Cancelar</button>
                 <button type="submit" class="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded font-bold transition shadow-sm">Confirmar</button>
             </div>
         </form>
@@ -444,6 +473,7 @@ require_once 'includes/header.php';
 
 <script>
     const crmLeadsDados = <?= json_encode($leads, JSON_UNESCAPED_UNICODE) ?>;
+    const eventosCalendario = <?= json_encode($eventos_calendario, JSON_UNESCAPED_UNICODE) ?>;
 </script>
 <script src="assets/js/comercial.js?v=<?= time() ?>"></script>
 <?php require_once 'includes/footer.php'; ?>

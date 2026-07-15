@@ -2,6 +2,7 @@
 
 let dragItemTemp = null;
 let dragFromTemp = null;
+let fullCalendarInstance = null; // Variável global do calendário
 
 function toggleNovoCliente() {
     const val = document.getElementById('lead_cliente_id').value;
@@ -20,6 +21,8 @@ document.addEventListener('DOMContentLoaded', () => {
     toggleNovoCliente();
     const columns = document.querySelectorAll('.kanban-col');
     columns.forEach(col => {
+        if(col.id === 'calendario_sbg') return; // Pula a coluna do calendário se tentar rastrear
+        
         new Sortable(col, {
             group: 'crm_funil', 
             animation: 150, 
@@ -29,7 +32,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const novaFase = evt.to.getAttribute('data-fase');
                 const faseAnterior = evt.from.getAttribute('data-fase');
                 
-                if (faseAnterior === novaFase) return;
+                if (!id || faseAnterior === novaFase) return;
                 
                 if (novaFase === 'FECHADO') {
                     const gerarPCP = confirm('Venda Fechada!\n\n1. O contrato será enviado ao Administrativo.\n2. O Cliente já está consolidado no ERP.\n\nDeseja enviar esta obra agora mesmo para as colunas do Painel PCP?');
@@ -48,6 +51,72 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
+// ==============================================================
+// ALTERNÂNCIA (TOGGLE) KANBAN VS CALENDÁRIO
+// ==============================================================
+function toggleViewMode() {
+    const viewKanban = document.getElementById('view-kanban');
+    const viewCalendario = document.getElementById('view-calendario');
+    const btn = document.getElementById('btnToggleView');
+
+    if (viewKanban.classList.contains('hidden')) {
+        // Voltar para KANBAN
+        viewKanban.classList.remove('hidden');
+        viewCalendario.classList.add('hidden');
+        btn.innerHTML = `<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg> VER CALENDÁRIO`;
+    } else {
+        // Ir para CALENDÁRIO
+        viewKanban.classList.add('hidden');
+        viewCalendario.classList.remove('hidden');
+        btn.innerHTML = `<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"></path></svg> VER KANBAN`;
+
+        // Inicia o calendário só na primeira vez que abre
+        if (!fullCalendarInstance && typeof FullCalendar !== 'undefined') {
+            const calendarEl = document.getElementById('calendario_sbg');
+            fullCalendarInstance = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'dayGridMonth',
+                locale: 'pt-br',
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'dayGridMonth,timeGridWeek'
+                },
+                events: eventosCalendario, // Busca da memória do PHP
+                eventClick: function(info) {
+                    abrirEdicaoPorId(info.event.id);
+                }
+            });
+            fullCalendarInstance.render();
+        } else if (fullCalendarInstance) {
+            fullCalendarInstance.render(); // Redimensiona se tela mudar
+        }
+    }
+}
+
+// ==============================================================
+// INTEGRAÇÃO GOOGLE CALENDAR
+// ==============================================================
+function abrirGoogleCalendar(cliente, data_apres, obs) {
+    if(!data_apres) {
+        alert("Atenção: Não há data de apresentação agendada para este projeto.");
+        return;
+    }
+    
+    // Formata a data de "YYYY-MM-DD" para o formato Google "YYYYMMDD"
+    const dateStr = data_apres.replace(/-/g, '');
+    
+    const title = encodeURIComponent("Apresentação SBG: " + cliente);
+    const details = encodeURIComponent("Reunião de apresentação de projeto.\n\nObservações: " + (obs || 'Nenhuma observação.'));
+    
+    // Constrói a URL de template do Google
+    const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${dateStr}/${dateStr}&details=${details}`;
+    
+    window.open(url, '_blank');
+}
+
+// ==============================================================
+// ROTINAS DE BASE (SLA, API, MODAIS)
+// ==============================================================
 async function atualizarFase(id, fase, gerarPCP, motivo) {
     try {
         const res = await fetch('api/crm_update_fase.php', { 
@@ -58,27 +127,17 @@ async function atualizarFase(id, fase, gerarPCP, motivo) {
         const text = await res.text();
         try {
             const result = JSON.parse(text);
-            if (result.success) {
-                window.location.reload();
-            } else {
-                alert('Erro na API: ' + (result.error || 'Desconhecido'));
-                window.location.reload();
-            }
-        } catch(e) {
-            alert("Erro estrutural ao salvar a fase.");
-        }
+            if (result.success) window.location.reload();
+            else { alert('Erro na API: ' + (result.error || 'Desconhecido')); window.location.reload(); }
+        } catch(e) { alert("Erro estrutural ao salvar a fase."); }
     } catch (error) { alert('Falha de conexão com o servidor.'); }
 }
 
-// ARQUITETURA DEFINITIVA: Localiza o Lead na memória (à prova de quebra de aspas)
 function abrirEdicaoPorId(id) {
     if (typeof crmLeadsDados !== 'undefined') {
         const leadEncontrado = crmLeadsDados.find(item => item.id == id);
-        if (leadEncontrado) {
-            editarLead(leadEncontrado);
-        } else {
-            alert("Erro: Registro do lead não localizado na memória.");
-        }
+        if (leadEncontrado) editarLead(leadEncontrado);
+        else alert("Erro: Registro do lead não localizado na memória.");
     } else {
         alert("Erro fatal: Base de dados da memória não foi carregada.");
     }
@@ -92,7 +151,6 @@ function abrirModalMotivo(id, novaFase) {
     document.getElementById('motivo_lead_id').value = id;
     document.getElementById('motivo_nova_fase').value = novaFase;
     document.getElementById('modalMotivoTitulo').innerText = (novaFase === 'PAUSADO') ? 'Por que este projeto está sendo PAUSADO?' : 'Por que este projeto foi PERDIDO?';
-    
     modalMotivo.classList.remove('hidden');
     setTimeout(() => { modalMotivo.classList.remove('opacity-0'); modalMotivoConteudo.classList.remove('scale-95'); }, 10);
 }
@@ -103,9 +161,7 @@ function fecharModalMotivo() {
 }
 
 function cancelarMotivo() {
-    if(dragFromTemp && dragItemTemp) {
-        dragFromTemp.appendChild(dragItemTemp);
-    }
+    if(dragFromTemp && dragItemTemp) dragFromTemp.appendChild(dragItemTemp);
     fecharModalMotivo();
 }
 
@@ -116,30 +172,21 @@ function confirmarMotivo(event) {
     const selecao = document.getElementById('motivo_selecao').value;
     const detalhes = document.getElementById('motivo_detalhes').value;
     const motivoFinal = detalhes ? selecao + " - " + detalhes : selecao;
-    
     fecharModalMotivo();
     atualizarFase(id, fase, false, motivoFinal);
 }
 
-// ==============================================================
-// MODAL CADASTRAR / EDITAR LEAD (COM PROGRAMAÇÃO DEFENSIVA)
-// ==============================================================
 const modalLead = document.getElementById('modalLead');
 const modalLeadConteudo = document.getElementById('modalLeadConteudo');
 
 function abrirModalLead() {
     document.getElementById('formLead').reset();
-    
-    // Função auxiliar que só preenche o valor se o campo existir no HTML
     const setVal = (id, val) => { const el = document.getElementById(id); if(el) el.value = val; };
-    
     setVal('lead_id', '');
     setVal('lead_cliente_id', 'NOVO');
     toggleNovoCliente();
-    
     const titulo = document.getElementById('modalTitulo');
     if(titulo) titulo.innerText = 'Cadastrar Novo Lead';
-    
     if(modalLead) {
         modalLead.classList.remove('hidden');
         setTimeout(() => { modalLead.classList.remove('opacity-0'); modalLeadConteudo.classList.remove('scale-95'); }, 10);
@@ -147,24 +194,19 @@ function abrirModalLead() {
 }
 
 function editarLead(lead) {
-    // Função auxiliar protetora: Impede que o sistema quebre se você apagar algum campo no futuro
     const setVal = (id, val) => { const el = document.getElementById(id); if(el) el.value = val; };
     const setCheck = (id, checked) => { const el = document.getElementById(id); if(el) el.checked = checked; };
 
     setVal('lead_id', lead.id);
     setVal('lead_cliente_id', lead.cliente_id || 'NOVO');
     toggleNovoCliente();
-    
     setVal('lead_nome', lead.cliente_nome || '');
     setVal('lead_telefone', lead.telefone || '');
     setVal('lead_origem', lead.origem || 'INSTAGRAM');
     setVal('lead_arquiteto', lead.arquiteto_nome || '');
     setVal('lead_projetista', lead.projetista_responsavel || '');
     setVal('lead_ambientes', lead.ambientes || '');
-    
-    // O campo "lead_prob" agora existe e será preenchido com segurança
     setVal('lead_prob', lead.probabilidade || 50);
-    
     setVal('lead_memorial', lead.memorial_descritivo || 'PRA FAZER');
     setVal('lead_valor', lead.valor_estimado || '');
     setVal('lead_apresentacao', lead.data_apresentacao || '');
@@ -197,7 +239,6 @@ async function salvarLead(event) {
     event.preventDefault();
     const formData = new FormData(event.target);
     const data = Object.fromEntries(formData.entries());
-    
     const checkRealizada = document.getElementById('lead_apres_realizada');
     data.apresentacao_realizada = (checkRealizada && checkRealizada.checked) ? 1 : 0;
     
@@ -229,7 +270,6 @@ const modalReprojetoConteudo = document.getElementById('modalReprojetoConteudo')
 function abrirModalReprojeto(id) {
     document.getElementById('formReprojeto').reset();
     document.getElementById('reprojeto_lead_id').value = id;
-    
     modalReprojeto.classList.remove('hidden');
     setTimeout(() => { modalReprojeto.classList.remove('opacity-0'); modalReprojetoConteudo.classList.remove('scale-95'); }, 10);
 }
