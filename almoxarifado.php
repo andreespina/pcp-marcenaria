@@ -27,213 +27,220 @@ function jsSafe($val) {
     if ($val === null) $val = '';
     return htmlspecialchars(json_encode($val), ENT_QUOTES, 'UTF-8');
 }
+
 // Variáveis para o header
 $page_title = 'ALMOXARIFADO';
 $page_subtitle = 'Controle de Estoque e Materiais';
+$main_class = 'flex-1'; 
 $menu_button_text = 'MENU';
 $page_actions = '
-<button onclick="abrirModalItem()" class="bg-[#1e3a8a] dark:bg-blue-600 hover:bg-blue-800 dark:hover:bg-blue-500 text-white px-4 py-2 rounded text-sm font-bold shadow-sm transition-colors">
-    + ITEM
+<button onclick="abrirModalItem()" class="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded text-sm font-bold shadow-sm transition-colors flex items-center">
+    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+    NOVO ITEM
 </button>';
+
+$head_extras = '
+<style>
+    .dark body { background-color: #1a1e2b !important; }
+    .table-container { max-height: calc(100vh - 280px); overflow-y: auto; }
+    .table-container::-webkit-scrollbar { width: 6px; }
+    .table-container::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 4px; }
+    .dark .table-container::-webkit-scrollbar-thumb { background-color: #4b5563; }
+</style>';
+
 require_once 'includes/header.php';
-// -------------------------------------
-
 ?>
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Almoxarifado - PCP Marcenaria</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>tailwind.config = { darkMode: 'class', }</script>
-    <script>
-        if (localStorage.getItem('color-theme') === 'dark' || (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-            document.documentElement.classList.add('dark');
-        } else { document.documentElement.classList.remove('dark') }
-    </script>
-</head>
-<body class="bg-[#f4f7f6] dark:bg-gray-900 min-h-screen p-6 font-sans flex flex-col transition-colors duration-300">
 
-<!-- GUIA RÁPIDO: ALMOXARIFADO -->
-<details class="group bg-slate-50 dark:bg-slate-900/20 border border-slate-200 dark:border-slate-800 rounded-lg mb-6 shadow-sm transition-colors duration-300">
-    <summary class="cursor-pointer p-4 font-bold text-lg text-slate-800 dark:text-slate-300 flex items-center justify-between select-none">
-        <div class="flex items-center">
-            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-            Guia Rápido: Controle de Estoque
+<div class="flex flex-col gap-6">
+
+    <!-- Dashboard: Resumo e Filtro -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="bg-white dark:bg-[#222736] p-4 rounded-lg shadow-sm border border-gray-200 dark:border-[#2a3142] flex items-center">
+            <div class="p-3 rounded-full bg-teal-50 dark:bg-teal-900/20 text-teal-600 dark:text-teal-400 mr-4">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
+            </div>
+            <div>
+                <p class="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase">Total de Itens</p>
+                <p class="text-2xl font-black text-gray-800 dark:text-white"><?= $total_itens ?></p>
+            </div>
         </div>
-        <svg class="w-5 h-5 transition-transform duration-200 group-open:rotate-180 text-slate-800 dark:text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-    </summary>
-    <div class="p-4 pt-0 mt-2 border-t border-slate-200 dark:border-slate-800">
-        <ul class="text-sm text-slate-700 dark:text-slate-400 space-y-2 ml-1 mt-3">
-            <li class="flex items-start">
-                <span class="mr-2">📦</span>
-                <span><strong>Cadastro e Edição:</strong> Use o botão <em>"+ ITEM"</em> para registrar novos materiais. Você pode organizar por categorias e definir um "Estoque Mínimo" para alertas. Para editar, clique no ícone do lápis (✏️).</span>
-            </li>
-            <li class="flex items-start">
-                <span class="mr-2">⚡</span>
-                <span><strong>Ações Rápidas:</strong> Na própria tabela, utilize os botões de <strong>+</strong> e <strong>-</strong> para dar entrada ou saída rápida em um material do estoque.</span>
-            </li>
-            <li class="flex items-start">
-                <span class="mr-2">🚨</span>
-                <span><strong>Alertas de Estoque:</strong> Itens com quantidade igual ou menor que o estoque mínimo definido ficarão marcados em vermelho com o status <em>COMPRAR</em>, facilitando a gestão de reposição.</span>
-            </li>
-        </ul>
+
+        <div class="bg-white dark:bg-[#222736] p-4 rounded-lg shadow-sm border border-gray-200 dark:border-[#2a3142] flex items-center">
+            <div class="p-3 rounded-full bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 mr-4">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+            </div>
+            <div>
+                <p class="text-[11px] font-bold text-green-600 dark:text-green-400 uppercase">Estoque Saudável</p>
+                <p class="text-2xl font-black text-green-700 dark:text-green-300"><?= $estoque_ok ?></p>
+            </div>
+        </div>
+
+        <div class="bg-white dark:bg-[#222736] p-4 rounded-lg shadow-sm border <?= $itens_criticos > 0 ? 'border-red-400 shadow-md animate-pulse' : 'border-gray-200 dark:border-[#2a3142]' ?> flex items-center">
+            <div class="p-3 rounded-full bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 mr-4">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+            </div>
+            <div>
+                <p class="text-[11px] font-bold text-red-600 dark:text-red-400 uppercase">Em Falta / Crítico</p>
+                <p class="text-2xl font-black text-red-700 dark:text-red-300"><?= $itens_criticos ?></p>
+            </div>
+        </div>
+
+        <div class="bg-white dark:bg-[#222736] p-4 rounded-lg shadow-sm border border-gray-200 dark:border-[#2a3142] flex flex-col justify-center">
+            <label class="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Pesquisar Material</label>
+            <div class="relative">
+                <input type="text" id="filtro_tabela_almox" onkeyup="filtrarTabelaAlmoxarifado()" placeholder="Digite o nome ou categoria..." class="w-full px-4 py-1.5 pl-9 bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white rounded focus:ring-2 focus:ring-teal-500 transition-colors text-sm">
+                <svg class="w-4 h-4 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+            </div>
+        </div>
     </div>
-</details>
 
-    <main class="flex-1 max-w-7xl mx-auto w-full">
-
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <div class="bg-white dark:bg-gray-800 p-5 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-                <p class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Itens Cadastrados</p>
-                <p class="text-3xl font-black text-gray-800 dark:text-white mt-1"><?= $total_itens ?></p>
-            </div>
-            <div class="bg-white dark:bg-gray-800 p-5 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-                <p class="text-xs font-bold text-green-500 dark:text-green-400 uppercase tracking-wide">Estoque Saudável</p>
-                <p class="text-3xl font-black text-green-600 dark:text-green-400 mt-1"><?= $estoque_ok ?></p>
-            </div>
-            <div class="bg-red-50 dark:bg-red-900/20 p-5 rounded-lg border <?= $itens_criticos > 0 ? 'border-red-400 shadow-md animate-pulse' : 'border-red-100 dark:border-red-800' ?>">
-                <p class="text-xs font-bold text-red-600 dark:text-red-400 uppercase tracking-wide">Estoque Crítico / Em Falta</p>
-                <p class="text-3xl font-black text-red-700 dark:text-red-300 mt-1"><?= $itens_criticos ?></p>
-            </div>
+    <!-- Tabela de Almoxarifado -->
+    <div class="bg-white dark:bg-[#222736] rounded-lg border border-gray-200 dark:border-[#2a3142] shadow-sm overflow-hidden flex flex-col">
+        <div class="p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 flex justify-between items-center">
+            <h3 class="font-bold text-gray-700 dark:text-gray-200 text-sm uppercase tracking-wider">Lista de Materiais</h3>
         </div>
-
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-            <div class="overflow-x-auto">
-                <table class="w-full text-left text-sm whitespace-nowrap">
-                    <thead class="bg-gray-50 dark:bg-gray-700/50 text-gray-600 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700">
-                        <tr>
-                            <th class="px-4 py-3 font-bold">Item</th>
-                            <th class="px-4 py-3 font-bold">Categoria</th>
-                            <th class="px-4 py-3 font-bold text-center">Status</th>
-                            <th class="px-4 py-3 font-bold text-center">Estoque Atual</th>
-                            <th class="px-4 py-3 font-bold text-center" title="Quantidade Mínima de Segurança">Mínimo</th>
-                            <th class="px-4 py-3 font-bold text-center">Ações Rápidas</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
-                        <?php if (empty($itens)): ?>
-                            <tr><td colspan="6" class="px-6 py-8 text-center text-gray-500 dark:text-gray-400 italic">Nenhum item cadastrado no almoxarifado.</td></tr>
-                        <?php endif; ?>
-                        
-                        <?php foreach ($itens as $i): 
-                            $is_critical = ($i['quantidade'] <= $i['quantidade_minima']);
-                        ?>
-                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors text-gray-700 dark:text-gray-200">
-                                
-                                <td class="px-4 py-3">
-                                    <p class="font-bold text-gray-800 dark:text-white uppercase"><?= htmlspecialchars($i['nome_item']) ?></p>
-                                    <?php if($i['observacao']): ?>
-                                        <p class="text-[10px] text-gray-500 dark:text-gray-400"><?= htmlspecialchars($i['observacao']) ?></p>
-                                    <?php endif; ?>
-                                </td>
-                                
-                                <td class="px-4 py-3"><span class="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-1 rounded text-xs font-semibold uppercase"><?= htmlspecialchars($i['categoria']) ?></span></td>
-                                
-                                <td class="px-4 py-3 text-center">
-                                    <?php if ($is_critical): ?>
-                                        <span class="bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400 px-2 py-1 rounded text-xs font-bold uppercase border border-red-200 dark:border-red-800">Comprar</span>
-                                    <?php else: ?>
-                                        <span class="bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-400 px-2 py-1 rounded text-xs font-bold uppercase">OK</span>
-                                    <?php endif; ?>
-                                </td>
-                                
-                                <td class="px-4 py-3 text-center">
-                                    <div class="flex items-center justify-center space-x-2">
-                                        <button onclick="ajustarEstoque(<?= $i['id'] ?>, -1, <?= $i['quantidade'] ?>)" class="w-6 h-6 rounded-full bg-red-100 text-red-600 hover:bg-red-200 dark:bg-red-900/50 dark:text-red-400 flex items-center justify-center font-bold focus:outline-none transition-colors">-</button>
-                                        <span class="font-black text-lg w-12 text-center <?= $is_critical ? 'text-red-600 dark:text-red-400' : 'text-gray-800 dark:text-gray-200' ?>"><?= (float)$i['quantidade'] ?> <span class="text-[10px] font-normal text-gray-500"><?= $i['unidade_medida'] ?></span></span>
-                                        <button onclick="ajustarEstoque(<?= $i['id'] ?>, 1, <?= $i['quantidade'] ?>)" class="w-6 h-6 rounded-full bg-green-100 text-green-600 hover:bg-green-200 dark:bg-green-900/50 dark:text-green-400 flex items-center justify-center font-bold focus:outline-none transition-colors">+</button>
-                                    </div>
-                                </td>
-                                
-                                <td class="px-4 py-3 text-center text-sm font-semibold text-gray-500 dark:text-gray-400"><?= (float)$i['quantidade_minima'] ?></td>
-                                
-                                <td class="px-4 py-3 text-center">
-                                    <button onclick='abrirModalEdicao(<?= $i['id'] ?>, <?= jsSafe($i['nome_item']) ?>, <?= jsSafe($i['categoria']) ?>, <?= jsSafe($i['quantidade']) ?>, <?= jsSafe($i['quantidade_minima']) ?>, <?= jsSafe($i['unidade_medida']) ?>, <?= jsSafe($i['observacao']) ?>)' class="text-blue-500 hover:text-blue-700 dark:hover:text-blue-300 transition-colors mx-1" title="Editar Item">
-                                        &#9998;
-                                    </button>
-                                    <button onclick="deletarItem(<?= $i['id'] ?>)" class="text-red-400 hover:text-red-600 dark:hover:text-red-400 transition-colors text-lg mx-1" title="Apagar Item">
-                                        &times;
-                                    </button>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </main>
-
-    <div id="modalItem" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 hidden opacity-0 transition-opacity duration-300">
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-lg p-6 border border-gray-200 dark:border-gray-700 transform scale-95 transition-all duration-300" id="modalItemConteudo">
-            <div class="flex justify-between items-center mb-4 border-b dark:border-gray-700 pb-2">
-                <h3 id="modalTitulo" class="text-lg font-bold text-[#1e3a8a] dark:text-blue-400">Cadastrar Novo Item</h3>
-                <button onclick="fecharModalItem()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-2xl font-bold">&times;</button>
-            </div>
-            
-            <form id="formItem" onsubmit="salvarItemServidor(event)">
-                <input type="hidden" id="item_id">
-                
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                    <div class="md:col-span-2">
-                        <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Descrição / Nome do Item</label>
-                        <input type="text" id="item_nome" required placeholder="Ex: Dobradiça Reta com Amortecedor" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-2 focus:ring-blue-500 uppercase">
-                    </div>
+        
+        <div class="overflow-x-auto table-container">
+            <table class="w-full text-left text-sm whitespace-nowrap" id="tabelaAlmoxarifado">
+                <thead class="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10 font-bold">
+                    <tr>
+                        <th class="px-6 py-3">Item / Material</th>
+                        <th class="px-6 py-3">Categoria</th>
+                        <th class="px-6 py-3 text-center">Status</th>
+                        <th class="px-6 py-3 text-center">Estoque Atual</th>
+                        <th class="px-6 py-3 text-center" title="Quantidade Mínima de Segurança">Mínimo</th>
+                        <th class="px-6 py-3 text-center">Ações Rápidas</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 dark:divide-gray-700 text-gray-700 dark:text-gray-200">
+                    <?php if (empty($itens)): ?>
+                        <tr><td colspan="6" class="px-6 py-8 text-center text-gray-500 dark:text-gray-400 italic">Nenhum item cadastrado no almoxarifado.</td></tr>
+                    <?php endif; ?>
                     
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Categoria</label>
-                        <select id="item_categoria" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-2 focus:ring-blue-500 uppercase">
-                            <option value="FERRAGENS">Ferragens</option>
-                            <option value="CHAPAS MDF">Chapas MDF</option>
-                            <option value="FITAS DE BORDA">Fitas de Borda</option>
-                            <option value="PARAFUSOS">Parafusos / Fixação</option>
-                            <option value="CONSUMIVEIS">Consumíveis (Cola, Lixa)</option>
-                            <option value="GERAL">Geral</option>
-                        </select>
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Unidade de Medida</label>
-                        <select id="item_unidade" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-2 focus:ring-blue-500 uppercase">
-                            <option value="UN">Unidade (UN)</option>
-                            <option value="CX">Caixa (CX)</option>
-                            <option value="M">Metro (M)</option>
-                            <option value="CH">Chapa (CH)</option>
-                            <option value="RL">Rolo (RL)</option>
-                            <option value="LT">Litro (LT)</option>
-                            <option value="KG">Quilo (KG)</option>
-                        </select>
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Estoque Atual</label>
-                        <input type="number" step="0.01" id="item_quantidade" value="0" required class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-2 focus:ring-blue-500">
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Estoque Mínimo (Alerta)</label>
-                        <input type="number" step="0.01" id="item_minimo" value="0" required class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-2 focus:ring-blue-500">
-                    </div>
-                </div>
-
-                <div class="mb-6">
-                    <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Fornecedor / Observação (Opcional)</label>
-                    <textarea id="item_observacao" rows="2" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-2 focus:ring-blue-500"></textarea>
-                </div>
-
-                <div class="flex justify-end space-x-3 border-t dark:border-gray-700 pt-4">
-                    <button type="button" onclick="fecharModalItem()" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition font-medium">Cancelar</button>
-                    <button type="submit" class="px-4 py-2 bg-[#1e3a8a] dark:bg-blue-600 hover:bg-blue-800 text-white rounded font-bold transition shadow-sm">Salvar Material</button>
-                </div>
-            </form>
+                    <?php foreach ($itens as $i): 
+                        $is_critical = ($i['quantidade'] <= $i['quantidade_minima']);
+                    ?>
+                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors row-almox">
+                            <td class="px-6 py-4">
+                                <p class="font-bold text-gray-900 dark:text-white uppercase"><?= htmlspecialchars($i['nome_item']) ?></p>
+                                <?php if($i['observacao']): ?>
+                                    <p class="text-[10px] text-gray-500 dark:text-gray-400 truncate max-w-xs" title="<?= htmlspecialchars($i['observacao']) ?>"><?= htmlspecialchars($i['observacao']) ?></p>
+                                <?php endif; ?>
+                            </td>
+                            
+                            <td class="px-6 py-4">
+                                <span class="bg-gray-100 dark:bg-gray-700/60 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600 px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider">
+                                    <?= htmlspecialchars($i['categoria']) ?>
+                                </span>
+                            </td>
+                            
+                            <td class="px-6 py-4 text-center">
+                                <?php if ($is_critical): ?>
+                                    <span class="bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400 px-2 py-1 rounded text-[10px] font-bold uppercase border border-red-200 dark:border-red-800/50 animate-pulse">Comprar</span>
+                                <?php else: ?>
+                                    <span class="bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-400 px-2 py-1 rounded text-[10px] font-bold uppercase border border-green-200 dark:border-green-800/30">OK</span>
+                                <?php endif; ?>
+                            </td>
+                            
+                            <td class="px-6 py-4 text-center">
+                                <div class="flex items-center justify-center space-x-3">
+                                    <button onclick="ajustarEstoque(<?= $i['id'] ?>, -1, <?= $i['quantidade'] ?>)" class="w-6 h-6 rounded bg-red-50 text-red-600 hover:bg-red-200 dark:bg-red-900/30 border border-red-200 dark:border-red-800 dark:text-red-400 flex items-center justify-center font-bold transition-colors" title="Retirar 1 unidade">-</button>
+                                    
+                                    <span class="font-black text-lg w-16 text-center <?= $is_critical ? 'text-red-600 dark:text-red-400' : 'text-gray-800 dark:text-gray-200' ?>">
+                                        <?= (float)$i['quantidade'] ?> 
+                                        <span class="text-[10px] font-normal text-gray-500 uppercase"><?= htmlspecialchars($i['unidade_medida']) ?></span>
+                                    </span>
+                                    
+                                    <button onclick="ajustarEstoque(<?= $i['id'] ?>, 1, <?= $i['quantidade'] ?>)" class="w-6 h-6 rounded bg-green-50 text-green-600 hover:bg-green-200 dark:bg-green-900/30 border border-green-200 dark:border-green-800 dark:text-green-400 flex items-center justify-center font-bold transition-colors" title="Adicionar 1 unidade">+</button>
+                                </div>
+                            </td>
+                            
+                            <td class="px-6 py-4 text-center font-semibold text-gray-500 dark:text-gray-400">
+                                <?= (float)$i['quantidade_minima'] ?>
+                            </td>
+                            
+                            <td class="px-6 py-4 text-center space-x-2">
+                                <button onclick='abrirModalEdicao(<?= $i['id'] ?>, <?= jsSafe($i['nome_item']) ?>, <?= jsSafe($i['categoria']) ?>, <?= jsSafe($i['quantidade']) ?>, <?= jsSafe($i['quantidade_minima']) ?>, <?= jsSafe($i['unidade_medida']) ?>, <?= jsSafe($i['observacao']) ?>)' class="text-blue-500 hover:text-blue-700 dark:hover:text-blue-400 bg-blue-50 dark:bg-blue-900/20 p-1.5 rounded transition-colors" title="Editar Item">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                                </button>
+                                <button onclick="deletarItem(<?= $i['id'] ?>)" class="text-red-500 hover:text-red-700 dark:hover:text-red-400 bg-red-50 dark:bg-red-900/20 p-1.5 rounded transition-colors" title="Apagar Item">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                </button>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
         </div>
     </div>
+</div>
 
+<!-- MODAL DE CADASTRO E EDIÇÃO -->
+<div id="modalItem" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 hidden opacity-0 transition-opacity duration-300">
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-2xl p-6 border border-gray-200 dark:border-gray-700 transform scale-95 transition-all duration-300" id="modalItemConteudo">
+        
+        <div class="flex justify-between items-center mb-4 border-b border-gray-200 dark:border-gray-700 pb-2">
+            <h3 id="modalTitulo" class="text-lg font-bold text-teal-600 dark:text-teal-400">Cadastrar Novo Item</h3>
+            <button type="button" onclick="fecharModalItem()" class="text-gray-400 hover:text-gray-800 dark:hover:text-white text-2xl font-bold">&times;</button>
+        </div>
+        
+        <form id="formItem" onsubmit="salvarItemServidor(event)">
+            <input type="hidden" id="item_id">
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div class="md:col-span-2">
+                    <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Descrição / Nome do Item</label>
+                    <input type="text" id="item_nome" required placeholder="Ex: Dobradiça Reta com Amortecedor" class="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white rounded focus:ring-2 focus:ring-teal-500 uppercase">
+                </div>
+                
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Categoria</label>
+                    <select id="item_categoria" class="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white rounded focus:ring-2 focus:ring-teal-500 uppercase font-bold">
+                        <option value="FERRAGENS">Ferragens</option>
+                        <option value="CHAPAS MDF">Chapas MDF</option>
+                        <option value="FITAS DE BORDA">Fitas de Borda</option>
+                        <option value="PARAFUSOS">Parafusos / Fixação</option>
+                        <option value="CONSUMIVEIS">Consumíveis (Cola, Lixa)</option>
+                        <option value="GERAL">Geral</option>
+                    </select>
+                </div>
 
-    
-</body>
-</html>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Unidade de Medida</label>
+                    <select id="item_unidade" class="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white rounded focus:ring-2 focus:ring-teal-500 uppercase font-bold">
+                        <option value="UN">Unidade (UN)</option>
+                        <option value="CX">Caixa (CX)</option>
+                        <option value="M">Metro (M)</option>
+                        <option value="CH">Chapa (CH)</option>
+                        <option value="RL">Rolo (RL)</option>
+                        <option value="LT">Litro (LT)</option>
+                        <option value="KG">Quilo (KG)</option>
+                    </select>
+                </div>
 
-<script src="assets/js/almoxarifado.js"></script>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Estoque Atual</label>
+                    <input type="number" step="0.01" id="item_quantidade" value="0" required class="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-teal-600 dark:text-teal-400 font-black rounded focus:ring-2 focus:ring-teal-500">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1 text-red-600 dark:text-red-400">Estoque Mínimo (Alerta de Compra)</label>
+                    <input type="number" step="0.01" id="item_minimo" value="0" required class="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-red-300 dark:border-red-800/50 text-red-600 dark:text-red-400 font-black rounded focus:ring-2 focus:ring-red-500">
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Fornecedor / Observação (Opcional)</label>
+                <textarea id="item_observacao" rows="2" placeholder="Informações de compra, links..." class="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white rounded focus:ring-2 focus:ring-teal-500"></textarea>
+            </div>
+
+            <div class="flex justify-end space-x-3 border-t border-gray-200 dark:border-gray-700 pt-4 mt-6">
+                <button type="button" onclick="fecharModalItem()" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition font-medium">Cancelar</button>
+                <button type="submit" class="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded font-bold transition shadow-sm">Salvar Material</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="assets/js/almoxarifado.js?v=<?= time() ?>"></script>
 <?php require_once 'includes/footer.php'; ?>
