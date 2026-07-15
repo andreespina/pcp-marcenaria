@@ -5,9 +5,11 @@ protegerPagina();
 require_once 'config/conexao.php';
 
 try {
+    // Busca Clientes Cadastrados
     $stmt_cli = $pdo->query("SELECT id, codigo_cliente, nome_contrato FROM clientes_cadastro ORDER BY nome_contrato ASC");
     $clientes_db = $stmt_cli->fetchAll(PDO::FETCH_ASSOC);
 
+    // Busca todos os leads trazendo o codigo_cliente
     $stmt = $pdo->query("SELECT cl.*, c.nome_contrato as nome_cadastrado, c.codigo_cliente 
                          FROM comercial_leads cl 
                          LEFT JOIN clientes_cadastro c ON cl.cliente_id = c.id 
@@ -15,6 +17,7 @@ try {
                          ORDER BY cl.data_entrada DESC");
     $leads = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+    // Estrutura do Funil
     $funil = [
         'CONTATO'    => ['titulo' => 'Novo Contato', 'cor' => 'border-gray-500', 'bg' => 'bg-gray-100 dark:bg-gray-800/50', 'leads' => []],
         'BRIEFING'   => ['titulo' => 'Reunião / Briefing', 'cor' => 'border-blue-500', 'bg' => 'bg-blue-50 dark:bg-[#1c2333]/50', 'leads' => []],
@@ -25,6 +28,7 @@ try {
         'PERDIDO'    => ['titulo' => 'Perdido', 'cor' => 'border-red-500', 'bg' => 'bg-red-50 dark:bg-red-900/20', 'leads' => []]
     ];
 
+    // Variáveis das 8 Caixas do Dashboard
     $total_projetos = count($leads);
     $fechados_ano = 0; $cancelados = 0; $para_inicio = 0;
     $em_andamento = 0; $finalizados = 0; $para_orcamento = 0; $projetos_memorial = 0; 
@@ -67,8 +71,10 @@ function corMemorial($status) {
     return 'text-red-500 dark:text-red-400';
 }
 
-$page_title = 'COMERCIAL / CRM';
-$main_class = 'flex-1 w-full max-w-full px-2 lg:px-6'; 
+$page_title = 'COMERCIAL & CRM';
+$page_subtitle = 'SBG Móveis & Design';
+$main_class = 'flex-1';
+// $main_class = 'flex-1 w-full max-w-full px-2 lg:px-6'; 
 $menu_button_text = 'MENU';
 $page_actions = '
 <button onclick="abrirModalLead()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm font-bold shadow-sm transition-colors flex items-center">
@@ -76,17 +82,32 @@ $page_actions = '
     NOVO LEAD
 </button>';
 
+// CSS Inteligente com Media Queries para total responsividade
 $head_extras = '
 <style>
-    .dark body { background-color: #1a1e2b !important; }
+    /* Padrão de comportamento para Mobile/Tablets (Scroll livre da página) */
+    .app-container { display: flex; flex-direction: column; gap: 1.5rem; width: 100%; }
+    .kanban-wrapper { display: flex; flex-direction: column; gap: 1.5rem; width: 100%; }
+    .kanban-column-container { width: 100%; display: flex; flex-direction: column; }
+    .kanban-col { max-height: 420px; overflow-y: auto; }
+
+    /* Ajustes exclusivos para Computador / Telas Grandes (Painel Fixo ERP) */
+    @media (min-width: 1280px) {
+        .dark body { background-color: #1a1e2b !important; }
+        .app-container { height: calc(100vh - 120px); }
+        .kanban-wrapper { flex-direction: row; overflow-x: auto; flex: 1 1 0%; min-height: 0; items: flex-start; }
+        .kanban-column-container { min-width: 295px; max-width: 330px; flex: 1 1 0%; height: 100%; }
+        .kanban-col { max-height: none; flex: 1 1 0%; min-height: 150px; }
+    }
+    
+    /* Scrollbars estilizadas */
     .kanban-col::-webkit-scrollbar { width: 6px; }
     .kanban-col::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 4px; }
     .dark .kanban-col::-webkit-scrollbar-thumb { background-color: #3f4865; }
     .kanban-col::-webkit-scrollbar-track { background: transparent; }
+    
     .sortable-ghost { opacity: 0.3; background-color: #f1f5f9; border: 2px dashed #94a3b8; }
     .dark .sortable-ghost { background-color: #2a3142; border-color: #4b5563; }
-    .app-container { height: calc(100vh - 120px); display: flex; flex-direction: column; }
-    .box-total { border-color: #4b5563; } .box-fechados { border-color: #2563eb; } .box-cancelados { border-color: #6366f1; } .box-inicio { border-color: #10b981; } .box-andamento { border-color: #ef4444; } .box-finalizados { border-color: #eab308; } .box-orcamento { border-color: #db2777; } .box-memorial { border-color: #f97316; }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>';
 
@@ -151,15 +172,15 @@ require_once 'includes/header.php';
         </div>
     </div>
 
-    <div class="flex gap-4 overflow-x-auto pb-2 flex-1 min-h-0 items-start mt-2">
+    <div class="kanban-wrapper">
         <?php foreach ($funil as $fase_chave => $col): ?>
-            <div class="bg-white dark:bg-[#222736] border border-gray-200 dark:border-[#2a3142] rounded flex flex-col min-w-[300px] max-w-[330px] flex-1 h-full shadow-sm transition-colors duration-300">
+            <div class="kanban-column-container bg-white dark:bg-[#222736] border border-gray-200 dark:border-[#2a3142] rounded shadow-sm transition-colors duration-300">
                 <div class="px-4 py-3 border-b border-gray-200 dark:border-gray-700 <?= $col['cor'] ?> border-t-4 flex justify-between items-center bg-gray-50 dark:bg-gray-800 rounded-t transition-colors duration-300">
                     <h2 class="text-sm font-bold text-gray-800 dark:text-gray-100"><?= $col['titulo'] ?></h2>
                     <span class="text-[10px] text-gray-500 dark:text-gray-400 font-bold"><?= count($col['leads']) ?></span>
                 </div>
                 
-                <div id="fase-<?= $fase_chave ?>" data-fase="<?= $fase_chave ?>" class="kanban-col flex-1 p-3 overflow-y-auto space-y-3 min-h-[150px] <?= $col['bg'] ?> transition-colors duration-300">
+                <div id="fase-<?= $fase_chave ?>" data-fase="<?= $fase_chave ?>" class="kanban-col p-3 space-y-3 <?= $col['bg'] ?> transition-colors duration-300">
                     <?php foreach ($col['leads'] as $l): 
                         $is_atrasado = (!empty($l['data_apresentacao']) && $l['data_apresentacao'] < $hoje && !in_array($fase_chave, ['FECHADO', 'PERDIDO', 'PAUSADO']) && empty($l['apresentacao_realizada']));
                         
@@ -174,6 +195,7 @@ require_once 'includes/header.php';
                         $sla_tag = '';
                         if (!empty($l['data_inicio_projeto']) && !empty($l['prazo_projeto_dias']) && !in_array($fase_chave, ['FECHADO', 'PERDIDO', 'PAUSADO'])) {
                             $data_limite = date('Y-m-d', strtotime($l['data_inicio_projeto'] . ' + ' . $l['prazo_projeto_dias'] . ' days'));
+                            
                             if (!empty($l['data_entrega_projeto'])) {
                                 if ($l['data_entrega_projeto'] > $data_limite) {
                                     $sla_tag = '<span class="text-[9px] bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300 px-1.5 py-0.5 rounded font-bold border border-orange-200 dark:border-orange-800 ml-2">ENTREGUE ATRASADO</span>';
@@ -190,22 +212,18 @@ require_once 'includes/header.php';
                         }
                     ?>
                         <div class="bg-white dark:bg-gray-800 border <?= $card_border ?> rounded p-3 cursor-grab transition-colors duration-200" data-id="<?= $l['id'] ?>">
-                            
                             <div class="flex justify-between items-center border-b border-gray-100 dark:border-gray-700 pb-2 mb-2">
                                 <span class="text-[10px] text-gray-500 dark:text-gray-400 font-medium">Entrada: <?= date('d/m/y', strtotime($l['data_entrada'])) ?></span>
                                 <div class="flex items-center">
                                     <span class="text-[9px] text-gray-800 dark:text-gray-200 bg-gray-200 dark:bg-gray-700 px-1 font-bold rounded uppercase mr-2"><?= $l['origem'] ?></span>
-                                    
                                     <button onclick="abrirEdicaoPorId(<?= $l['id'] ?>)" class="text-gray-400 hover:text-blue-600 dark:hover:text-blue-400" title="Editar">
                                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
                                     </button>
-                                    
                                     <?php if(!in_array($fase_chave, ['FECHADO', 'PERDIDO', 'PAUSADO'])): ?>
                                     <button onclick='abrirModalReprojeto(<?= $l['id'] ?>)' class="text-gray-400 hover:text-orange-500 dark:hover:text-orange-400 ml-1.5" title="Solicitar Reprojeto">
                                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
                                     </button>
                                     <?php endif; ?>
-
                                     <button onclick='excluirLead(<?= $l['id'] ?>)' class="text-gray-400 hover:text-red-600 dark:hover:text-red-400 ml-1.5" title="Excluir / Ocultar">
                                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                                     </button>
@@ -244,28 +262,15 @@ require_once 'includes/header.php';
                             <?php endif; ?>
                             
                             <div class="text-[10px] text-gray-600 dark:text-gray-400 space-y-1.5 pt-2 border-t border-gray-100 dark:border-gray-700">
-                                <div class="flex justify-between">
-                                    <span>Probabilidade:</span> 
-                                    <span class="font-bold <?= $l['probabilidade']>70?'text-green-600 dark:text-green-500':'text-orange-500' ?>"><?= $l['probabilidade'] ?>%</span>
-                                </div>
-                                <div class="flex justify-between">
-                                    <span>Memorial:</span> 
-                                    <span class="font-bold <?= corMemorial($l['memorial_descritivo']) ?>"><?= $l['memorial_descritivo'] ?></span>
-                                </div>
-                                <div class="flex justify-between">
-                                    <span>Vlr. Estimado:</span> 
-                                    <span class="font-bold text-emerald-600 dark:text-emerald-400">R$ <?= number_format($l['valor_estimado'], 2, ',', '.') ?></span>
-                                </div>
+                                <div class="flex justify-between"><span>Probabilidade:</span> <span class="font-bold <?= $l['probabilidade']>70?'text-green-600 dark:text-green-500':'text-orange-500' ?>"><?= $l['probabilidade'] ?>%</span></div>
+                                <div class="flex justify-between"><span>Memorial:</span> <span class="font-bold <?= corMemorial($l['memorial_descritivo']) ?>"><?= $l['memorial_descritivo'] ?></span></div>
+                                <div class="flex justify-between"><span>Vlr. Estimado:</span> <span class="font-bold text-emerald-600 dark:text-emerald-400">R$ <?= number_format($l['valor_estimado'], 2, ',', '.') ?></span></div>
                                 <div class="flex justify-between items-center">
                                     <span>Apresentação:</span> 
                                     <?php if(!empty($l['apresentacao_realizada'])): ?>
-                                        <span class="font-bold text-green-600 dark:text-green-400 line-through decoration-green-600 dark:decoration-green-400">
-                                            <?= $l['data_apresentacao'] ? date('d/m/Y', strtotime($l['data_apresentacao'])) : '---' ?> &#10003;
-                                        </span>
+                                        <span class="font-bold text-green-600 dark:text-green-400 line-through decoration-green-600 dark:decoration-green-400"><?= $l['data_apresentacao'] ? date('d/m/Y', strtotime($l['data_apresentacao'])) : '---' ?> &#10003;</span>
                                     <?php else: ?>
-                                        <span class="font-bold <?= $is_atrasado ? 'text-red-500' : 'text-blue-600 dark:text-blue-400' ?>">
-                                            <?= !empty($l['data_apresentacao']) ? date('d/m/Y', strtotime($l['data_apresentacao'])) : 'NÃO AGENDADO' ?>
-                                        </span>
+                                        <span class="font-bold <?= $is_atrasado ? 'text-red-500' : 'text-blue-600 dark:text-blue-400' ?>"><?= !empty($l['data_apresentacao']) ? date('d/m/Y', strtotime($l['data_apresentacao'])) : 'NÃO AGENDADO' ?></span>
                                     <?php endif; ?>
                                 </div>
                             </div>
@@ -367,12 +372,10 @@ require_once 'includes/header.php';
                     <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Valor Estimado (R$)</label>
                     <input type="number" step="0.01" id="lead_valor" name="valor_estimado" class="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-green-600 dark:text-green-400 font-bold rounded">
                 </div>
-                
                 <div>
                     <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Probabilidade (%)</label>
                     <input type="number" id="lead_prob" name="probabilidade" value="50" min="0" max="100" class="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-blue-600 dark:text-blue-400 font-bold rounded">
                 </div>
-                
                 <div class="md:col-span-2">
                     <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Observações</label>
                     <textarea id="lead_obs" name="observacao" rows="2" class="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white rounded"></textarea>
