@@ -29,19 +29,22 @@ if ($data && isset($data['id'])) {
         $amb = !empty($data['ambientes']) ? mb_strtoupper($data['ambientes'], 'UTF-8') : '';
         $valor = !empty($data['valor_estimado']) ? (float) $data['valor_estimado'] : 0.00;
         $prob = !empty($data['probabilidade']) ? (int) $data['probabilidade'] : 50;
-        $dt_apres = !empty($data['data_apresentacao']) ? $data['data_apresentacao'] : null;
         $obs = !empty($data['observacao']) ? $data['observacao'] : '';
         $memorial = !empty($data['memorial_descritivo']) ? mb_strtoupper($data['memorial_descritivo'], 'UTF-8') : 'PRA FAZER';
         
-        // SLA e Prazos
+        // SLA, Apresentação e Baixas
+        $dt_apres = !empty($data['data_apresentacao']) ? $data['data_apresentacao'] : null;
+        $apres_realizada = !empty($data['apresentacao_realizada']) ? 1 : 0;
         $dt_inicio = !empty($data['data_inicio_projeto']) ? $data['data_inicio_projeto'] : null;
         $prazo_dias = !empty($data['prazo_projeto_dias']) ? (int) $data['prazo_projeto_dias'] : 0;
+        $dt_entrega = !empty($data['data_entrega_projeto']) ? $data['data_entrega_projeto'] : null;
 
         $stmt = $pdo->prepare("UPDATE comercial_leads SET 
             cliente_id = :cid, cliente_nome = :nome, telefone = :tel, origem = :origem, 
             arquiteto_nome = :arq, projetista_responsavel = :proj, ambientes = :amb, 
-            valor_estimado = :valor, probabilidade = :prob, data_apresentacao = :dt_apres, 
-            data_inicio_projeto = :dt_ini, prazo_projeto_dias = :prazo, 
+            valor_estimado = :valor, probabilidade = :prob, 
+            data_apresentacao = :dt_apres, apresentacao_realizada = :apres_realizada, 
+            data_inicio_projeto = :dt_ini, prazo_projeto_dias = :prazo, data_entrega_projeto = :dt_entrega, 
             observacao = :obs, memorial_descritivo = :memorial
             WHERE id = :id");
         
@@ -57,8 +60,10 @@ if ($data && isset($data['id'])) {
             'valor'    => $valor,
             'prob'     => $prob,
             'dt_apres' => $dt_apres,
+            'apres_realizada' => $apres_realizada,
             'dt_ini'   => $dt_inicio,
             'prazo'    => $prazo_dias,
+            'dt_entrega'=> $dt_entrega,
             'obs'      => $obs,
             'memorial' => $memorial
         ]);

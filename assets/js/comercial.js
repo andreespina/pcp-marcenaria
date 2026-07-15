@@ -21,7 +21,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const columns = document.querySelectorAll('.kanban-col');
     columns.forEach(col => {
         new Sortable(col, {
-            group: 'crm_funil', animation: 150, ghostClass: 'sortable-ghost',
+            group: 'crm_funil', 
+            animation: 150, 
+            ghostClass: 'sortable-ghost',
             onEnd: async function (evt) { 
                 const id = evt.item.getAttribute('data-id');
                 const novaFase = evt.to.getAttribute('data-fase');
@@ -63,9 +65,23 @@ async function atualizarFase(id, fase, gerarPCP, motivo) {
                 window.location.reload();
             }
         } catch(e) {
-            alert("Ocorreu um erro no servidor ao atualizar a fase. Verifique o console.");
+            alert("Erro estrutural ao salvar a fase.");
         }
-    } catch (error) { alert('Falha de conexão.'); }
+    } catch (error) { alert('Falha de conexão com o servidor.'); }
+}
+
+// ARQUITETURA DEFINITIVA: Localiza o Lead na memória (à prova de quebra de aspas)
+function abrirEdicaoPorId(id) {
+    if (typeof crmLeadsDados !== 'undefined') {
+        const leadEncontrado = crmLeadsDados.find(item => item.id == id);
+        if (leadEncontrado) {
+            editarLead(leadEncontrado);
+        } else {
+            alert("Erro: Registro do lead não localizado na memória.");
+        }
+    } else {
+        alert("Erro fatal: Base de dados da memória não foi carregada.");
+    }
 }
 
 const modalMotivo = document.getElementById('modalMotivo');
@@ -76,6 +92,7 @@ function abrirModalMotivo(id, novaFase) {
     document.getElementById('motivo_lead_id').value = id;
     document.getElementById('motivo_nova_fase').value = novaFase;
     document.getElementById('modalMotivoTitulo').innerText = (novaFase === 'PAUSADO') ? 'Por que este projeto está sendo PAUSADO?' : 'Por que este projeto foi PERDIDO?';
+    
     modalMotivo.classList.remove('hidden');
     setTimeout(() => { modalMotivo.classList.remove('opacity-0'); modalMotivoConteudo.classList.remove('scale-95'); }, 10);
 }
@@ -104,44 +121,74 @@ function confirmarMotivo(event) {
     atualizarFase(id, fase, false, motivoFinal);
 }
 
+// ==============================================================
+// MODAL CADASTRAR / EDITAR LEAD (COM PROGRAMAÇÃO DEFENSIVA)
+// ==============================================================
 const modalLead = document.getElementById('modalLead');
 const modalLeadConteudo = document.getElementById('modalLeadConteudo');
 
 function abrirModalLead() {
     document.getElementById('formLead').reset();
-    document.getElementById('lead_id').value = '';
-    document.getElementById('lead_cliente_id').value = 'NOVO';
+    
+    // Função auxiliar que só preenche o valor se o campo existir no HTML
+    const setVal = (id, val) => { const el = document.getElementById(id); if(el) el.value = val; };
+    
+    setVal('lead_id', '');
+    setVal('lead_cliente_id', 'NOVO');
     toggleNovoCliente();
-    document.getElementById('modalTitulo').innerText = 'Cadastrar Novo Lead';
-    modalLead.classList.remove('hidden');
-    setTimeout(() => { modalLead.classList.remove('opacity-0'); modalLeadConteudo.classList.remove('scale-95'); }, 10);
+    
+    const titulo = document.getElementById('modalTitulo');
+    if(titulo) titulo.innerText = 'Cadastrar Novo Lead';
+    
+    if(modalLead) {
+        modalLead.classList.remove('hidden');
+        setTimeout(() => { modalLead.classList.remove('opacity-0'); modalLeadConteudo.classList.remove('scale-95'); }, 10);
+    }
 }
 
 function editarLead(lead) {
-    document.getElementById('lead_id').value = lead.id;
-    document.getElementById('lead_cliente_id').value = lead.cliente_id || 'NOVO';
+    // Função auxiliar protetora: Impede que o sistema quebre se você apagar algum campo no futuro
+    const setVal = (id, val) => { const el = document.getElementById(id); if(el) el.value = val; };
+    const setCheck = (id, checked) => { const el = document.getElementById(id); if(el) el.checked = checked; };
+
+    setVal('lead_id', lead.id);
+    setVal('lead_cliente_id', lead.cliente_id || 'NOVO');
     toggleNovoCliente();
-    document.getElementById('lead_nome').value = lead.cliente_nome || '';
-    document.getElementById('lead_telefone').value = lead.telefone || '';
-    document.getElementById('lead_origem').value = lead.origem || 'INSTAGRAM';
-    document.getElementById('lead_arquiteto').value = lead.arquiteto_nome || '';
-    document.getElementById('lead_projetista').value = lead.projetista_responsavel || '';
-    document.getElementById('lead_ambientes').value = lead.ambientes || '';
-    document.getElementById('lead_prob').value = lead.probabilidade || 50;
-    document.getElementById('lead_memorial').value = lead.memorial_descritivo || 'PRA FAZER';
-    document.getElementById('lead_valor').value = lead.valor_estimado || '';
-    document.getElementById('lead_apresentacao').value = lead.data_apresentacao || '';
-    document.getElementById('lead_inicio_projeto').value = lead.data_inicio_projeto || '';
-    document.getElementById('lead_prazo_dias').value = lead.prazo_projeto_dias || '';
-    document.getElementById('lead_obs').value = lead.observacao || '';
-    document.getElementById('modalTitulo').innerText = 'Editar Detalhes do Lead';
-    modalLead.classList.remove('hidden');
-    setTimeout(() => { modalLead.classList.remove('opacity-0'); modalLeadConteudo.classList.remove('scale-95'); }, 10);
+    
+    setVal('lead_nome', lead.cliente_nome || '');
+    setVal('lead_telefone', lead.telefone || '');
+    setVal('lead_origem', lead.origem || 'INSTAGRAM');
+    setVal('lead_arquiteto', lead.arquiteto_nome || '');
+    setVal('lead_projetista', lead.projetista_responsavel || '');
+    setVal('lead_ambientes', lead.ambientes || '');
+    
+    // O campo "lead_prob" agora existe e será preenchido com segurança
+    setVal('lead_prob', lead.probabilidade || 50);
+    
+    setVal('lead_memorial', lead.memorial_descritivo || 'PRA FAZER');
+    setVal('lead_valor', lead.valor_estimado || '');
+    setVal('lead_apresentacao', lead.data_apresentacao || '');
+    setVal('lead_inicio_projeto', lead.data_inicio_projeto || '');
+    setVal('lead_prazo_dias', lead.prazo_projeto_dias || '');
+    setVal('lead_entrega_projeto', lead.data_entrega_projeto || '');
+    setVal('lead_obs', lead.observacao || '');
+    
+    setCheck('lead_apres_realizada', (lead.apresentacao_realizada == 1));
+    
+    const titulo = document.getElementById('modalTitulo');
+    if(titulo) titulo.innerText = 'Editar Detalhes do Lead';
+    
+    if(modalLead) {
+        modalLead.classList.remove('hidden');
+        setTimeout(() => { modalLead.classList.remove('opacity-0'); modalLeadConteudo.classList.remove('scale-95'); }, 10);
+    }
 }
 
 function fecharModalLead() {
-    modalLead.classList.add('opacity-0'); modalLeadConteudo.classList.add('scale-95');
-    setTimeout(() => { modalLead.classList.add('hidden'); }, 300);
+    if(modalLead) {
+        modalLead.classList.add('opacity-0'); modalLeadConteudo.classList.add('scale-95');
+        setTimeout(() => { modalLead.classList.add('hidden'); }, 300);
+    }
 }
 
 if(modalLead) { modalLead.addEventListener('click', (e) => { if (e.target === modalLead) fecharModalLead(); }); }
@@ -150,6 +197,10 @@ async function salvarLead(event) {
     event.preventDefault();
     const formData = new FormData(event.target);
     const data = Object.fromEntries(formData.entries());
+    
+    const checkRealizada = document.getElementById('lead_apres_realizada');
+    data.apresentacao_realizada = (checkRealizada && checkRealizada.checked) ? 1 : 0;
+    
     const endpoint = data.id ? 'api/edit_lead.php' : 'api/add_lead.php';
     try {
         const res = await fetch(endpoint, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
@@ -158,23 +209,20 @@ async function salvarLead(event) {
             const result = JSON.parse(text);
             if(result.success) window.location.reload(); 
             else alert('Erro: ' + result.error);
-        } catch(e) { alert("Ocorreu um erro no servidor."); }
+        } catch(e) { alert("Erro ao processar retorno da gravação."); }
     } catch(e) { alert('Falha na API.'); }
 }
 
 async function excluirLead(id) {
-    if(!confirm("Deseja realmente cancelar/ocultar este lead?\nEle desaparecerá da tela, mas continuará salvo na base de dados para o histórico.")) return;
+    if(!confirm("Deseja realmente cancelar/ocultar este lead?")) return;
     try {
         const res = await fetch('api/delete_lead_soft.php', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({id: id}) });
         const result = await res.json();
         if(result.success) window.location.reload();
-        else alert('Erro ao ocultar lead: ' + result.error);
-    } catch(e) { alert('Falha na conexão com a API de exclusão.'); }
+        else alert('Erro ao ocultar: ' + result.error);
+    } catch(e) { alert('Falha na API de exclusão.'); }
 }
 
-// ==========================================
-// NOVAS FUNÇÕES DO MODAL DE REPROJETO
-// ==========================================
 const modalReprojeto = document.getElementById('modalReprojeto');
 const modalReprojetoConteudo = document.getElementById('modalReprojetoConteudo');
 
@@ -195,20 +243,10 @@ async function salvarReprojeto(event) {
     event.preventDefault();
     const id = document.getElementById('reprojeto_lead_id').value;
     const novaData = document.getElementById('reprojeto_data').value;
-    
     try {
-        const res = await fetch('api/request_reprojeto.php', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({id: id, nova_data: novaData})
-        });
+        const res = await fetch('api/request_reprojeto.php', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({id: id, nova_data: novaData}) });
         const result = await res.json();
-        if(result.success) {
-            window.location.reload();
-        } else {
-            alert('Erro ao solicitar reprojeto: ' + result.error);
-        }
-    } catch(e) {
-        alert('Falha na comunicação com a API.');
-    }
+        if(result.success) window.location.reload();
+        else alert('Erro: ' + result.error);
+    } catch(e) { alert('Falha de rede.'); }
 }
