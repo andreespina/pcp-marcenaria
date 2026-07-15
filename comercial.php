@@ -68,8 +68,9 @@ function corMemorial($status) {
     return 'text-red-500 dark:text-red-400';
 }
 
-$page_title = 'COMERCIAL / CRM';
-$main_class = 'flex-1 w-full max-w-full px-2 lg:px-6'; 
+$page_title = 'COMERCIAL & CRM';
+$page_subtitle = 'SBG Móveis & Design';
+$main_class = 'flex-1'; 
 $menu_button_text = 'MENU';
 $page_actions = '
 <button onclick="abrirModalLead()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm font-bold shadow-sm transition-colors flex items-center">
