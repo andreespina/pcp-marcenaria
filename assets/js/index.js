@@ -137,18 +137,48 @@ function abrirModalEdicao(event, id, cliente, dataLimite, observacao, promob, co
     event.stopPropagation();
     document.getElementById('search_edit_cliente').value = '';
     filtrarSelect('search_edit_cliente', 'edit_cliente');
-    document.getElementById('edit_id').value = id; document.getElementById('edit_cliente').value = cliente; document.getElementById('edit_data_limite').value = dataLimite ? dataLimite : ''; document.getElementById('edit_observacao').value = observacao ? observacao : '';
+    
+    document.getElementById('edit_id').value = id; 
+    
+    // MÁGICA: Remove a tag [AE56] e qualquer espaço sobrando para encontrar no Select
+    let nomeLimpo = cliente.replace(/^\[.*?\]\s*/, '').trim().toUpperCase();
+    let selectCliente = document.getElementById('edit_cliente');
+    let optionFound = false;
+    
+    // Procura na lista de opções o cliente exato
+    for (let i = 0; i < selectCliente.options.length; i++) {
+        if (selectCliente.options[i].text.toUpperCase() === nomeLimpo || selectCliente.options[i].value.toUpperCase() === nomeLimpo) {
+            selectCliente.selectedIndex = i;
+            optionFound = true;
+            break;
+        }
+    }
+    
+    // Se por acaso não achar, tenta setar o valor bruto
+    if (!optionFound) {
+        selectCliente.value = nomeLimpo;
+    }
+
+    document.getElementById('edit_data_limite').value = dataLimite ? dataLimite : ''; 
+    document.getElementById('edit_observacao').value = observacao ? observacao : '';
     document.getElementById('edit_promob').value = promob || 'PARA FAZER'; 
     document.getElementById('edit_executivo').value = projExec || 'PARA FAZER';
-    document.getElementById('edit_corte').value = corte || 'PARA ENVIAR'; document.getElementById('edit_compras').value = compras || 'PARA ENVIAR'; document.getElementById('edit_ferragens').value = ferragens || 'PARA ENVIAR';
-    document.getElementById('edit_checklist').value = chkResp || 'NAO'; document.getElementById('edit_checklist_link').value = chkLink || ''; document.getElementById('edit_medicao').value = medAgen || 'NAO'; document.getElementById('edit_medicao_data').value = medData || '';
-    document.getElementById('edit_equipe').value = equipe || ''; document.getElementById('edit_dt_ini_inst').value = dtIni || ''; document.getElementById('edit_dt_fim_inst').value = dtFim || '';
+    document.getElementById('edit_corte').value = corte || 'PARA ENVIAR'; 
+    document.getElementById('edit_compras').value = compras || 'PARA ENVIAR'; 
+    document.getElementById('edit_ferragens').value = ferragens || 'PARA ENVIAR';
+    document.getElementById('edit_checklist').value = chkResp || 'NAO'; 
+    document.getElementById('edit_checklist_link').value = chkLink || ''; 
+    document.getElementById('edit_medicao').value = medAgen || 'NAO'; 
+    document.getElementById('edit_medicao_data').value = medData || '';
+    document.getElementById('edit_equipe').value = equipe || ''; 
+    document.getElementById('edit_dt_ini_inst').value = dtIni || ''; 
+    document.getElementById('edit_dt_fim_inst').value = dtFim || '';
     document.getElementById('labelIdProjeto').innerText = `(ID #${id})`;
     
-    // CARREGA A NOVA ROTINA DA LINHA DO TEMPO
     carregarHistoricoProjeto(id);
     
-    modalEdicao.classList.remove('hidden'); setTimeout(() => { modalEdicao.classList.remove('opacity-0'); modalConteudo.classList.remove('scale-95'); }, 10);
+    modalEdicao.classList.remove('hidden'); 
+    setTimeout(() => { modalEdicao.classList.remove('opacity-0'); modalConteudo.classList.remove('scale-95'); }, 10);
 }
 function fecharModalEdicao() { modalEdicao.classList.add('opacity-0'); modalConteudo.classList.add('scale-95'); setTimeout(() => { modalEdicao.classList.add('hidden'); document.getElementById('formEdicao').reset(); }, 300); }
 

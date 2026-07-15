@@ -217,7 +217,7 @@ require_once 'includes/header.php';
                 </a>
             </div>
         </div>
-        </div>
+    </div>
 
     <div class="lg:col-span-1 flex flex-col space-y-6">
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-5 transition-colors duration-300 flex-1">
@@ -229,7 +229,7 @@ require_once 'includes/header.php';
                 <?php foreach ($proximas_entregas as $entrega): ?>
                     <li class="flex justify-between items-center border-b border-gray-100 dark:border-gray-700 pb-2 last:border-0 last:pb-0">
                         <div>
-                            <p class="font-bold text-sm text-gray-800 dark:text-gray-200 uppercase"><?= htmlspecialchars($entrega['cliente']) ?></p>
+                            <p class="font-bold text-sm text-gray-800 dark:text-gray-200 uppercase"><?= preg_replace('/^(\[.*?\])/', '<span class="text-blue-600 dark:text-blue-400 font-black mr-1">$1</span>', htmlspecialchars($entrega['cliente'])) ?></p>
                             <p class="text-[11px] font-semibold text-gray-500 dark:text-gray-400"><?= $titulos_colunas[$entrega['status']]['titulo'] ?></p>
                         </div>
                         <span class="text-sm font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 px-2 py-1 rounded">
@@ -285,7 +285,6 @@ require_once 'includes/header.php';
                         $dt_fim_inst = isset($p['data_fim_instalacao']) ? $p['data_fim_instalacao'] : '';
                         $dias_uteis = calcularDiasUteis($dt_ini_inst, $dt_fim_inst);
 
-                        // Nova variável: Projeto Executivo
                         $proj_exec = isset($p['projeto_executivo']) ? $p['projeto_executivo'] : 'PARA FAZER';
                     ?>
 
@@ -314,19 +313,8 @@ require_once 'includes/header.php';
                             <span class="text-[10px] font-semibold text-gray-500 dark:text-gray-400"><?= $conf['data_label'] ?> <?= formatarData($p['data_limite']) ?></span>
                         <?php endif; ?>
                         
-                        <?php 
-                            $codigo_exibicao = '';
-                                if (!empty($p['codigo_cliente'])) {
-                                    $codigo_exibicao = $p['codigo_cliente'];
-                                } elseif (!empty($p['id_cadastro'])) {
-                                    $codigo_exibicao = "CLI-" . str_pad($p['id_cadastro'], 2, "0", STR_PAD_LEFT);
-                                }
-                        ?>
                         <p class="font-bold text-gray-800 dark:text-gray-100 uppercase text-xs mt-1 flex items-center">
-                            <?php if($codigo_exibicao): ?>
-                                <span class="text-blue-600 dark:text-blue-400 font-black mr-1.5">[<?= htmlspecialchars($codigo_exibicao) ?>]</span>
-                            <?php endif; ?>
-                            <?= htmlspecialchars($p['cliente']) ?>
+                            <?= preg_replace('/^(\[.*?\])/', '<span class="text-blue-600 dark:text-blue-400 font-black mr-1.5">$1</span>', htmlspecialchars($p['cliente'])) ?>
                         </p>
                         
                         <?php if ($p['observacao']): ?>
