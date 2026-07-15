@@ -26,12 +26,38 @@ if ($id > 0 && !empty($cliente)) {
     $medicao_agendada     = isset($data->medicao_agendada) ? $data->medicao_agendada : 'NAO';
     $medicao_data         = !empty($data->medicao_data) ? $data->medicao_data : null;
 
-    // NOVOS CAMPOS: Instalação
     $equipe_instalacao      = !empty($data->equipe_instalacao) ? trim($data->equipe_instalacao) : null;
     $data_inicio_instalacao = !empty($data->data_inicio_instalacao) ? $data->data_inicio_instalacao : null;
     $data_fim_instalacao    = !empty($data->data_fim_instalacao) ? $data->data_fim_instalacao : null;
 
     try {
+        $pdo->beginTransaction();
+
+        // 1. Verifica se o projeto está vinculado a um Lead do Comercial
+        $stmtCheck = $pdo->prepare("SELECT lead_id FROM projetos_pcp WHERE id = ?");
+        $stmtCheck->execute([$id]);
+        $projetoAtual = $stmtCheck->fetch(PDO::FETCH_ASSOC);
+
+        $cliente_nome_final = $cliente; // Nome padrão enviado pelo formulário do PCP
+
+        // 2. Se tiver vínculo, FORÇA o nome correto [CÓDIGO] NOME para não desvincular
+        if ($projetoAtual && !empty($projetoAtual['lead_id'])) {
+            $stmtLead = $pdo->prepare("
+                SELECT cl.cliente_nome, c.codigo_cliente 
+                FROM comercial_leads cl
+                LEFT JOIN clientes_cadastro c ON cl.cliente_id = c.id
+                WHERE cl.id = ?
+            ");
+            $stmtLead->execute([$projetoAtual['lead_id']]);
+            $lead = $stmtLead->fetch(PDO::FETCH_ASSOC);
+            
+            if ($lead) {
+                $codigo = !empty($lead['codigo_cliente']) ? $lead['codigo_cliente'] : 'CLI-' . $projetoAtual['lead_id'];
+                $cliente_nome_final = "[" . $codigo . "] " . mb_strtoupper($lead['cliente_nome'], 'UTF-8');
+            }
+        }
+
+        // 3. Executa o UPDATE com os dados completos
         $stmt = $pdo->prepare("UPDATE projetos_pcp SET 
             cliente = :cliente, 
             data_limite = :data_limite, 
@@ -51,7 +77,7 @@ if ($id > 0 && !empty($cliente)) {
             WHERE id = :id");
         
         $stmt->execute([
-            'cliente'                => $cliente,
+            'cliente'                => $cliente_nome_final,
             'data_limite'            => $data_limite,
             'observacao'             => $observacao,
             'promob'                 => $promob,
@@ -69,8 +95,10 @@ if ($id > 0 && !empty($cliente)) {
             'id'                     => $id
         ]);
 
+        $pdo->commit();
         echo json_encode(['success' => true]);
     } catch (\PDOException $e) {
+        $pdo->rollBack();
         http_response_code(500);
         echo json_encode(['success' => false, 'error' => $e->getMessage()]);
     }
