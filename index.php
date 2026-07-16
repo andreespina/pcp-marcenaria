@@ -89,7 +89,7 @@ function jsSafe($val) {
 }
 
 // ---- VARIÁVEIS PARA O HEADER.PHP ----
-$page_title = 'PCP';
+$page_title = 'PAINEL DE COMANDO';
 $page_subtitle = 'SBG Móveis & Design';
 $main_class = 'flex-1';
 $menu_button_text = 'MENU';
@@ -105,31 +105,9 @@ $head_extras = '
     .dark .sortable-ghost { background-color: #334155; border-color: #64748b; }
 </style>';
 
-// Configuração do Menu Extras com base nas permissões
+// Variáveis de Permissão
 $role = isset($_SESSION['usuario_role']) ? $_SESSION['usuario_role'] : 'USER';
 $permissoes = isset($_SESSION['usuario_permissoes']) ? $_SESSION['usuario_permissoes'] : [];
-
-$menu_extras = '';
-
-if ($role === 'ADMIN' || in_array('projetos', $permissoes)) {
-    $menu_extras .= '
-    <button onclick="abrirModalNovo(); fecharMenu()" class="w-full text-left px-4 py-3 text-sm font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center border-t border-gray-100 dark:border-gray-700 transition-colors">
-        <svg class="w-4 h-4 mr-2 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>PROJETO
-    </button>';
-}
-
-if ($role === 'ADMIN' || in_array('usuarios', $permissoes)) {
-    $menu_extras .= '
-    <button onclick="abrirModalUsuario(); fecharMenu()" class="w-full text-left px-4 py-3 text-sm font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center border-t border-gray-100 dark:border-gray-700 transition-colors">
-        <svg class="w-4 h-4 mr-2 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path></svg>ADD USER
-    </button>';
-}
-
-// Alterar senha é livre para todos
-$menu_extras .= '
-<button onclick="abrirModalSenha(); fecharMenu()" class="w-full text-left px-4 py-3 text-sm font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center border-t border-gray-100 dark:border-gray-700 transition-colors">
-    <svg class="w-4 h-4 mr-2 text-yellow-600 dark:text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path></svg>ALTERAR SENHA
-</button>';
 
 require_once 'includes/header.php';
 ?>
@@ -220,6 +198,31 @@ require_once 'includes/header.php';
     </div>
 
     <div class="lg:col-span-1 flex flex-col space-y-6">
+        
+        <div class="bg-white dark:bg-[#222736] rounded-lg shadow-sm border border-gray-200 dark:border-[#2a3142] p-5 transition-colors duration-300">
+            <h2 class="text-md font-bold text-gray-800 dark:text-gray-200 mb-4 flex items-center uppercase tracking-wide">
+                <svg class="w-4 h-4 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                Ações Rápidas
+            </h2>
+            <div class="grid grid-cols-2 gap-3">
+                <?php if ($role === 'ADMIN' || in_array('projetos', $permissoes)): ?>
+                <button onclick="abrirModalNovo()" class="bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-lg text-[11px] font-bold flex flex-col items-center justify-center transition-colors shadow-sm tracking-wide">
+                    <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                    NOVO PROJETO
+                </button>
+                <a href="calendario.php" class="bg-indigo-500 hover:bg-indigo-600 text-white p-3 rounded-lg text-[11px] font-bold flex flex-col items-center justify-center transition-colors shadow-sm tracking-wide text-center">
+                    <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                    CALENDÁRIO
+                </a>
+                <?php endif; ?>
+                
+                <button onclick="abrirModalSenha()" class="col-span-2 bg-yellow-500 hover:bg-yellow-600 text-white p-2.5 rounded-lg text-xs font-bold flex items-center justify-center transition-colors shadow-sm mt-1 uppercase tracking-wide">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path></svg>
+                    ALTERAR MINHA SENHA
+                </button>
+            </div>
+        </div>
+
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-5 transition-colors duration-300 flex-1">
             <h2 class="text-lg font-bold text-red-600 dark:text-red-400 mb-4 flex items-center">
                 <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
@@ -657,56 +660,6 @@ require_once 'includes/header.php';
 
     </div>
 </div>
-
-<div id="modalUsuario" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 hidden opacity-0 transition-opacity duration-300">
-    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-sm p-6 border border-gray-200 dark:border-gray-700 transform scale-95 transition-all duration-300" id="modalUsuarioConteudo">
-        <div class="flex justify-between items-center mb-4 border-b dark:border-gray-700 pb-2">
-            <h3 class="text-lg font-bold text-[#1e3a8a] dark:text-blue-400">Cadastrar Novo Usuário</h3>
-            <button onclick="fecharModalUsuario()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-2xl font-bold">&times;</button>
-        </div>
-        <form id="formUsuario" onsubmit="salvarUsuarioServidor(event)">
-            <div class="mb-4">
-                <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Login do Usuário</label>
-                <input type="text" id="novo_login" required class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-2 focus:ring-blue-500">
-            </div>
-            <div class="mb-4">
-                <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Criar Senha</label>
-                <input type="password" id="novo_senha" required class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-2 focus:ring-blue-500">
-            </div>
-            <div class="mb-4 border-t dark:border-gray-700 pt-4">
-                <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Nível de Acesso</label>
-                <select id="novo_role" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded mb-4 focus:ring-2 focus:ring-blue-500" onchange="togglePermissoes()">
-                    <option value="USER">Usuário Padrão (Escolher Acessos)</option>
-                    <option value="ADMIN">Administrador (Acesso Total)</option>
-                </select>
-
-                <div id="div_permissoes">
-                    <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Módulos Permitidos</label>
-                    <div class="grid grid-cols-2 gap-2 text-sm text-gray-700 dark:text-gray-300">
-                        <label><input type="checkbox" name="permissoes[]" value="projetos" class="mr-1"> Projetos (PCP)</label>
-                        <label><input type="checkbox" name="permissoes[]" value="clientes" class="mr-1"> Clientes</label>
-                        <label><input type="checkbox" name="permissoes[]" value="almoxarifado" class="mr-1"> Almoxarifado</label>
-                        <label><input type="checkbox" name="permissoes[]" value="assistencias" class="mr-1"> Assistências</label>
-                        <label><input type="checkbox" name="permissoes[]" value="recados" class="mr-1"> Recados</label>
-                        <label><input type="checkbox" name="permissoes[]" value="relatorios" class="mr-1"> Relatórios</label>
-                        <label><input type="checkbox" name="permissoes[]" value="financeiro"> Financeiro</label>
-                    </div>
-                </div>
-            </div>
-            <div class="flex justify-end space-x-3 border-t dark:border-gray-700 pt-4">
-                <button type="button" onclick="fecharModalUsuario()" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition font-medium">Cancelar</button>
-                <button type="submit" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded font-bold transition shadow-sm">Cadastrar</button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<script>
-function togglePermissoes() {
-    const role = document.getElementById('novo_role').value;
-    document.getElementById('div_permissoes').style.display = (role === 'ADMIN') ? 'none' : 'block';
-}
-</script>
 
 <div id="modalSenha" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 hidden opacity-0 transition-opacity duration-300">
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-sm p-6 border border-gray-200 dark:border-gray-700 transform scale-95 transition-all duration-300" id="modalSenhaConteudo">
