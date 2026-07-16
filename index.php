@@ -72,6 +72,41 @@ try {
             if (count($proximas_entregas) < 5) { $proximas_entregas[] = $p; }
         }
     }
+
+    // --- LÓGICA DE DADOS PARA OS GRÁFICOS ---
+    $chart_rosca_labels = ['Desenv. PCP', 'Produção', 'Expedição', 'Instalação', 'Atrasado'];
+    $chart_rosca_data = [
+        count($colunas['desenvolvimento']),
+        count($colunas['producao']),
+        count($colunas['expedicao']),
+        count($colunas['instalacao']),
+        count($colunas['atrasou'])
+    ];
+
+    $meses_nomes = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    $chart_bar_labels = [];
+    $chart_bar_projetos = [];
+    $chart_bar_assistencias = [];
+
+    // Loop para preencher os últimos 6 meses retroativamente
+    for ($i = 5; $i >= 0; $i--) {
+        $data_alvo = strtotime("-$i months");
+        $mes_num = date('m', $data_alvo);
+        $ano_num = date('Y', $data_alvo);
+        $chart_bar_labels[] = $meses_nomes[(int)$mes_num - 1] . '/' . substr($ano_num, 2);
+        
+        // Obras Entregues (Status 'assistencia' no seu banco significa que saiu do Kanban principal e está concluído)
+        $stmt_proj_mes = $pdo->prepare("SELECT COUNT(*) FROM projetos_pcp WHERE status = 'assistencia' AND MONTH(data_limite) = ? AND YEAR(data_limite) = ?");
+        $stmt_proj_mes->execute([$mes_num, $ano_num]);
+        $chart_bar_projetos[] = $stmt_proj_mes->fetchColumn();
+
+        // Assistências Geradas
+        $stmt_ast_mes = $pdo->prepare("SELECT COUNT(*) FROM assistencias_tecnicas WHERE MONTH(data_solicitacao) = ? AND YEAR(data_solicitacao) = ?");
+        $stmt_ast_mes->execute([$mes_num, $ano_num]);
+        $chart_bar_assistencias[] = $stmt_ast_mes->fetchColumn();
+    }
+    // ----------------------------------------
+
 } catch (\PDOException $e) {
     die("Erro na consulta: " . $e->getMessage());
 }
@@ -88,8 +123,7 @@ function jsSafe($val) {
     if ($val === null) $val = ''; return htmlspecialchars(json_encode($val), ENT_QUOTES, 'UTF-8');
 }
 
-// ---- VARIÁVEIS PARA O HEADER.PHP ----
-$page_title = 'PAINEL DE COMANDO';
+$page_title = 'PCP';
 $page_subtitle = 'SBG Móveis & Design';
 $main_class = 'flex-1';
 $menu_button_text = 'MENU';
@@ -97,6 +131,7 @@ $menu_button_class = 'bg-[#1e3a8a] dark:bg-blue-600 hover:bg-blue-800 dark:hover
 
 $head_extras = '
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
     .kanban-column::-webkit-scrollbar { width: 4px; }
     .kanban-column::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 4px; }
@@ -105,7 +140,7 @@ $head_extras = '
     .dark .sortable-ghost { background-color: #334155; border-color: #64748b; }
 </style>';
 
-// Variáveis de Permissão
+// Configuração do Menu Extras com base nas permissões
 $role = isset($_SESSION['usuario_role']) ? $_SESSION['usuario_role'] : 'USER';
 $permissoes = isset($_SESSION['usuario_permissoes']) ? $_SESSION['usuario_permissoes'] : [];
 
@@ -154,6 +189,23 @@ require_once 'includes/header.php';
             </div>
         </div>
 
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 flex-1">
+            
+            <div class="bg-gray-50 dark:bg-gray-700/30 p-4 rounded-xl border border-gray-200 dark:border-gray-700 flex flex-col justify-center items-center shadow-inner">
+                <h3 class="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest w-full text-center mb-4">Volume Atual por Fase</h3>
+                <div class="relative w-full h-44 flex justify-center">
+                    <canvas id="chartRosca"></canvas>
+                </div>
+            </div>
+
+            <div class="bg-gray-50 dark:bg-gray-700/30 p-4 rounded-xl border border-gray-200 dark:border-gray-700 flex flex-col justify-center shadow-inner">
+                <h3 class="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest w-full text-center mb-4">Desempenho (Últimos 6 Meses)</h3>
+                <div class="relative w-full h-44">
+                    <canvas id="chartBarras"></canvas>
+                </div>
+            </div>
+            
+        </div>
         <div class="mt-auto pt-5 border-t border-gray-100 dark:border-gray-700">
             <div class="flex justify-between items-center mb-3">
                 <h3 class="text-sm font-bold text-red-600 dark:text-red-500 flex items-center uppercase tracking-wide">
@@ -215,10 +267,12 @@ require_once 'includes/header.php';
                     CALENDÁRIO
                 </a>
                 <?php endif; ?>
+                
                 <a href="impressoes.php" class="col-span-2 bg-emerald-600 hover:bg-emerald-700 text-white p-2.5 rounded-lg text-xs font-bold flex items-center justify-center transition-colors shadow-sm mt-1 uppercase tracking-wide">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
                     IMPRESSÕES RÁPIDAS
                 </a>
+                
                 <button onclick="abrirModalSenha()" class="col-span-2 bg-yellow-500 hover:bg-yellow-600 text-white p-2.5 rounded-lg text-xs font-bold flex items-center justify-center transition-colors shadow-sm mt-1 uppercase tracking-wide">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path></svg>
                     ALTERAR MINHA SENHA
@@ -709,4 +763,59 @@ require_once 'includes/header.php';
 </div>
 
 <script src="assets/js/index.js"></script>
+
+<script>
+    const corTexto = document.documentElement.classList.contains('dark') ? '#9ca3af' : '#475569';
+    const corGrade = document.documentElement.classList.contains('dark') ? '#374151' : '#e2e8f0';
+
+    const ctxRosca = document.getElementById('chartRosca');
+    if (ctxRosca) {
+        new Chart(ctxRosca.getContext('2d'), {
+            type: 'doughnut',
+            data: {
+                labels: <?= json_encode($chart_rosca_labels) ?>,
+                datasets: [{
+                    data: <?= json_encode($chart_rosca_data) ?>,
+                    backgroundColor: ['#6b7280', '#3b82f6', '#6366f1', '#10b981', '#ef4444'],
+                    borderWidth: 0,
+                    hoverOffset: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '75%',
+                plugins: {
+                    legend: { position: 'right', labels: { color: corTexto, font: { size: 10, weight: 'bold' } } }
+                }
+            }
+        });
+    }
+
+    const ctxBarras = document.getElementById('chartBarras');
+    if (ctxBarras) {
+        new Chart(ctxBarras.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: <?= json_encode($chart_bar_labels) ?>,
+                datasets: [
+                    { label: 'Obras Entregues', data: <?= json_encode($chart_bar_projetos) ?>, backgroundColor: '#10b981', borderRadius: 4 },
+                    { label: 'Assist. Abertas', data: <?= json_encode($chart_bar_assistencias) ?>, backgroundColor: '#f59e0b', borderRadius: 4 }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'top', labels: { color: corTexto, font: { size: 10, weight: 'bold' }, boxWidth: 12 } }
+                },
+                scales: {
+                    y: { beginAtZero: true, ticks: { stepSize: 1, color: corTexto, font: { size: 10 } }, grid: { color: corGrade } },
+                    x: { ticks: { color: corTexto, font: { size: 10 } }, grid: { display: false } }
+                }
+            }
+        });
+    }
+</script>
+
 <?php require_once 'includes/footer.php'; ?>
