@@ -21,6 +21,28 @@ function mudarAba(abaId) {
     btnAtivo.classList.add('text-blue-600', 'border-blue-600', 'dark:text-blue-400', 'dark:border-blue-400', 'bg-blue-50', 'dark:bg-blue-900/20');
 }
 
+// Filtro Universal para as Tabelas
+function filtrarTabela(inputId, rowClass) {
+    const filtro = document.getElementById(inputId).value.toLowerCase();
+    const linhas = document.querySelectorAll('.' + rowClass);
+    
+    linhas.forEach(linha => {
+        // Busca apenas nos elementos marcados com 'td-busca' para evitar sujeira HTML
+        const colunasBusca = linha.querySelectorAll('.td-busca');
+        let textoLinha = '';
+        
+        colunasBusca.forEach(col => {
+            textoLinha += col.textContent.toLowerCase() + ' ';
+        });
+
+        if (textoLinha.includes(filtro)) {
+            linha.style.display = '';
+        } else {
+            linha.style.display = 'none';
+        }
+    });
+}
+
 function imprimirRelatorio() {
     window.print();
 }
