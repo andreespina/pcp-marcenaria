@@ -20,7 +20,6 @@ function filtrarCardsAssistencia() {
     const cards = document.querySelectorAll('.card-busca');
     
     cards.forEach(card => {
-        // Pega todos os textos marcados com "texto-pesquisa" dentro do card
         const elementosTexto = card.querySelectorAll('.texto-pesquisa');
         let contemFiltro = false;
         
@@ -30,7 +29,6 @@ function filtrarCardsAssistencia() {
             }
         });
         
-        // Também verifica o código da assistência (AST #id)
         if (card.innerText.toLowerCase().includes(filtro)) contemFiltro = true;
 
         if (contemFiltro) {
@@ -70,6 +68,20 @@ function toggleFaturamento(prefix) {
     }
 }
 
+// LÓGICA DO ACCORDION DO CARD
+function toggleAssistenciaCard(element) {
+    const conteudo = element.nextElementSibling;
+    const icone = element.querySelector('.icon-seta');
+    
+    if (conteudo.classList.contains('hidden')) {
+        conteudo.classList.remove('hidden');
+        icone.classList.add('rotate-180');
+    } else {
+        conteudo.classList.add('hidden');
+        icone.classList.remove('rotate-180');
+    }
+}
+
 // 2. Drag & Drop do Kanban
 document.addEventListener('DOMContentLoaded', () => {
     const columns = document.querySelectorAll('.kanban-column');
@@ -82,7 +94,22 @@ document.addEventListener('DOMContentLoaded', () => {
             delayOnTouchOnly: true, 
             fallbackTolerance: 3,
             onEnd: async function (evt) { 
-                await atualizarStatusAsst(evt.item.getAttribute('data-id'), evt.to.getAttribute('data-status')); 
+                const card = evt.item;
+                const newStatus = evt.to.getAttribute('data-status');
+                
+                // Animação Inteligente: Encolhe se for pra Concluída, Expande se sair de lá
+                const conteudo = card.querySelector('.conteudo-assistencia');
+                const icone = card.querySelector('.icon-seta');
+                
+                if (newStatus === 'concluida') {
+                    conteudo.classList.add('hidden');
+                    icone.classList.remove('rotate-180');
+                } else {
+                    conteudo.classList.remove('hidden');
+                    icone.classList.add('rotate-180');
+                }
+
+                await atualizarStatusAsst(card.getAttribute('data-id'), newStatus); 
             } 
         }); 
     });
@@ -126,7 +153,7 @@ function chamarBaixa(btn) { const dados = lerDadosCard(btn); abrirModalBaixa(dad
 
 async function deletarAssistencia(event, id) {
     event.stopPropagation();
-    if (!confirm(`Deseja realmente apagar a assistência #${id}? Esta ação não pode ser desfeita.`)) return;
+    if (!confirm(`Deseja realmente apagar a assistência #${id}? Esta ação não pode ser desfeita e removerá a cobrança do financeiro caso exista.`)) return;
     
     const cardElement = document.querySelector(`[data-id="${id}"]`);
     

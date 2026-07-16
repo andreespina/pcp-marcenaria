@@ -44,6 +44,11 @@ function formatarDataPrint($data) {
     return date('d/m/Y', strtotime($data));
 }
 
+function jsSafe($val) {
+    if ($val === null) $val = '';
+    return htmlspecialchars(json_encode($val), ENT_QUOTES, 'UTF-8');
+}
+
 // Variáveis para o header
 $page_title = 'ASSISTÊNCIAS TÉCNICAS';
 $page_subtitle = 'Chamados Abertos, Agendados e Resolvidos';
@@ -73,6 +78,7 @@ require_once 'includes/header.php';
 
 <div class="flex flex-col gap-6">
 
+    <!-- DASHBOARD E FILTRO -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div class="bg-white dark:bg-[#222736] p-4 rounded-lg shadow-sm border border-gray-200 dark:border-[#2a3142] flex items-center">
             <div class="p-3 rounded-full bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 mr-4">
@@ -113,6 +119,7 @@ require_once 'includes/header.php';
         </div>
     </div>
 
+    <!-- GUIA RÁPIDO -->
     <details class="group bg-amber-50 dark:bg-[#222736] border border-amber-200 dark:border-amber-900/50 rounded-lg shadow-sm transition-colors duration-300">
         <summary class="cursor-pointer p-4 font-bold text-sm text-amber-800 dark:text-amber-500 flex items-center justify-between select-none uppercase tracking-wide">
             <div class="flex items-center">
@@ -129,16 +136,17 @@ require_once 'includes/header.php';
                 </li>
                 <li class="flex items-start">
                     <span class="mr-2">🔄</span>
-                    <span><strong>Fluxo Kanban:</strong> Arraste os cards entre as colunas para organizar o status (Solicitações Pendentes &rarr; Visitas Agendadas &rarr; Resolvidos / Baixados).</span>
+                    <span><strong>Fluxo Kanban:</strong> Arraste os cards entre as colunas para organizar o status. Cards arrastados para "Resolvidos" encolhem automaticamente para limpar a visualização.</span>
                 </li>
                 <li class="flex items-start">
                     <span class="mr-2">⚡</span>
-                    <span><strong>Ações Rápidas:</strong> Em cada card, você pode <strong>Imprimir a OS</strong> (🖨️), <strong>Editar</strong> (✏️), ou <strong>Dar Baixa</strong> (✔️) quando resolvido.</span>
+                    <span><strong>Ações e Detalhes:</strong> Clique no topo de qualquer card para expandi-lo e revelar as ações de <strong>Imprimir a OS</strong> (🖨️), <strong>Editar</strong> (✏️) ou ver o relatório completo.</span>
                 </li>
             </ul>
         </div>
     </details>
 
+    <!-- KANBAN BOARD -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
         <?php foreach ($colunas as $status_chave => $lista_assistencias): $conf = $titulos_colunas[$status_chave]; ?>
             <div class="bg-white dark:bg-[#222736] rounded-lg shadow-sm border border-gray-200 dark:border-[#2a3142] p-4 flex flex-col h-[600px] transition-colors duration-300">
@@ -182,71 +190,85 @@ require_once 'includes/header.php';
                         <div class="card-busca bg-gray-50 dark:bg-gray-800/80 hover:bg-gray-100 dark:hover:bg-gray-700/80 border border-gray-200 dark:border-gray-700 p-3 rounded-lg shadow-sm cursor-grab active:cursor-grabbing transition-all duration-200" 
                              data-id="<?= $a['id'] ?>" data-nome="<?= htmlspecialchars(strtolower($a['cliente'])) ?>" data-time="<?= strtotime($a['data_solicitacao']) ?>" data-json='<?= $cardData ?>'>
                             
-                            <div class="flex justify-between items-start mb-1 border-b border-gray-200 dark:border-gray-700 pb-1.5">
-                                <div class="flex items-center space-x-1">
-                                    <span class="text-[10px] font-bold text-amber-600 dark:text-amber-500 bg-amber-100 dark:bg-amber-900/30 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-800">AST #<?= $a['id'] ?></span>
-                                    
-                                    <button onclick="chamarImpressao(this)" class="text-gray-400 hover:text-gray-800 dark:hover:text-gray-100 transition-colors p-1" title="Imprimir OS">
-                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
-                                    </button>
-                                    <button onclick="chamarEdicao(this)" class="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors p-1 font-bold" title="Editar Solicitação">
-                                        &#9998;
-                                    </button>
-                                    <button onclick="chamarBaixa(this)" class="text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300 transition-colors p-1 font-bold" title="Gerenciar / Dar Baixa">
-                                        <svg class="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                                    </button>
-                                    
-                                    <?php if ($role === 'ADMIN'): ?>
-                                        <button onclick="deletarAssistencia(event, <?= $a['id'] ?>)" class="text-gray-400 hover:text-red-600 dark:text-red-400 transition-colors p-1 text-sm font-bold" title="Apagar Assistência">
-                                            &times;
-                                        </button>
-                                    <?php endif; ?>
+                            <!-- CABEÇALHO CLICÁVEL (VISÃO MINIMALISTA) -->
+                            <div class="cursor-pointer select-none flex flex-col" onclick="toggleAssistenciaCard(this)">
+                                <div class="flex justify-between items-start mb-1">
+                                    <div class="flex items-center space-x-1.5">
+                                        <span class="text-[10px] font-bold text-amber-600 dark:text-amber-500 bg-amber-100 dark:bg-amber-900/30 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-800">AST #<?= $a['id'] ?></span>
+                                        <?php if($codigo_exibicao): ?>
+                                            <span class="text-amber-600 dark:text-amber-500 font-black text-[10px] tracking-wider">[<?= htmlspecialchars($codigo_exibicao) ?>]</span>
+                                        <?php endif; ?>
+                                    </div>
+                                    <svg class="w-4 h-4 text-gray-400 transform transition-transform duration-200 icon-seta <?= ($status_chave === 'concluida') ? '' : 'rotate-180' ?>" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                                 </div>
-                                <span class="text-[9px] font-semibold text-gray-500 dark:text-gray-400 mt-0.5">Criada: <?= formatarData($a['data_solicitacao']) ?></span>
-                            </div>
-                            
-                            <p class="font-bold text-gray-800 dark:text-gray-100 uppercase text-xs mt-1.5 flex items-center">
-                                <?php if($codigo_exibicao): ?>
-                                    <span class="text-amber-600 dark:text-amber-500 font-black mr-1.5">[<?= htmlspecialchars($codigo_exibicao) ?>]</span>
-                                <?php endif; ?>
-                                <span class="texto-pesquisa"><?= htmlspecialchars($a['cliente']) ?></span>
-                            </p>
-
-                            <div class="mt-2 flex items-center flex-wrap gap-1">
-                                <?php if (isset($a['tipo_cobranca']) && $a['tipo_cobranca'] === 'FATURADA'): ?>
-                                    <span class="bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300 px-1.5 py-0.5 rounded text-[9px] font-bold border border-purple-200 dark:border-purple-800/50 uppercase">
-                                        FATURADA (R$ <?= number_format((float)$a['valor_cobrado'], 2, ',', '.') ?>)
-                                    </span>
-                                    <?php if (!empty($a['comprovante_file'])): ?>
-                                        <a href="<?= htmlspecialchars($a['comprovante_file']) ?>" target="_blank" class="bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 px-1.5 py-0.5 rounded text-[9px] font-bold border border-blue-200 dark:border-blue-800/50 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors flex items-center" title="Ver Comprovante" onclick="event.stopPropagation()">
-                                            <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path></svg> COMPROVANTE
-                                        </a>
-                                    <?php endif; ?>
-                                <?php else: ?>
-                                    <span class="bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400 px-1.5 py-0.5 rounded text-[9px] font-bold border border-emerald-200 dark:border-emerald-800/50 uppercase">GARANTIA</span>
-                                <?php endif; ?>
-                            </div>
-                            
-                            <?php if ($a['projeto_id']): ?>
-                                <p class="text-[10px] text-gray-400 dark:text-gray-500 mt-1">(Ref. Projeto Original #<?= $a['projeto_id'] ?>)</p>
-                            <?php endif; ?>
-
-                            <?php if ($a['cidade'] || $a['condominio']): ?>
-                                <p class="text-[10px] text-gray-500 dark:text-gray-400 italic mt-0.5"><?= htmlspecialchars($a['condominio']) ?> <?= $a['cidade'] ? '- '.$a['cidade'] : '' ?></p>
-                            <?php endif; ?>
-                            
-                            <?php if ($a['obs_assistencia']): ?>
-                                <p class="text-xs mt-2 italic text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 p-2 rounded texto-pesquisa">
-                                    <strong class="text-red-500 dark:text-red-400 not-italic">Relato:</strong> <br><?= nl2br(htmlspecialchars($a['obs_assistencia'])) ?>
+                                <p class="font-bold text-gray-800 dark:text-gray-100 uppercase text-xs truncate mt-0.5">
+                                    <span class="texto-pesquisa"><?= htmlspecialchars($a['cliente']) ?></span>
                                 </p>
-                            <?php endif; ?>
+                            </div>
 
-                            <?php if ($a['resolvido_assistencia'] === 'SIM'): ?>
-                                <div class="mt-3 pt-2 border-t border-gray-200 dark:border-gray-700 text-[10px] bg-green-50 dark:bg-green-900/10 p-2 rounded">
-                                    <p class="text-green-700 dark:text-green-400 font-bold">✔️ Resolvido por: <?= htmlspecialchars($a['tecnico_assistencia']) ?></p>
-                                    <p class="text-green-600 dark:text-green-500">Data de Resolução: <?= formatarData($a['data_assistencia']) ?></p>
+                            <!-- CONTEÚDO EXPANSÍVEL (Ações e Detalhes) -->
+                            <div class="conteudo-assistencia <?= ($status_chave === 'concluida') ? 'hidden' : '' ?> mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                                
+                                <!-- BARRA DE AÇÕES -->
+                                <div class="flex justify-between items-center mb-3">
+                                    <div class="flex items-center space-x-1 bg-white dark:bg-gray-900/50 p-1 rounded border border-gray-200 dark:border-gray-700 shadow-sm">
+                                        <button onclick="chamarImpressao(this)" class="text-gray-400 hover:text-gray-800 dark:hover:text-gray-100 transition-colors p-1" title="Imprimir OS">
+                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                                        </button>
+                                        <button onclick="chamarEdicao(this)" class="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors p-1 font-bold" title="Editar Solicitação">
+                                            &#9998;
+                                        </button>
+                                        <button onclick="chamarBaixa(this)" class="text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300 transition-colors p-1 font-bold" title="Gerenciar / Dar Baixa">
+                                            <svg class="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                        </button>
+                                        
+                                        <?php if ($role === 'ADMIN'): ?>
+                                            <div class="w-px h-4 bg-gray-300 dark:bg-gray-600 mx-1"></div>
+                                            <button onclick="deletarAssistencia(event, <?= $a['id'] ?>)" class="text-gray-400 hover:text-red-600 dark:text-red-400 transition-colors p-1 text-sm font-bold" title="Apagar Assistência">
+                                                &times;
+                                            </button>
+                                        <?php endif; ?>
+                                    </div>
+                                    <span class="text-[9px] font-semibold text-gray-500 dark:text-gray-400">Criada: <?= formatarData($a['data_solicitacao']) ?></span>
                                 </div>
-                            <?php endif; ?>
+
+                                <!-- DETALHES -->
+                                <div class="mt-1 flex items-center flex-wrap gap-1">
+                                    <?php if (isset($a['tipo_cobranca']) && $a['tipo_cobranca'] === 'FATURADA'): ?>
+                                        <span class="bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300 px-1.5 py-0.5 rounded text-[9px] font-bold border border-purple-200 dark:border-purple-800/50 uppercase">
+                                            FATURADA (R$ <?= number_format((float)$a['valor_cobrado'], 2, ',', '.') ?>)
+                                        </span>
+                                        <?php if (!empty($a['comprovante_file'])): ?>
+                                            <a href="<?= htmlspecialchars($a['comprovante_file']) ?>" target="_blank" class="bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 px-1.5 py-0.5 rounded text-[9px] font-bold border border-blue-200 dark:border-blue-800/50 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors flex items-center" title="Ver Comprovante" onclick="event.stopPropagation()">
+                                                <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path></svg> COMPROVANTE
+                                            </a>
+                                        <?php endif; ?>
+                                    <?php else: ?>
+                                        <span class="bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400 px-1.5 py-0.5 rounded text-[9px] font-bold border border-emerald-200 dark:border-emerald-800/50 uppercase">GARANTIA</span>
+                                    <?php endif; ?>
+                                </div>
+                                
+                                <?php if ($a['projeto_id']): ?>
+                                    <p class="text-[10px] text-gray-400 dark:text-gray-500 mt-1">(Ref. Projeto Original #<?= $a['projeto_id'] ?>)</p>
+                                <?php endif; ?>
+
+                                <?php if ($a['cidade'] || $a['condominio']): ?>
+                                    <p class="text-[10px] text-gray-500 dark:text-gray-400 italic mt-0.5"><?= htmlspecialchars($a['condominio']) ?> <?= $a['cidade'] ? '- '.$a['cidade'] : '' ?></p>
+                                <?php endif; ?>
+                                
+                                <?php if ($a['obs_assistencia']): ?>
+                                    <p class="text-xs mt-2 italic text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 p-2 rounded texto-pesquisa">
+                                        <strong class="text-red-500 dark:text-red-400 not-italic">Relato:</strong> <br><?= nl2br(htmlspecialchars($a['obs_assistencia'])) ?>
+                                    </p>
+                                <?php endif; ?>
+
+                                <?php if ($a['resolvido_assistencia'] === 'SIM'): ?>
+                                    <div class="mt-3 pt-2 border-t border-gray-200 dark:border-gray-700 text-[10px] bg-green-50 dark:bg-green-900/10 p-2 rounded">
+                                        <p class="text-green-700 dark:text-green-400 font-bold">✔️ Resolvido por: <?= htmlspecialchars($a['tecnico_assistencia']) ?></p>
+                                        <p class="text-green-600 dark:text-green-500">Data de Resolução: <?= formatarData($a['data_assistencia']) ?></p>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
                         </div>
                     <?php endforeach; ?>
                 </div>
@@ -255,6 +277,11 @@ require_once 'includes/header.php';
     </div>
 </div>
 
+<!-- ============================================== -->
+<!-- MODAIS DE ASSISTÊNCIAS TÉCNICAS                -->
+<!-- ============================================== -->
+
+<!-- 1. NOVA ASSISTÊNCIA -->
 <div id="modalNovaAssistencia" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 hidden opacity-0 transition-opacity duration-300">
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-3xl p-6 border border-gray-200 dark:border-gray-700 transform scale-95 transition-all duration-300 max-h-[95vh] overflow-y-auto" id="modalNovaAssistenciaConteudo">
         <div class="flex justify-between items-center mb-4 border-b border-gray-200 dark:border-gray-700 pb-2">
@@ -363,6 +390,7 @@ require_once 'includes/header.php';
     </div>
 </div>
 
+<!-- 2. EDITAR ASSISTÊNCIA -->
 <div id="modalEdicaoAssistencia" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 hidden opacity-0 transition-opacity duration-300">
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-3xl p-6 border border-gray-200 dark:border-gray-700 transform scale-95 transition-all duration-300 max-h-[90vh] overflow-y-auto" id="modalEdicaoAssistenciaConteudo">
         <div class="flex justify-between items-center mb-4 border-b border-gray-200 dark:border-gray-700 pb-2">
@@ -475,6 +503,7 @@ require_once 'includes/header.php';
     </div>
 </div>
 
+<!-- 3. DAR BAIXA / CONCLUIR -->
 <div id="modalBaixa" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 hidden opacity-0 transition-opacity duration-300">
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md p-6 border border-gray-200 dark:border-gray-700 transform scale-95 transition-all duration-300" id="modalBaixaConteudo">
         <div class="flex justify-between items-center mb-4 border-b border-gray-200 dark:border-gray-700 pb-2">
@@ -513,6 +542,7 @@ require_once 'includes/header.php';
     </div>
 </div>
 
+<!-- Variáveis globais e Script -->
 <script>
     window.CLIENTES_BASE_DATA = <?= json_encode($lista_clientes_base, JSON_UNESCAPED_UNICODE) ?>;
 </script>
