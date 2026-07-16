@@ -14,6 +14,8 @@ if (strpos($contentType, 'application/json') !== false) {
 
 if (!empty($data['cliente']) && !empty($data['observacao'])) {
     try {
+        $pdo->beginTransaction(); // Inicia a transação segura
+
         $projeto_id = !empty($data['projeto_id']) ? (int)$data['projeto_id'] : null;
         $cliente = trim($data['cliente']);
         $observacao = trim($data['observacao']);
@@ -95,8 +97,22 @@ if (!empty($data['cliente']) && !empty($data['observacao'])) {
             'forma_pagamento' => $forma_pagamento,
             'comprovante_file' => $comprovante_path
         ]);
+        
+        $assistencia_id = $pdo->lastInsertId();
+
+        // --- INTEGRAÇÃO FINANCEIRA ---
+        if ($tipo_cobranca === 'FATURADA' && $valor_cobrado > 0) {
+            $descFin = "ASSISTÊNCIA #" . $assistencia_id . " - " . mb_strtoupper($nome_limpo, 'UTF-8');
+            $stmtFin = $pdo->prepare("INSERT INTO financeiro (tipo, descricao, categoria, cliente_fornecedor, entidade_id, entidade_tipo, valor, data_vencimento, status) VALUES ('RECEITA', ?, 'Assistência Técnica', ?, ?, 'CLIENTE', ?, CURDATE(), 'PENDENTE')");
+            $stmtFin->execute([$descFin, mb_strtoupper($cliente, 'UTF-8'), $cliente_id, $valor_cobrado]);
+        }
+        // ------------------------------
+
+        $pdo->commit();
         echo json_encode(['success' => true]);
+
     } catch (\PDOException $e) {
+        if ($pdo->inTransaction()) { $pdo->rollBack(); }
         http_response_code(500); 
         echo json_encode(['success' => false, 'error' => $e->getMessage()]);
     }

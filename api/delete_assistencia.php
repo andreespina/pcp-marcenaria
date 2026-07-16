@@ -21,15 +21,26 @@ if ($id <= 0) {
 }
 
 try {
+    $pdo->beginTransaction();
+
+    // 1. Apaga a Assistência
     $stmt = $pdo->prepare("DELETE FROM assistencias_tecnicas WHERE id = ?");
     $stmt->execute([$id]);
 
     if ($stmt->rowCount() > 0) {
+        // 2. Apaga do Financeiro qualquer cobrança PENDENTE gerada por esta assistência
+        $descLike = "ASSISTÊNCIA #" . $id . " - %";
+        $stmtDel = $pdo->prepare("DELETE FROM financeiro WHERE descricao LIKE ? AND status = 'PENDENTE'");
+        $stmtDel->execute([$descLike]);
+
+        $pdo->commit();
         echo json_encode(['success' => true]);
     } else {
+        $pdo->rollBack();
         echo json_encode(['success' => false, 'error' => 'Assistência não encontrada.']);
     }
 } catch (PDOException $e) {
+    if ($pdo->inTransaction()) { $pdo->rollBack(); }
     echo json_encode(['success' => false, 'error' => 'Erro no banco de dados: ' . $e->getMessage()]);
 }
 ?>

@@ -16,6 +16,8 @@ $id = isset($data['id']) ? (int)$data['id'] : 0;
 
 if ($id > 0 && !empty($data['cliente'])) {
     try {
+        $pdo->beginTransaction(); // Inicia transação
+
         $cliente_raw = trim($data['cliente']);
 
         // --- MOTOR DE BUSCA DE ID ---
@@ -108,9 +110,39 @@ if ($id > 0 && !empty($data['cliente'])) {
         
         $stmt = $pdo->prepare($query);
         $stmt->execute($params);
+
+        // --- INTEGRAÇÃO FINANCEIRA ---
+        $descLike = "ASSISTÊNCIA #" . $id . " - %";
+        
+        if ($tipo_cobranca === 'FATURADA' && $valor_cobrado > 0) {
+            $descFin = "ASSISTÊNCIA #" . $id . " - " . mb_strtoupper($nome_limpo, 'UTF-8');
+            
+            // Verifica se a cobrança já existe no Financeiro
+            $stmtCheck = $pdo->prepare("SELECT id FROM financeiro WHERE descricao LIKE ? LIMIT 1");
+            $stmtCheck->execute([$descLike]);
+            $fin = $stmtCheck->fetch();
+
+            if ($fin) {
+                // Atualiza o valor e o cliente
+                $stmtFinUp = $pdo->prepare("UPDATE financeiro SET descricao = ?, cliente_fornecedor = ?, entidade_id = ?, valor = ? WHERE id = ?");
+                $stmtFinUp->execute([$descFin, mb_strtoupper($cliente_raw, 'UTF-8'), $cliente_id, $valor_cobrado, $fin['id']]);
+            } else {
+                // Se não existia (foi mudado de garantia para faturado), cria um novo
+                $stmtFinIn = $pdo->prepare("INSERT INTO financeiro (tipo, descricao, categoria, cliente_fornecedor, entidade_id, entidade_tipo, valor, data_vencimento, status) VALUES ('RECEITA', ?, 'Assistência Técnica', ?, ?, 'CLIENTE', ?, CURDATE(), 'PENDENTE')");
+                $stmtFinIn->execute([$descFin, mb_strtoupper($cliente_raw, 'UTF-8'), $cliente_id, $valor_cobrado]);
+            }
+        } else {
+            // Se for GARANTIA ou o valor for limpo, apagamos do Financeiro caso ainda esteja PENDENTE
+            $stmtDel = $pdo->prepare("DELETE FROM financeiro WHERE descricao LIKE ? AND status = 'PENDENTE'");
+            $stmtDel->execute([$descLike]);
+        }
+        // ------------------------------
+
+        $pdo->commit();
         echo json_encode(['success' => true]);
         
     } catch (\PDOException $e) {
+        if ($pdo->inTransaction()) { $pdo->rollBack(); }
         http_response_code(500); 
         echo json_encode(['success' => false, 'error' => $e->getMessage()]);
     }
