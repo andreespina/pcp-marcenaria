@@ -24,7 +24,6 @@ if ($data && !empty($data['id'])) {
             WHERE id = :id
         ");
 
-        // Tratamento seguro para os custos (caso venham vazios)
         $stmt->execute([
             'status_c' => $data['status_contrato'],
             'status_f' => $data['status_financeiro'],
@@ -37,26 +36,64 @@ if ($data && !empty($data['id'])) {
         ]);
 
         // 2. Integração automática com a tabela `financeiro`
-        // Só gera lançamentos se houver parcelas configuradas no modal
         if (!empty($data['parcelas']) && count($data['parcelas']) > 0) {
             
-            // Prepara a query exata baseada na estrutura da sua tabela de financeiro
+            $entidade_id = null;
+            // Remove a TAG (Ex: [CLI-08]) e deixa só o nome limpo
+            $nome_limpo = trim(preg_replace('/^\[.*?\]\s*/', '', $data['cliente_nome']));
+            
+            // PRIORIDADE 1: Busca exata pelo Nome do Contrato
+            $stmtCli = $pdo->prepare("SELECT id FROM clientes_cadastro WHERE TRIM(UPPER(nome_contrato)) = UPPER(?) LIMIT 1");
+            $stmtCli->execute([$nome_limpo]);
+            $cli = $stmtCli->fetch(PDO::FETCH_ASSOC);
+            
+            if ($cli) {
+                $entidade_id = $cli['id'];
+            } else {
+                // PRIORIDADE 2: Se o nome falhar, busca pela TAG de Código
+                $codigo_tag = '';
+                if (preg_match('/^\[(.*?)\]/', $data['cliente_nome'], $matches)) {
+                    $codigo_tag = trim($matches[1]);
+                }
+
+                if (!empty($codigo_tag)) {
+                    // Busca exata por quem tem ESSE código
+                    $stmtTag = $pdo->prepare("SELECT id FROM clientes_cadastro WHERE codigo_cliente = ? LIMIT 1");
+                    $stmtTag->execute([$codigo_tag]);
+                    $cliTag = $stmtTag->fetch(PDO::FETCH_ASSOC);
+
+                    if ($cliTag) {
+                        $entidade_id = $cliTag['id'];
+                    } else {
+                        // PRIORIDADE 3: Tenta extrair apenas o número como fallback (ex: CLI-08 vira ID 8)
+                        $possible_id = (int) preg_replace('/[^0-9]/', '', $codigo_tag);
+                        if ($possible_id > 0) {
+                            $stmtId = $pdo->prepare("SELECT id FROM clientes_cadastro WHERE id = ? LIMIT 1");
+                            $stmtId->execute([$possible_id]);
+                            $cliId = $stmtId->fetch(PDO::FETCH_ASSOC);
+                            if ($cliId) {
+                                $entidade_id = $cliId['id'];
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Insere no Financeiro enviando o 'entidade_id' corretamente validado
             $stmtFin = $pdo->prepare("INSERT INTO financeiro 
-                (tipo, descricao, categoria, cliente_fornecedor, valor, data_vencimento, status, entidade_tipo) 
+                (tipo, descricao, categoria, cliente_fornecedor, entidade_id, entidade_tipo, valor, data_vencimento, status) 
                 VALUES 
-                ('RECEITA', :descricao, 'Receita de Venda', :cliente, :valor, :data_vencimento, 'PENDENTE', 'CLIENTE')
+                ('RECEITA', :descricao, 'Receita de Venda', :cliente, :entidade_id, 'CLIENTE', :valor, :data_vencimento, 'PENDENTE')
             ");
 
             foreach ($data['parcelas'] as $p) {
-                // Limpa o nome do cliente que vem com a TAG [CLI-XX] para ficar mais elegante
-                $nome_limpo = preg_replace('/^\[.*?\]\s*/', '', $data['cliente_nome']);
-
-                // Gera a descrição (Ex: "Entrada - CONTRATO ANDRÉ" ou "Parcela 1/3 - CONTRATO ANDRÉ")
-                $desc = $p['desc'] . " - CONTRATO " . $nome_limpo;
+                // Gera a descrição (Ex: "Entrada - CONTRATO LUANA")
+                $desc = $p['desc'] . " - CONTRATO " . mb_strtoupper($nome_limpo, 'UTF-8');
 
                 $stmtFin->execute([
                     'descricao' => mb_strtoupper($desc, 'UTF-8'),
-                    'cliente' => mb_strtoupper($data['cliente_nome'], 'UTF-8'), // Mantém a TAG aqui para a coluna "Entidade"
+                    'cliente' => mb_strtoupper($data['cliente_nome'], 'UTF-8'),
+                    'entidade_id' => $entidade_id,
                     'valor' => $p['valor'],
                     'data_vencimento' => $p['data']
                 ]);
@@ -69,7 +106,6 @@ if ($data && !empty($data['id'])) {
     } catch (PDOException $e) {
         $pdo->rollBack();
         http_response_code(500);
-        // Retorna o erro exato do banco de dados caso algo falhe
         echo json_encode(['success' => false, 'error' => $e->getMessage()]);
     }
 } else {
