@@ -215,7 +215,10 @@ require_once 'includes/header.php';
                     CALENDÁRIO
                 </a>
                 <?php endif; ?>
-                
+                <a href="impressoes.php" class="col-span-2 bg-emerald-600 hover:bg-emerald-700 text-white p-2.5 rounded-lg text-xs font-bold flex items-center justify-center transition-colors shadow-sm mt-1 uppercase tracking-wide">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                    IMPRESSÕES RÁPIDAS
+                </a>
                 <button onclick="abrirModalSenha()" class="col-span-2 bg-yellow-500 hover:bg-yellow-600 text-white p-2.5 rounded-lg text-xs font-bold flex items-center justify-center transition-colors shadow-sm mt-1 uppercase tracking-wide">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path></svg>
                     ALTERAR MINHA SENHA
