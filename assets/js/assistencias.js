@@ -1,13 +1,44 @@
 // assets/js/assistencias.js
 
+// 1. Utilitários Base
 function filtrarSelect(inputId, selectId) {
     let filter = document.getElementById(inputId).value.toUpperCase();
     let select = document.getElementById(selectId);
     let options = select.getElementsByTagName('option');
     for (let i = 0; i < options.length; i++) {
         let txtValue = options[i].textContent || options[i].innerText;
-        if (txtValue.toUpperCase().indexOf(filter) > -1) { options[i].style.display = ""; } else { options[i].style.display = "none"; }
+        if (txtValue.toUpperCase().indexOf(filter) > -1) { 
+            options[i].style.display = ""; 
+        } else { 
+            options[i].style.display = "none"; 
+        }
     }
+}
+
+function filtrarCardsAssistencia() {
+    const filtro = document.getElementById('filtro_assistencias').value.toLowerCase();
+    const cards = document.querySelectorAll('.card-busca');
+    
+    cards.forEach(card => {
+        // Pega todos os textos marcados com "texto-pesquisa" dentro do card
+        const elementosTexto = card.querySelectorAll('.texto-pesquisa');
+        let contemFiltro = false;
+        
+        elementosTexto.forEach(el => {
+            if (el.textContent.toLowerCase().includes(filtro)) {
+                contemFiltro = true;
+            }
+        });
+        
+        // Também verifica o código da assistência (AST #id)
+        if (card.innerText.toLowerCase().includes(filtro)) contemFiltro = true;
+
+        if (contemFiltro) {
+            card.style.display = '';
+        } else {
+            card.style.display = 'none';
+        }
+    });
 }
 
 function autoPreencherFormulario(nomeCliente, prefixo) {
@@ -39,30 +70,91 @@ function toggleFaturamento(prefix) {
     }
 }
 
+// 2. Drag & Drop do Kanban
 document.addEventListener('DOMContentLoaded', () => {
     const columns = document.querySelectorAll('.kanban-column');
     columns.forEach(col => { 
         new Sortable(col, { 
-            group: 'assistencias_group', animation: 180, ghostClass: 'sortable-ghost', 
-            delay: 150, delayOnTouchOnly: true, fallbackTolerance: 3,
-            onEnd: async function (evt) { await atualizarStatusAsst(evt.item.getAttribute('data-id'), evt.to.getAttribute('data-status')); } 
+            group: 'assistencias_group', 
+            animation: 180, 
+            ghostClass: 'sortable-ghost', 
+            delay: 150, 
+            delayOnTouchOnly: true, 
+            fallbackTolerance: 3,
+            onEnd: async function (evt) { 
+                await atualizarStatusAsst(evt.item.getAttribute('data-id'), evt.to.getAttribute('data-status')); 
+            } 
         }); 
     });
 });
 
-async function atualizarStatusAsst(id, status) { try { await fetch('api/update_assistencia_status.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: id, status: status }) }); } catch (error) {} }
+async function atualizarStatusAsst(id, status) { 
+    try { 
+        await fetch('api/update_assistencia_status.php', { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' }, 
+            body: JSON.stringify({ id: id, status: status }) 
+        }); 
+    } catch (error) {
+        console.error("Falha ao atualizar o status do card.");
+    } 
+}
 
 function ordenarColuna(colunaId, criterio) {
-    const col = document.getElementById('col-' + colunaId); const cards = Array.from(col.children);
-    cards.sort((a, b) => { if (criterio === 'data_desc') { return parseInt(b.getAttribute('data-time')) - parseInt(a.getAttribute('data-time')); } else if (criterio === 'data_asc') { return parseInt(a.getAttribute('data-time')) - parseInt(b.getAttribute('data-time')); } else if (criterio === 'nome_asc') { return a.getAttribute('data-nome').localeCompare(b.getAttribute('data-nome')); } });
+    const col = document.getElementById('col-' + colunaId); 
+    const cards = Array.from(col.children);
+    cards.sort((a, b) => { 
+        if (criterio === 'data_desc') { 
+            return parseInt(b.getAttribute('data-time')) - parseInt(a.getAttribute('data-time')); 
+        } else if (criterio === 'data_asc') { 
+            return parseInt(a.getAttribute('data-time')) - parseInt(b.getAttribute('data-time')); 
+        } else if (criterio === 'nome_asc') { 
+            return a.getAttribute('data-nome').localeCompare(b.getAttribute('data-nome')); 
+        } 
+    });
     cards.forEach(card => col.appendChild(card));
 }
 
-function lerDadosCard(btn) { const card = btn.closest('[data-json]'); return JSON.parse(card.getAttribute('data-json')); }
+// 3. Ações nos Cards
+function lerDadosCard(btn) { 
+    const card = btn.closest('[data-json]'); 
+    return JSON.parse(card.getAttribute('data-json')); 
+}
 function chamarImpressao(btn) { const dados = lerDadosCard(btn); imprimirOSAssistencia(dados); }
 function chamarEdicao(btn) { const dados = lerDadosCard(btn); abrirModalEdicaoAssistencia(dados); }
 function chamarBaixa(btn) { const dados = lerDadosCard(btn); abrirModalBaixa(dados); }
 
+async function deletarAssistencia(event, id) {
+    event.stopPropagation();
+    if (!confirm(`Deseja realmente apagar a assistência #${id}? Esta ação não pode ser desfeita.`)) return;
+    
+    const cardElement = document.querySelector(`[data-id="${id}"]`);
+    
+    try {
+        const response = await fetch('api/delete_assistencia.php', { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' }, 
+            body: JSON.stringify({ id: id }) 
+        });
+        const result = await response.json();
+        
+        if (result.success) { 
+            if(cardElement) {
+                cardElement.style.opacity = '0'; 
+                cardElement.style.transform = 'scale(0.9)'; 
+                setTimeout(() => cardElement.remove(), 200); 
+            } else {
+                window.location.reload();
+            }
+        } else {
+            alert('Erro ao excluir: ' + (result.error || 'Erro desconhecido'));
+        }
+    } catch (error) { 
+        alert('Erro de rede ao tentar excluir.'); 
+    }
+}
+
+// 4. Impressão de Ordem de Serviço
 function imprimirOSAssistencia(dados) {
     let obsItens = ''; 
     if(dados.obs) { 
@@ -74,7 +166,6 @@ function imprimirOSAssistencia(dados) {
         obsItens = `<li>Verificar defeito no local.</li>`; 
     }
     
-    // Configura o texto do Código do Cliente
     const codigoCli = dados.codigo_cli ? `[${dados.codigo_cli}]` : '';
 
     const html = `<!DOCTYPE html>
@@ -84,7 +175,6 @@ function imprimirOSAssistencia(dados) {
         <title>OS Assistência - AST #${dados.id}</title>
         <style>
             @media print { 
-                /* Remove as margens da página para tirar os cabeçalhos/links do navegador */
                 @page { margin: 0; } 
                 body { margin: 0; padding: 1.5cm; } 
             } 
@@ -173,16 +263,30 @@ function imprimirOSAssistencia(dados) {
     setTimeout(() => { janelaPrint.print(); janelaPrint.close(); }, 500);
 }
 
-const modalNA = document.getElementById('modalNovaAssistencia'); const modalNAConteudo = document.getElementById('modalNovaAssistenciaConteudo');
+// 5. Modais de Cadastro, Edição e Baixa
+const modalNA = document.getElementById('modalNovaAssistencia'); 
+const modalNAConteudo = document.getElementById('modalNovaAssistenciaConteudo');
+
 function abrirModalNovaAssistencia() { 
     if(!document.getElementById('search_na_cliente')) return;
     document.getElementById('search_na_cliente').value = ''; 
     filtrarSelect('search_na_cliente', 'na_cliente'); 
-    modalNA.classList.remove('hidden'); setTimeout(() => { modalNA.classList.remove('opacity-0'); modalNAConteudo.classList.remove('scale-95'); }, 10); 
+    
+    modalNA.classList.remove('hidden'); 
+    setTimeout(() => { 
+        modalNA.classList.remove('opacity-0'); 
+        modalNAConteudo.classList.remove('scale-95'); 
+    }, 10); 
 }
+
 function fecharModalNovaAssistencia() { 
-    modalNA.classList.add('opacity-0'); modalNAConteudo.classList.add('scale-95'); 
-    setTimeout(() => { modalNA.classList.add('hidden'); document.getElementById('formNovaAssistencia').reset(); toggleFaturamento('na'); }, 300); 
+    modalNA.classList.add('opacity-0'); 
+    modalNAConteudo.classList.add('scale-95'); 
+    setTimeout(() => { 
+        modalNA.classList.add('hidden'); 
+        document.getElementById('formNovaAssistencia').reset(); 
+        toggleFaturamento('na'); 
+    }, 300); 
 }
 
 async function salvarNovaAssistencia(event) {
@@ -193,15 +297,38 @@ async function salvarNovaAssistencia(event) {
     try { 
         const response = await fetch('api/nova_assistencia.php', { method: 'POST', body: formData }); 
         const result = await response.json(); 
-        if (result.success) { window.location.reload(); } else { alert('Erro: ' + (result.error || 'Erro desconhecido')); } 
-    } catch (error) { alert('Erro de comunicação. Execute o código SQL do banco se for sua primeira vez atualizando.'); }
+        
+        if (result.success) { 
+            window.location.reload(); 
+        } else { 
+            alert('Erro: ' + (result.error || 'Erro desconhecido')); 
+        } 
+    } catch (error) { 
+        alert('Erro de comunicação. Execute o código SQL do banco se for sua primeira vez atualizando.'); 
+    }
 }
 
-const modalEA = document.getElementById('modalEdicaoAssistencia'); const modalEAConteudo = document.getElementById('modalEdicaoAssistenciaConteudo');
+const modalEA = document.getElementById('modalEdicaoAssistencia'); 
+const modalEAConteudo = document.getElementById('modalEdicaoAssistenciaConteudo');
+
 function abrirModalEdicaoAssistencia(dados) {
     if(!document.getElementById('search_ea_cliente')) return;
-    document.getElementById('search_ea_cliente').value = ''; filtrarSelect('search_ea_cliente', 'ea_cliente');
-    document.getElementById('ea_id').value = dados.id; document.getElementById('ea_cliente').value = dados.cliente || ''; document.getElementById('ea_observacao').value = dados.obs || ''; document.getElementById('ea_endereco').value = dados.end || ''; document.getElementById('ea_numero').value = dados.num || ''; document.getElementById('ea_quadra').value = dados.qd || ''; document.getElementById('ea_bairro').value = dados.bairro || ''; document.getElementById('ea_condominio').value = dados.cond || ''; document.getElementById('ea_complemento').value = dados.comp || ''; document.getElementById('ea_cidade').value = dados.cid || ''; document.getElementById('ea_cep').value = dados.cep || ''; document.getElementById('ea_tel_fixo').value = dados.fixo || ''; document.getElementById('ea_tel_cel').value = dados.cel || '';
+    document.getElementById('search_ea_cliente').value = ''; 
+    filtrarSelect('search_ea_cliente', 'ea_cliente');
+    
+    document.getElementById('ea_id').value = dados.id; 
+    document.getElementById('ea_cliente').value = dados.cliente || ''; 
+    document.getElementById('ea_observacao').value = dados.obs || ''; 
+    document.getElementById('ea_endereco').value = dados.end || ''; 
+    document.getElementById('ea_numero').value = dados.num || ''; 
+    document.getElementById('ea_quadra').value = dados.qd || ''; 
+    document.getElementById('ea_bairro').value = dados.bairro || ''; 
+    document.getElementById('ea_condominio').value = dados.cond || ''; 
+    document.getElementById('ea_complemento').value = dados.comp || ''; 
+    document.getElementById('ea_cidade').value = dados.cid || ''; 
+    document.getElementById('ea_cep').value = dados.cep || ''; 
+    document.getElementById('ea_tel_fixo').value = dados.fixo || ''; 
+    document.getElementById('ea_tel_cel').value = dados.cel || '';
     
     document.getElementById('ea_tipo_cobranca').value = dados.tipo_cobranca || 'GARANTIA';
     document.getElementById('ea_valor').value = dados.valor_cobrado || '';
@@ -216,11 +343,24 @@ function abrirModalEdicaoAssistencia(dados) {
         linkComprovante.classList.add('hidden');
     }
 
-    const refProjeto = dados.projeto_id ? `(Ref. Projeto Original #${dados.projeto_id})` : ''; document.getElementById('labelEditAstProjeto').innerText = `(ID #${dados.id}) ${refProjeto}`;
-    modalEA.classList.remove('hidden'); setTimeout(() => { modalEA.classList.remove('opacity-0'); modalEAConteudo.classList.remove('scale-95'); }, 10);
+    const refProjeto = dados.projeto_id ? `(Ref. Projeto Original #${dados.projeto_id})` : ''; 
+    document.getElementById('labelEditAstProjeto').innerText = `(ID #${dados.id}) ${refProjeto}`;
+    
+    modalEA.classList.remove('hidden'); 
+    setTimeout(() => { 
+        modalEA.classList.remove('opacity-0'); 
+        modalEAConteudo.classList.remove('scale-95'); 
+    }, 10);
 }
 
-function fecharModalEdicaoAssistencia() { modalEA.classList.add('opacity-0'); modalEAConteudo.classList.add('scale-95'); setTimeout(() => { modalEA.classList.add('hidden'); document.getElementById('formEdicaoAssistencia').reset(); }, 300); }
+function fecharModalEdicaoAssistencia() { 
+    modalEA.classList.add('opacity-0'); 
+    modalEAConteudo.classList.add('scale-95'); 
+    setTimeout(() => { 
+        modalEA.classList.add('hidden'); 
+        document.getElementById('formEdicaoAssistencia').reset(); 
+    }, 300); 
+}
 
 async function salvarEdicaoAssistencia(event) {
     event.preventDefault();
@@ -230,22 +370,84 @@ async function salvarEdicaoAssistencia(event) {
     try { 
         const response = await fetch('api/edit_assistencia.php', { method: 'POST', body: formData }); 
         const result = await response.json(); 
-        if (result.success) { window.location.reload(); } else { alert('Erro: ' + (result.error || 'Erro desconhecido')); } 
-    } catch (error) { alert('Erro de comunicação. Certifique-se que executou o SQL.'); }
+        
+        if (result.success) { 
+            window.location.reload(); 
+        } else { 
+            alert('Erro: ' + (result.error || 'Erro desconhecido')); 
+        } 
+    } catch (error) { 
+        alert('Erro de comunicação. Certifique-se que executou o SQL no banco.'); 
+    }
 }
 
-const modalBaixa = document.getElementById('modalBaixa'); const modalBaixaConteudo = document.getElementById('modalBaixaConteudo');
+const modalBaixa = document.getElementById('modalBaixa'); 
+const modalBaixaConteudo = document.getElementById('modalBaixaConteudo');
+
 function abrirModalBaixa(dados) {
-    document.getElementById('ast_id').value = dados.id; document.getElementById('ast_tecnico').value = dados.tecnico ? dados.tecnico : ''; document.getElementById('ast_data').value = dados.dt_agend_raw ? dados.dt_agend_raw : ''; document.getElementById('ast_resolvido').value = dados.resolvido ? dados.resolvido : 'NAO'; document.getElementById('ast_observacao').value = dados.obs ? dados.obs : ''; document.getElementById('labelAstProjeto').innerText = `(ID #${dados.id})`;
-    modalBaixa.classList.remove('hidden'); setTimeout(() => { modalBaixa.classList.remove('opacity-0'); modalBaixaConteudo.classList.remove('scale-95'); }, 10);
+    document.getElementById('ast_id').value = dados.id; 
+    document.getElementById('ast_tecnico').value = dados.tecnico ? dados.tecnico : ''; 
+    document.getElementById('ast_data').value = dados.dt_agend_raw ? dados.dt_agend_raw : ''; 
+    document.getElementById('ast_resolvido').value = dados.resolvido ? dados.resolvido : 'NAO'; 
+    document.getElementById('ast_observacao').value = dados.obs ? dados.obs : ''; 
+    document.getElementById('labelAstProjeto').innerText = `(ID #${dados.id})`;
+    
+    modalBaixa.classList.remove('hidden'); 
+    setTimeout(() => { 
+        modalBaixa.classList.remove('opacity-0'); 
+        modalBaixaConteudo.classList.remove('scale-95'); 
+    }, 10);
 }
-function fecharModalBaixa() { modalBaixa.classList.add('opacity-0'); modalBaixaConteudo.classList.add('scale-95'); setTimeout(() => { modalBaixa.classList.add('hidden'); document.getElementById('formBaixa').reset(); }, 300); }
+
+function fecharModalBaixa() { 
+    modalBaixa.classList.add('opacity-0'); 
+    modalBaixaConteudo.classList.add('scale-95'); 
+    setTimeout(() => { 
+        modalBaixa.classList.add('hidden'); 
+        document.getElementById('formBaixa').reset(); 
+    }, 300); 
+}
+
 async function salvarBaixaServidor(event) {
     event.preventDefault(); 
-    const payload = { id: document.getElementById('ast_id').value, tecnico: document.getElementById('ast_tecnico').value, data_atendimento: document.getElementById('ast_data').value, resolvido: document.getElementById('ast_resolvido').value, observacao: document.getElementById('ast_observacao').value };
-    try { const response = await fetch('api/concluir_assistencia.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); const result = await response.json(); if (result.success) { window.location.reload(); } else { alert('Erro: ' + (result.error || 'Erro desconhecido')); } } catch (error) { alert('Erro de rede.'); }
+    const payload = { 
+        id: document.getElementById('ast_id').value, 
+        tecnico: document.getElementById('ast_tecnico').value, 
+        data_atendimento: document.getElementById('ast_data').value, 
+        resolvido: document.getElementById('ast_resolvido').value, 
+        observacao: document.getElementById('ast_observacao').value 
+    };
+    try { 
+        const response = await fetch('api/concluir_assistencia.php', { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' }, 
+            body: JSON.stringify(payload) 
+        }); 
+        const result = await response.json(); 
+        
+        if (result.success) { 
+            window.location.reload(); 
+        } else { 
+            alert('Erro: ' + (result.error || 'Erro desconhecido')); 
+        } 
+    } catch (error) { 
+        alert('Erro de rede.'); 
+    }
 }
 
-if(document.getElementById('modalNovaAssistencia')) document.getElementById('modalNovaAssistencia').addEventListener('click', (e) => { if (e.target === document.getElementById('modalNovaAssistencia')) fecharModalNovaAssistencia(); });
-if(document.getElementById('modalEdicaoAssistencia')) document.getElementById('modalEdicaoAssistencia').addEventListener('click', (e) => { if (e.target === document.getElementById('modalEdicaoAssistencia')) fecharModalEdicaoAssistencia(); });
-if(document.getElementById('modalBaixa')) document.getElementById('modalBaixa').addEventListener('click', (e) => { if (e.target === document.getElementById('modalBaixa')) fecharModalBaixa(); });
+// 6. Fechamento de Modais clicando fora
+if(document.getElementById('modalNovaAssistencia')) {
+    document.getElementById('modalNovaAssistencia').addEventListener('click', (e) => { 
+        if (e.target === document.getElementById('modalNovaAssistencia')) fecharModalNovaAssistencia(); 
+    });
+}
+if(document.getElementById('modalEdicaoAssistencia')) {
+    document.getElementById('modalEdicaoAssistencia').addEventListener('click', (e) => { 
+        if (e.target === document.getElementById('modalEdicaoAssistencia')) fecharModalEdicaoAssistencia(); 
+    });
+}
+if(document.getElementById('modalBaixa')) {
+    document.getElementById('modalBaixa').addEventListener('click', (e) => { 
+        if (e.target === document.getElementById('modalBaixa')) fecharModalBaixa(); 
+    });
+}
