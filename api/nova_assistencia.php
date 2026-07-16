@@ -18,6 +18,33 @@ if (!empty($data['cliente']) && !empty($data['observacao'])) {
         $cliente = trim($data['cliente']);
         $observacao = trim($data['observacao']);
         
+        // --- MOTOR DE BUSCA DE ID ---
+        $cliente_id = null;
+        $nome_limpo = trim(preg_replace('/^\[.*?\]\s*/', '', $cliente));
+        
+        $stmtCli = $pdo->prepare("SELECT id FROM clientes_cadastro WHERE TRIM(UPPER(nome_contrato)) = UPPER(?) LIMIT 1");
+        $stmtCli->execute([$nome_limpo]);
+        if ($cli = $stmtCli->fetch()) {
+            $cliente_id = $cli['id'];
+        } else {
+            if (preg_match('/^\[(.*?)\]/', $cliente, $matches)) {
+                $codigo_tag = trim($matches[1]);
+                $stmtTag = $pdo->prepare("SELECT id FROM clientes_cadastro WHERE codigo_cliente = ? LIMIT 1");
+                $stmtTag->execute([$codigo_tag]);
+                if ($cliTag = $stmtTag->fetch()) {
+                    $cliente_id = $cliTag['id'];
+                } else {
+                    $possible_id = (int) preg_replace('/[^0-9]/', '', $codigo_tag);
+                    if ($possible_id > 0) {
+                        $stmtId = $pdo->prepare("SELECT id FROM clientes_cadastro WHERE id = ? LIMIT 1");
+                        $stmtId->execute([$possible_id]);
+                        if ($cliId = $stmtId->fetch()) $cliente_id = $cliId['id'];
+                    }
+                }
+            }
+        }
+        // -----------------------------
+
         $endereco = isset($data['endereco']) ? trim($data['endereco']) : null;
         $numero_lote = isset($data['numero_lote']) ? trim($data['numero_lote']) : null;
         $quadra = isset($data['quadra']) ? trim($data['quadra']) : null;
@@ -35,7 +62,7 @@ if (!empty($data['cliente']) && !empty($data['observacao'])) {
         $valor_cobrado = ($val !== '') ? (float)$val : null;
         $forma_pagamento = !empty($data['forma_pagamento']) ? $data['forma_pagamento'] : null;
         
-        // Upload (Supressão com @ para o MKDIR não exibir mensagens na tela que corrompem o JSON)
+        // Upload
         $comprovante_path = null;
         if (isset($_FILES['comprovante']) && $_FILES['comprovante']['error'] === UPLOAD_ERR_OK) {
             $uploadDir = '../uploads/comprovantes/';
@@ -46,9 +73,10 @@ if (!empty($data['cliente']) && !empty($data['observacao'])) {
             }
         }
 
-        $stmt = $pdo->prepare("INSERT INTO assistencias_tecnicas (projeto_id, cliente, status, resolvido_assistencia, data_solicitacao, obs_assistencia, endereco, numero_lote, quadra, bairro, condominio, complemento, cidade, cep, tel_fixo, tel_cel, tipo_cobranca, valor_cobrado, forma_pagamento, comprovante_file) VALUES (:projeto_id, :cliente, 'pendente', 'NAO', CURDATE(), :observacao, :endereco, :numero_lote, :quadra, :bairro, :condominio, :complemento, :cidade, :cep, :tel_fixo, :tel_cel, :tipo_cobranca, :valor_cobrado, :forma_pagamento, :comprovante_file)");
+        $stmt = $pdo->prepare("INSERT INTO assistencias_tecnicas (cliente_id, projeto_id, cliente, status, resolvido_assistencia, data_solicitacao, obs_assistencia, endereco, numero_lote, quadra, bairro, condominio, complemento, cidade, cep, tel_fixo, tel_cel, tipo_cobranca, valor_cobrado, forma_pagamento, comprovante_file) VALUES (:cliente_id, :projeto_id, :cliente, 'pendente', 'NAO', CURDATE(), :observacao, :endereco, :numero_lote, :quadra, :bairro, :condominio, :complemento, :cidade, :cep, :tel_fixo, :tel_cel, :tipo_cobranca, :valor_cobrado, :forma_pagamento, :comprovante_file)");
         
         $stmt->execute([
+            'cliente_id' => $cliente_id,
             'projeto_id' => $projeto_id,
             'cliente' => $cliente,
             'observacao' => $observacao,
@@ -69,11 +97,8 @@ if (!empty($data['cliente']) && !empty($data['observacao'])) {
         ]);
         echo json_encode(['success' => true]);
     } catch (\PDOException $e) {
-        $msg = $e->getMessage();
-        if (strpos($msg, 'tipo_cobranca') !== false) {
-            $msg = "Atenção: O banco de dados não foi atualizado! Execute o código SQL para adicionar os campos de faturamento.";
-        }
-        http_response_code(500); echo json_encode(['success' => false, 'error' => $msg]);
+        http_response_code(500); 
+        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
     }
 } else {
     http_response_code(400); echo json_encode(['success' => false, 'error' => 'Dados inválidos.']);

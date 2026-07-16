@@ -10,27 +10,26 @@ $data = json_decode($json, true);
 
 if ($data && !empty($data['cliente_id']) && isset($data['valor'])) {
     try {
-        // Busca os dados do cliente para formatar o nome com código
         $stmtCli = $pdo->prepare("SELECT codigo_cliente, nome_contrato FROM clientes_cadastro WHERE id = ?");
         $stmtCli->execute([$data['cliente_id']]);
         $cli = $stmtCli->fetch(PDO::FETCH_ASSOC);
 
         if (!$cli) {
-            echo json_encode(['success' => false, 'error' => 'Cliente não encontrado na base de dados.']);
+            echo json_encode(['success' => false, 'error' => 'Cliente não encontrado.']);
             exit;
         }
 
         $codigo = !empty($cli['codigo_cliente']) ? $cli['codigo_cliente'] : 'CLI-' . $data['cliente_id'];
         $nome_formatado = "[" . $codigo . "] " . mb_strtoupper($cli['nome_contrato'], 'UTF-8');
-        
         $valor = is_numeric($data['valor']) ? (float)$data['valor'] : 0.00;
 
-        // Insere com lead_id NULO (já que é manual)
+        // Insere salvando o cliente_id agora
         $stmt = $pdo->prepare("INSERT INTO administrativo_contratos 
-            (lead_id, cliente_nome, valor, status_contrato, status_financeiro) 
-            VALUES (NULL, :cliente_nome, :valor, :status_c, :status_f)");
+            (lead_id, cliente_id, cliente_nome, valor, status_contrato, status_financeiro) 
+            VALUES (NULL, :cli_id, :cliente_nome, :valor, :status_c, :status_f)");
         
         $stmt->execute([
+            'cli_id'       => $data['cliente_id'],
             'cliente_nome' => $nome_formatado,
             'valor'        => $valor,
             'status_c'     => $data['status_contrato'],

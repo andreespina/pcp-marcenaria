@@ -38,23 +38,41 @@ try {
         }
     }
 
-    // 3. CONTRATOS (ADMINISTRATIVO) - CORRIGIDO O ORDER BY PARA 'id'
-    $stmtCont = $pdo->prepare("SELECT * FROM administrativo_contratos WHERE cliente_nome LIKE ? OR cliente_nome LIKE ? ORDER BY id DESC");
-    $stmtCont->execute(["%[$codigo]%", "%$nome_base%"]);
+    // 3. CONTRATOS (ADMINISTRATIVO) - BUSCA ULTRARRÁPIDA POR ID
+    $stmtCont = $pdo->prepare("SELECT * FROM administrativo_contratos WHERE cliente_id = ? ORDER BY id DESC");
+    $stmtCont->execute([$cliente_id]);
     $contratos = $stmtCont->fetchAll(PDO::FETCH_ASSOC);
 
-    // 4. ASSISTÊNCIAS TÉCNICAS
-    $stmtAst = $pdo->prepare("SELECT * FROM assistencias_tecnicas WHERE cliente = ? ORDER BY data_solicitacao DESC");
-    $stmtAst->execute([$nome_base]);
+    // 4. PROJETOS (PCP) - NOVA SESSÃO ADICIONADA
+    $stmtPcp = $pdo->prepare("SELECT * FROM projetos_pcp WHERE cliente_id = ? ORDER BY id DESC");
+    $stmtPcp->execute([$cliente_id]);
+    $projetos_pcp = $stmtPcp->fetchAll(PDO::FETCH_ASSOC);
+
+    // 5. ASSISTÊNCIAS TÉCNICAS - BUSCA ULTRARRÁPIDA POR ID
+    $stmtAst = $pdo->prepare("SELECT * FROM assistencias_tecnicas WHERE cliente_id = ? ORDER BY data_solicitacao DESC");
+    $stmtAst->execute([$cliente_id]);
     $assistencias = $stmtAst->fetchAll(PDO::FETCH_ASSOC);
 
-    // 5. TIMELINE (INTERAÇÕES)
+    // 6. TIMELINE (INTERAÇÕES)
     $stmtInt = $pdo->prepare("SELECT * FROM clientes_interacoes WHERE cliente_id = ? ORDER BY data_registro DESC");
     $stmtInt->execute([$cliente_id]);
     $interacoes = $stmtInt->fetchAll(PDO::FETCH_ASSOC);
 
 } catch (\PDOException $e) {
     die("Erro ao carregar dossiê: " . $e->getMessage());
+}
+
+// Funções para exibição
+function nomeStatus($status) {
+    $nomes = [
+        'instalacao'      => 'Instalação',
+        'expedicao'       => 'Expedição',
+        'producao'        => 'Produção',
+        'desenvolvimento' => 'PCP',
+        'atrasou'         => 'Atrasou',
+        'assistencia'     => 'Concluído'
+    ];
+    return isset($nomes[$status]) ? $nomes[$status] : strtoupper($status);
 }
 
 $page_title = 'DOSSIÊ DO CLIENTE';
@@ -138,19 +156,19 @@ require_once 'includes/header.php';
         
     </div>
 
-    <div class="lg:col-span-1 space-y-6">
+    <div class="lg:col-span-1 space-y-4">
         
-        <div class="bg-white dark:bg-[#222736] rounded-lg shadow-sm border border-gray-200 dark:border-[#2a3142] overflow-hidden flex flex-col h-[350px]">
+        <div class="bg-white dark:bg-[#222736] rounded-lg shadow-sm border border-gray-200 dark:border-[#2a3142] overflow-hidden flex flex-col h-[230px]">
             <div class="p-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 flex justify-between items-center">
                 <h3 class="font-bold text-gray-700 dark:text-gray-200 text-xs uppercase tracking-wider flex items-center">
                     <span class="w-5 h-5 bg-blue-100 text-blue-600 rounded flex items-center justify-center mr-2">📋</span>
-                    Histórico de Contratos
+                    Contratos Fechados
                 </h3>
                 <span class="text-xs font-bold text-gray-500 bg-white dark:bg-gray-700 px-2 py-0.5 rounded border dark:border-gray-600"><?= count($contratos) ?></span>
             </div>
             <div class="flex-1 overflow-y-auto p-2 space-y-2 scrollbar-thin">
                 <?php if(empty($contratos)): ?>
-                    <p class="text-center text-xs text-gray-500 italic mt-4">Nenhum contrato registrado.</p>
+                    <p class="text-center text-xs text-gray-500 italic mt-4">Nenhum contrato registado.</p>
                 <?php endif; ?>
                 <?php foreach($contratos as $cont): ?>
                     <div class="border border-gray-100 dark:border-gray-700 p-2.5 rounded hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
@@ -159,25 +177,52 @@ require_once 'includes/header.php';
                             <span class="text-[9px] font-bold uppercase <?= $cont['status_contrato'] === 'ASSINADO' ? 'text-green-600' : 'text-red-500' ?>"><?= $cont['status_contrato'] ?></span>
                         </div>
                         <p class="text-[10px] text-gray-500 dark:text-gray-400 mt-1 flex justify-between">
-                            <span>Status Fin: <strong><?= $cont['status_financeiro'] ?></strong></span>
-                            <span><?= isset($cont['data_criacao']) ? date('d/m/Y', strtotime($cont['data_criacao'])) : 'Registrado' ?></span>
+                            <span>Fin: <strong><?= $cont['status_financeiro'] ?></strong></span>
+                            <span><?= isset($cont['data_criacao']) ? date('d/m/Y', strtotime($cont['data_criacao'])) : 'Registado' ?></span>
                         </p>
                     </div>
                 <?php endforeach; ?>
             </div>
         </div>
 
-        <div class="bg-white dark:bg-[#222736] rounded-lg shadow-sm border border-gray-200 dark:border-[#2a3142] overflow-hidden flex flex-col h-[350px]">
+        <div class="bg-white dark:bg-[#222736] rounded-lg shadow-sm border border-gray-200 dark:border-[#2a3142] overflow-hidden flex flex-col h-[230px]">
+            <div class="p-3 border-b border-gray-200 dark:border-gray-700 bg-indigo-50/50 dark:bg-indigo-900/10 flex justify-between items-center">
+                <h3 class="font-bold text-indigo-700 dark:text-indigo-500 text-xs uppercase tracking-wider flex items-center">
+                    <span class="w-5 h-5 bg-indigo-100 text-indigo-600 rounded flex items-center justify-center mr-2">🏭</span>
+                    Projetos PCP
+                </h3>
+                <span class="text-xs font-bold text-indigo-600 bg-white dark:bg-gray-800 px-2 py-0.5 rounded border border-indigo-200 dark:border-indigo-800"><?= count($projetos_pcp) ?></span>
+            </div>
+            <div class="flex-1 overflow-y-auto p-2 space-y-2 scrollbar-thin">
+                <?php if(empty($projetos_pcp)): ?>
+                    <p class="text-center text-xs text-gray-500 italic mt-4">Nenhum projeto no PCP.</p>
+                <?php endif; ?>
+                <?php foreach($projetos_pcp as $pcp): ?>
+                    <div class="border border-gray-100 dark:border-gray-700 p-2.5 rounded hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                        <div class="flex justify-between items-start mb-1">
+                            <p class="text-[11px] font-black text-gray-800 dark:text-gray-200 uppercase">PROJ #<?= $pcp['id'] ?></p>
+                            <span class="text-[9px] font-bold uppercase text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 px-1 rounded"><?= nomeStatus($pcp['status']) ?></span>
+                        </div>
+                        <p class="text-[10px] text-gray-500 dark:text-gray-400 mt-1 flex justify-between">
+                            <span>Equipa: <strong><?= htmlspecialchars($pcp['equipe_instalacao']) ?: '-' ?></strong></span>
+                            <span>Prev: <?= date('d/m/Y', strtotime($pcp['data_limite'])) ?></span>
+                        </p>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+
+        <div class="bg-white dark:bg-[#222736] rounded-lg shadow-sm border border-gray-200 dark:border-[#2a3142] overflow-hidden flex flex-col h-[230px]">
             <div class="p-3 border-b border-gray-200 dark:border-gray-700 bg-amber-50/50 dark:bg-amber-900/10 flex justify-between items-center">
                 <h3 class="font-bold text-amber-700 dark:text-amber-500 text-xs uppercase tracking-wider flex items-center">
                     <span class="w-5 h-5 bg-amber-100 text-amber-600 rounded flex items-center justify-center mr-2">🔧</span>
-                    Assistências Técnicas
+                    Assistências
                 </h3>
                 <span class="text-xs font-bold text-amber-600 bg-white dark:bg-gray-800 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-800"><?= count($assistencias) ?></span>
             </div>
             <div class="flex-1 overflow-y-auto p-2 space-y-2 scrollbar-thin">
                 <?php if(empty($assistencias)): ?>
-                    <p class="text-center text-xs text-gray-500 italic mt-4">Nenhuma assistência registrada.</p>
+                    <p class="text-center text-xs text-gray-500 italic mt-4">Nenhuma assistência registada.</p>
                 <?php endif; ?>
                 <?php foreach($assistencias as $ast): ?>
                     <div class="border border-gray-100 dark:border-gray-700 p-2.5 rounded hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
@@ -188,7 +233,6 @@ require_once 'includes/header.php';
                         <p class="text-[10px] text-gray-500 dark:text-gray-400 mt-1 truncate" title="<?= htmlspecialchars($ast['obs_assistencia']) ?>">
                             <?= htmlspecialchars($ast['obs_assistencia']) ?>
                         </p>
-                        <p class="text-[9px] text-gray-400 text-right mt-1"><?= date('d/m/Y', strtotime($ast['data_solicitacao'])) ?></p>
                     </div>
                 <?php endforeach; ?>
             </div>
@@ -196,7 +240,7 @@ require_once 'includes/header.php';
         
     </div>
 
-    <div class="lg:col-span-1 bg-white dark:bg-[#222736] rounded-lg shadow-sm border border-gray-200 dark:border-[#2a3142] flex flex-col h-[724px]">
+    <div class="lg:col-span-1 bg-white dark:bg-[#222736] rounded-lg shadow-sm border border-gray-200 dark:border-[#2a3142] flex flex-col h-[738px]">
         <div class="p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
             <h3 class="font-bold text-gray-700 dark:text-gray-200 text-sm uppercase tracking-wider mb-3">Histórico e Interações</h3>
             
@@ -211,9 +255,9 @@ require_once 'includes/header.php';
                         <option value="ANOTAÇÃO">📌 Anotação Interna</option>
                     </select>
                 </div>
-                <textarea id="int_obs" required rows="2" placeholder="O que foi conversado? Registre aqui..." class="w-full px-2 py-1.5 text-xs border border-gray-300 dark:border-gray-500 bg-gray-50 dark:bg-gray-600 dark:text-white rounded focus:ring-1 focus:ring-blue-500 mb-2"></textarea>
+                <textarea id="int_obs" required rows="2" placeholder="O que foi conversado? Registe aqui..." class="w-full px-2 py-1.5 text-xs border border-gray-300 dark:border-gray-500 bg-gray-50 dark:bg-gray-600 dark:text-white rounded focus:ring-1 focus:ring-blue-500 mb-2"></textarea>
                 <div class="text-right">
-                    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded text-[11px] font-bold transition-colors">Salvar Registro</button>
+                    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded text-[11px] font-bold transition-colors">Salvar Registo</button>
                 </div>
             </form>
         </div>
@@ -222,14 +266,12 @@ require_once 'includes/header.php';
             <?php if(empty($interacoes)): ?>
                 <div class="text-center py-10 opacity-50">
                     <div class="text-4xl mb-2">📜</div>
-                    <p class="text-sm font-semibold text-gray-500 dark:text-gray-400">Nenhum histórico registrado.</p>
+                    <p class="text-sm font-semibold text-gray-500 dark:text-gray-400">Nenhum histórico registado.</p>
                 </div>
             <?php else: ?>
                 <div class="relative border-l-2 border-blue-100 dark:border-blue-900/50 ml-3 space-y-6 pb-4">
                     <?php foreach($interacoes as $int): 
-                        // Definir cores do ícone baseado no tipo
-                        $bg_icon = 'bg-blue-500';
-                        $icon = '📌';
+                        $bg_icon = 'bg-blue-500'; $icon = '📌';
                         if($int['tipo_interacao'] == 'WHATSAPP') { $bg_icon = 'bg-green-500'; $icon = '💬'; }
                         if($int['tipo_interacao'] == 'LIGACAO') { $bg_icon = 'bg-indigo-500'; $icon = '📞'; }
                         if($int['tipo_interacao'] == 'REUNIAO') { $bg_icon = 'bg-purple-500'; $icon = '🤝'; }
