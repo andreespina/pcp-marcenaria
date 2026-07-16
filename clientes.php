@@ -70,6 +70,10 @@ require_once 'includes/header.php';
                     <span><strong>Cadastro:</strong> Clique no botão <em>"NOVO CLIENTE"</em> para registrar um contrato. Insira os dados pessoais, endereço da obra e contatos do arquiteto(a) responsável.</span>
                 </li>
                 <li class="flex items-start">
+                    <span class="mr-2">👁️</span>
+                    <span><strong>Dossiê 360º:</strong> Clique no ícone de "Olho" para ver a linha do tempo do cliente, histórico financeiro, contratos fechados e assistências.</span>
+                </li>
+                <li class="flex items-start">
                     <span class="mr-2">⚙️</span>
                     <span><strong>Gestão:</strong> Utilize a barra de busca acima para encontrar clientes rapidamente. Clique na linha de qualquer cliente para expandir e ver os dados completos.</span>
                 </li>
@@ -123,6 +127,11 @@ require_once 'includes/header.php';
                         </div>
                         
                         <div class="flex items-center space-x-2 pl-2" onclick="event.stopPropagation();">
+                            
+                            <a href="perfil_cliente.php?id=<?= $c['id'] ?>" class="text-gray-500 hover:text-purple-600 dark:text-gray-400 dark:hover:text-purple-400 transition-colors p-1.5 bg-white dark:bg-gray-700 rounded shadow-sm border border-gray-200 dark:border-gray-600 flex items-center justify-center" title="Ver Dossiê 360º">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                            </a>
+
                             <button onclick="chamarImpressaoFicha(this)" class="text-gray-500 hover:text-green-600 dark:text-gray-400 dark:hover:text-green-400 transition-colors p-1.5 bg-white dark:bg-gray-700 rounded shadow-sm border border-gray-200 dark:border-gray-600" title="Imprimir Ficha de Medição">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
                             </button>
