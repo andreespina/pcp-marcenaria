@@ -16,8 +16,13 @@ $head_extras = '
     [contenteditable="true"]:focus { outline: 1px dashed #3b82f6; background-color: #eff6ff; }
     .dark [contenteditable="true"]:focus { outline-color: #60a5fa; background-color: #1e3a8a; }
 
+    /* Estilos específicos para as tabelas Clean (Ultra Compactadas para 1 folha) */
+    .clean-table { width: 100%; border-collapse: collapse !important; margin-bottom: 0; font-family: Arial, sans-serif; }
+    .clean-table th, .clean-table td { border: 1px solid #cbd5e1 !important; padding: 2.5px 4px !important; font-size: 10px !important; color: #334155 !important; line-height: 1.2; }
+    .clean-table th { background-color: #f8fafc !important; font-weight: bold; -webkit-print-color-adjust: exact; padding: 4px !important; }
+
     @media print {
-        /* Configura a página para Horizontal (Landscape) com margem reduzida para garantir 1 página */
+        /* Configura a página para Horizontal (Landscape) com margem de 5mm para garantir 1 página */
         @page { size: A4 landscape; margin: 5mm; }
         
         /* Esconde toda a interface do sistema, incluindo o RODAPÉ (footer) */
@@ -27,23 +32,20 @@ $head_extras = '
         /* Oculta as abas que não estão selecionadas */
         .tab-content { display: none !important; padding: 0 !important; margin: 0 !important; box-shadow: none !important; border: none !important;}
         
-        /* Mostra apenas a aba ativa e garante que ocupa exatamente 1 página */
+        /* Mostra apenas a aba ativa */
         .tab-content.active-print-tab { display: block !important; page-break-after: avoid; }
-        .print-area { display: flex !important; width: 100% !important; min-width: 100% !important; height: 98vh !important; overflow: hidden !important; }
-
-        /* Estilização rigorosa das tabelas para impressão perfeita */
-        table { width: 100%; border-collapse: collapse !important; margin-bottom: 10px; font-family: Arial, sans-serif; color: #000; }
-        th, td { border: 1px solid #000 !important; padding: 4px 6px !important; font-size: 11px !important; }
-        th { background-color: #e5e5e5 !important; font-weight: bold; text-align: center; -webkit-print-color-adjust: exact; color: #000 !important; }
-        td { color: #000 !important; }
+        
+        /* A área de impressão não pode ter height fixo para evitar vazamento em tabelas grandes */
+        .print-area { display: block !important; width: 100% !important; min-width: 100% !important; overflow: hidden !important; height: auto !important; }
+        
+        /* Estilização padrão (usada na Ordem de Produção) */
+        .default-table { width: 100%; border-collapse: collapse !important; margin-bottom: 5px; font-family: Arial, sans-serif; color: #000; }
+        .default-table th, .default-table td { border: 1px solid #000 !important; padding: 3px 5px !important; font-size: 10px !important; }
+        .default-table th { background-color: #e5e5e5 !important; font-weight: bold; text-align: center; -webkit-print-color-adjust: exact; color: #000 !important; }
+        .default-table td { color: #000 !important; }
         
         /* Remove o outline de edição na impressão */
         [contenteditable="true"] { outline: none !important; background: transparent !important; }
-        
-        /* Estilos do cabeçalho nas tabelas */
-        .header-print { display: flex; justify-content: space-between; align-items: center; border: 1px solid #000; padding: 10px; margin-bottom: 10px; }
-        .header-print img { max-height: 50px; }
-        .header-print h2 { margin: 0; font-size: 18px; font-weight: bold; text-transform: uppercase; font-family: Arial, sans-serif; color: #000; }
     }
 </style>
 ';
@@ -52,6 +54,7 @@ require_once 'includes/header.php';
 ?>
 
 <div class="flex flex-col gap-6 no-print">
+    <!-- NAVEGAÇÃO UI -->
     <div class="bg-white dark:bg-[#222736] p-4 rounded-lg shadow-sm border border-gray-200 dark:border-[#2a3142] flex justify-between items-center tabs-ui flex-wrap gap-4">
         <div class="flex flex-wrap gap-2">
             <button onclick="mudarModelo('capa')" id="btn_capa" class="bg-blue-600 text-white px-4 py-2 rounded text-sm font-bold shadow-sm transition-colors">
@@ -80,15 +83,15 @@ require_once 'includes/header.php';
     </div>
 </div>
 
+<!-- ========================================================================= -->
+<!-- MODELO 1: CAPA PROJETO EXECUTIVO -->
+<!-- ========================================================================= -->
 <div id="mod_capa" class="tab-content active-print-tab mt-6 bg-white rounded-lg shadow-sm overflow-auto">
     <div class="print-area min-w-[900px]" style="padding: 40px 60px; box-sizing: border-box; height: 95vh; display: flex; flex-direction: column; justify-content: center;">
-        
         <div style="display: flex; justify-content: space-between; align-items: stretch; margin-bottom: 50px;">
-            
             <div style="width: 38%; border: 3px solid #6b7280; padding: 40px 30px; display: flex; align-items: center; justify-content: center;">
                 <img src="assets/images/sbg_oficial.png" alt="SBG Móveis & Design" style="max-width: 100%; height: auto;" onerror="this.style.display='none';">
             </div>
-
             <div style="width: 55%; font-family: Arial, sans-serif; font-size: 16px; line-height: 1.5; color: #374151; display: flex; flex-direction: column; justify-content: center;">
                 <div style="display: flex; margin-bottom: 25px; align-items: flex-end;">
                     <span style="font-weight: bold; width: 100px; color: #4b5563;">ID:</span>
@@ -104,9 +107,7 @@ require_once 'includes/header.php';
                 </div>
             </div>
         </div>
-
         <div style="display: flex; justify-content: space-between; align-items: flex-end; font-family: Arial, sans-serif; font-size: 16px; color: #4b5563;">
-            
             <div style="width: 55%;">
                 <strong style="display: block; margin-bottom: 20px; letter-spacing: 1px;">EQUIPE DE MONTAGEM:</strong>
                 <div style="display: flex; margin-bottom: 25px; align-items: flex-end;">
@@ -118,7 +119,6 @@ require_once 'includes/header.php';
                     <div contenteditable="true" style="flex: 1; border-bottom: 1px solid #4b5563; color: #000; min-height: 25px; outline: none; padding-bottom: 2px;"></div>
                 </div>
             </div>
-            
             <div style="width: 40%; display: flex; align-items: flex-end; padding-bottom: 5px;">
                 <span style="margin-right: 15px; font-weight: bold; letter-spacing: 1px;">DATA DO TÉRMINO:</span>
                 <div contenteditable="true" style="flex: 1; border-bottom: 1px solid #4b5563; text-align: center; letter-spacing: 2px; color: #000; outline: none;">&nbsp;&nbsp;&nbsp;/&nbsp;&nbsp;&nbsp;&nbsp;/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</div>
@@ -127,33 +127,23 @@ require_once 'includes/header.php';
     </div>
 </div>
 
+<!-- ========================================================================= -->
+<!-- MODELO 2: CHECKLIST DA OBRA -->
+<!-- ========================================================================= -->
 <div id="mod_checklist" class="tab-content hidden mt-6 bg-white rounded-lg shadow-sm overflow-auto">
     <div class="print-area min-w-[900px]" style="padding: 20px 40px; box-sizing: border-box; height: 95vh; display: flex; flex-direction: column; justify-content: center;">
-        
         <div style="display: flex; justify-content: space-between; font-family: 'Segoe UI', Arial, sans-serif; align-items: stretch;">
-            
             <div style="width: 55%; display: flex; flex-direction: column;">
                 <h1 style="font-size: 30px; color: #6b7280; font-weight: 500; margin-bottom: 15px; margin-top: 0;">Checklist da obra</h1>
-                
                 <?php 
                 $itens_checklist = [
-                    'Limpeza dos Móveis.',
-                    'Limpeza dos Ambientes.',
-                    'Etiqueta <strong>SBG</strong>.',
-                    'Gelzinho Batedor de Porta.',
-                    'Tapa Furos Brancos.',
-                    'Tapa Furos Madeirados.',
-                    'Capa de L Fixação.',
-                    'Puxadores.',
-                    'Iluminação.',
-                    'Regulagem de Portas.',
-                    'Regulagem de Gavetas.',
-                    'Calafetação.',
-                    'Divisor de Talher.',
+                    'Limpeza dos Móveis.', 'Limpeza dos Ambientes.', 'Etiqueta <strong>SBG</strong>.',
+                    'Gelzinho Batedor de Porta.', 'Tapa Furos Brancos.', 'Tapa Furos Madeirados.',
+                    'Capa de L Fixação.', 'Puxadores.', 'Iluminação.', 'Regulagem de Portas.',
+                    'Regulagem de Gavetas.', 'Calafetação.', 'Divisor de Talher.',
                     'Conferir se todas as basculantes estão com 2 (Dois) pistões.'
                 ];
                 ?>
-
                 <div style="display: flex; flex-direction: column; gap: 14px; color: #4b5563; font-size: 15px; flex: 1;">
                     <?php foreach($itens_checklist as $item): ?>
                         <div style="display: flex; align-items: center;">
@@ -163,56 +153,22 @@ require_once 'includes/header.php';
                     <?php endforeach; ?>
                 </div>
             </div>
-
             <div style="width: 40%; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;">
-                
                 <div style="color: #ef4444; font-weight: bold; font-size: 17px; line-height: 1.4; margin-bottom: 25px; letter-spacing: 0.5px;">
-                    ATENÇÃO:<br>
-                    NÃO JOGAR AS CANTONEIRAS PLASTICAS NO LIXO!<br>
-                    FAVOR RETORNAR PARA A EMPRESA,<br>
-                    PARA QUE POSSAMOS REUTILIZAR!
+                    ATENÇÃO:<br>NÃO JOGAR AS CANTONEIRAS PLASTICAS NO LIXO!<br>FAVOR RETORNAR PARA A EMPRESA,<br>PARA QUE POSSAMOS REUTILIZAR!
                 </div>
-
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" style="width: 180px; height: 180px; margin-bottom: 15px;">
                     <defs>
-                        <g id="leaf">
-                            <path d="M 0 0 C -14 -12, -20 -28, 0 -48 C 20 -28, 14 -12, 0 0 Z" fill="#568c3b"/>
-                            <path d="M 0 -3 Q -2 -20 0 -45" stroke="#FFFFFF" stroke-width="1.5" fill="none"/>
-                        </g>
+                        <g id="leaf"><path d="M 0 0 C -14 -12, -20 -28, 0 -48 C 20 -28, 14 -12, 0 0 Z" fill="#568c3b"/><path d="M 0 -3 Q -2 -20 0 -45" stroke="#FFFFFF" stroke-width="1.5" fill="none"/></g>
                         <path id="hand" d="M 92 180 C 40 185, 18 150, 24 110 C 32 135, 48 152, 68 152 C 78 152, 86 140, 93 126 C 86 142, 75 162, 58 162 C 70 170, 82 176, 92 180 Z" fill="#3b5e32"/>
                     </defs>
-                    <rect width="200" height="200" fill="none" />
-                    <g id="soil-group">
-                        <path id="soil-base" d="M 35 110 Q 100 95 165 110 Q 100 150 35 110 Z" fill="#568c3b"/>
-                        <clipPath id="soil-clip">
-                            <use href="#soil-base"/>
-                        </clipPath>
-                        <path d="M 30 125 Q 100 100 170 105" stroke="#FFFFFF" stroke-width="2.2" fill="none" clip-path="url(#soil-clip)"/>
-                        <path d="M 60 145 Q 120 115 170 115" stroke="#FFFFFF" stroke-width="2.2" fill="none" clip-path="url(#soil-clip)"/>
-                    </g>
-                    <g id="stems" fill="#568c3b">
-                        <path d="M 97 115 C 94 80, 98 50, 99 40 C 99 38, 101 38, 101 40 C 102 50, 99 80, 103 115 Z"/>
-                        <path d="M 97.5 95 Q 80 105 65 82 Q 80 95 97.5 88 Z"/>
-                        <path d="M 102.5 95 Q 120 105 135 82 Q 120 95 102.5 88 Z"/>
-                        <path d="M 98 70 Q 85 78 72 56 Q 85 70 98 64 Z"/>
-                        <path d="M 102 70 Q 115 78 128 56 Q 115 70 102 64 Z"/>
-                    </g>
-                    <use href="#leaf" transform="translate(100, 40) scale(0.9)"/>
-                    <use href="#leaf" transform="translate(65, 82) rotate(-65) scale(0.85)"/>
-                    <use href="#leaf" transform="translate(135, 82) rotate(65) scale(0.85)"/>
-                    <use href="#leaf" transform="translate(72, 56) rotate(-45) scale(0.70)"/>
-                    <use href="#leaf" transform="translate(128, 56) rotate(45) scale(0.70)"/>
-                    <use href="#hand"/>
-                    <use href="#hand" transform="translate(200, 0) scale(-1, 1)"/>
+                    <g id="soil-group"><path id="soil-base" d="M 35 110 Q 100 95 165 110 Q 100 150 35 110 Z" fill="#568c3b"/><clipPath id="soil-clip"><use href="#soil-base"/></clipPath><path d="M 30 125 Q 100 100 170 105" stroke="#FFFFFF" stroke-width="2.2" fill="none" clip-path="url(#soil-clip)"/><path d="M 60 145 Q 120 115 170 115" stroke="#FFFFFF" stroke-width="2.2" fill="none" clip-path="url(#soil-clip)"/></g>
+                    <g id="stems" fill="#568c3b"><path d="M 97 115 C 94 80, 98 50, 99 40 C 99 38, 101 38, 101 40 C 102 50, 99 80, 103 115 Z"/><path d="M 97.5 95 Q 80 105 65 82 Q 80 95 97.5 88 Z"/><path d="M 102.5 95 Q 120 105 135 82 Q 120 95 102.5 88 Z"/><path d="M 98 70 Q 85 78 72 56 Q 85 70 98 64 Z"/><path d="M 102 70 Q 115 78 128 56 Q 115 70 102 64 Z"/></g>
+                    <use href="#leaf" transform="translate(100, 40) scale(0.9)"/><use href="#leaf" transform="translate(65, 82) rotate(-65) scale(0.85)"/><use href="#leaf" transform="translate(135, 82) rotate(65) scale(0.85)"/><use href="#leaf" transform="translate(72, 56) rotate(-45) scale(0.70)"/><use href="#leaf" transform="translate(128, 56) rotate(45) scale(0.70)"/><use href="#hand"/><use href="#hand" transform="translate(200, 0) scale(-1, 1)"/>
                 </svg>
-
-                <div style="color: #65a30d; font-weight: bold; font-size: 19px; letter-spacing: 1px;">
-                    A NATUREZA AGRADECE.
-                </div>
+                <div style="color: #65a30d; font-weight: bold; font-size: 19px; letter-spacing: 1px;">A NATUREZA AGRADECE.</div>
             </div>
-            
         </div>
-
         <div style="display: flex; justify-content: space-between; align-items: flex-end; font-family: 'Segoe UI', Arial, sans-serif; color: #4b5563; margin-top: 30px;">
             <div style="display: flex; align-items: flex-end; width: 100%;">
                 <span style="font-size: 16px; margin-right: 10px; font-weight: bold;">OBS:</span>
@@ -220,30 +176,34 @@ require_once 'includes/header.php';
                 <div contenteditable="true" style="font-family: 'Comic Sans MS', cursive, sans-serif; font-size: 26px; color: #374151; margin-left: 20px; outline: none; min-width: 150px; text-align: center;">Cozinha</div>
             </div>
         </div>
-
     </div>
 </div>
 
+<!-- ========================================================================= -->
+<!-- MODELO 3: CAIXA DE FERRAMENTAS (Ajustado para 1 Folha) -->
+<!-- ========================================================================= -->
 <div id="mod_ferramentas" class="tab-content hidden mt-6 bg-white rounded-lg shadow-sm overflow-auto">
-    <div class="print-area min-w-[900px]" style="padding: 20px; box-sizing: border-box; height: 95vh; display: flex; flex-direction: column;">
+    <div class="print-area min-w-[900px]" style="padding: 15px 30px; box-sizing: border-box;">
         
-        <div class="header-print">
-            <img src="assets/images/sbg_oficial.png" alt="SBG Móveis & Design" onerror="this.style.display='none';">
-            <h2 contenteditable="true">CONFERÊNCIA DE CAIXA DE FERRAMENTAS - INSTALAÇÃO</h2>
-            <div style="font-family: Arial, sans-serif; font-size: 12px; text-align: right;">
+        <!-- Cabeçalho Clean (Super Compacto) -->
+        <div style="display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px; margin-bottom: 10px;">
+            <img src="assets/images/sbg_oficial.png" alt="SBG Móveis & Design" style="max-height: 30px;" onerror="this.style.display='none';">
+            <h2 contenteditable="true" style="margin: 0; font-size: 14px; font-weight: 800; color: #334155; text-transform: uppercase; font-family: Arial, sans-serif;">Conferência de Caixa de Ferramentas - Instalação</h2>
+            <div style="font-family: Arial, sans-serif; font-size: 10px; text-align: right; color: #475569;">
                 <div contenteditable="true"><strong>Equipe:</strong> _______________________</div>
-                <div contenteditable="true" style="margin-top: 5px;"><strong>Data:</strong> ___/___/20__</div>
+                <div contenteditable="true" style="margin-top: 4px;"><strong>Data:</strong> ___/___/20__</div>
             </div>
         </div>
 
-        <div style="display: flex; gap: 10px; width: 100%; flex: 1;">
+        <div style="display: flex; gap: 15px; width: 100%;">
+            
             <div style="flex: 1;">
-                <table>
+                <table class="clean-table">
                     <thead>
                         <tr>
-                            <th style="width: 70%;">MÁQUINAS E GERAIS</th>
-                            <th style="width: 15%;">QTD</th>
-                            <th style="width: 15%;">OK</th>
+                            <th style="width: 70%; text-align: left;">MÁQUINAS E GERAIS</th>
+                            <th style="width: 15%; text-align: center;">QTD</th>
+                            <th style="width: 15%; text-align: center;">OK</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -260,23 +220,23 @@ require_once 'includes/header.php';
                         <tr>
                             <td contenteditable="true"><?= $item ?></td>
                             <td contenteditable="true" style="text-align: center;"></td>
-                            <td contenteditable="true" style="text-align: center;">[  ]</td>
+                            <td contenteditable="true" style="text-align: center; color: #94a3b8 !important;">[  ]</td>
                         </tr>
                         <?php endforeach; ?>
                         <?php for($i=0; $i<3; $i++): ?>
-                        <tr><td contenteditable="true">&nbsp;</td><td contenteditable="true"></td><td contenteditable="true" style="text-align: center;">[  ]</td></tr>
+                        <tr><td contenteditable="true">&nbsp;</td><td contenteditable="true"></td><td contenteditable="true" style="text-align: center; color: #94a3b8 !important;">[  ]</td></tr>
                         <?php endfor; ?>
                     </tbody>
                 </table>
             </div>
 
             <div style="flex: 1;">
-                <table>
+                <table class="clean-table">
                     <thead>
                         <tr>
-                            <th style="width: 70%;">BROCAS E ACESSÓRIOS</th>
-                            <th style="width: 15%;">QTD</th>
-                            <th style="width: 15%;">OK</th>
+                            <th style="width: 70%; text-align: left;">BROCAS E ACESSÓRIOS</th>
+                            <th style="width: 15%; text-align: center;">QTD</th>
+                            <th style="width: 15%; text-align: center;">OK</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -294,23 +254,23 @@ require_once 'includes/header.php';
                         <tr>
                             <td contenteditable="true"><?= $item ?></td>
                             <td contenteditable="true" style="text-align: center;"></td>
-                            <td contenteditable="true" style="text-align: center;">[  ]</td>
+                            <td contenteditable="true" style="text-align: center; color: #94a3b8 !important;">[  ]</td>
                         </tr>
                         <?php endforeach; ?>
                         <?php for($i=0; $i<3; $i++): ?>
-                        <tr><td contenteditable="true">&nbsp;</td><td contenteditable="true"></td><td contenteditable="true" style="text-align: center;">[  ]</td></tr>
+                        <tr><td contenteditable="true">&nbsp;</td><td contenteditable="true"></td><td contenteditable="true" style="text-align: center; color: #94a3b8 !important;">[  ]</td></tr>
                         <?php endfor; ?>
                     </tbody>
                 </table>
             </div>
 
             <div style="flex: 1;">
-                <table>
+                <table class="clean-table">
                     <thead>
                         <tr>
-                            <th style="width: 70%;">PARAFUSOS E BUCHAS</th>
-                            <th style="width: 15%;">QTD</th>
-                            <th style="width: 15%;">OK</th>
+                            <th style="width: 70%; text-align: left;">PARAFUSOS E BUCHAS</th>
+                            <th style="width: 15%; text-align: center;">QTD</th>
+                            <th style="width: 15%; text-align: center;">OK</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -327,19 +287,18 @@ require_once 'includes/header.php';
                         <tr>
                             <td contenteditable="true"><?= $item ?></td>
                             <td contenteditable="true" style="text-align: center;"></td>
-                            <td contenteditable="true" style="text-align: center;">[  ]</td>
+                            <td contenteditable="true" style="text-align: center; color: #94a3b8 !important;">[  ]</td>
                         </tr>
                         <?php endforeach; ?>
                         <?php for($i=0; $i<7; $i++): ?>
-                        <tr><td contenteditable="true">&nbsp;</td><td contenteditable="true"></td><td contenteditable="true" style="text-align: center;">[  ]</td></tr>
+                        <tr><td contenteditable="true">&nbsp;</td><td contenteditable="true"></td><td contenteditable="true" style="text-align: center; color: #94a3b8 !important;">[  ]</td></tr>
                         <?php endfor; ?>
                     </tbody>
                 </table>
             </div>
-
         </div>
 
-        <div style="margin-top: 15px; font-family: Arial, sans-serif; font-size: 11px; text-align: center; padding-bottom: 5px;" contenteditable="true">
+        <div style="margin-top: 10px; font-family: Arial, sans-serif; font-size: 10px; color: #64748b; text-align: center; padding-top: 8px; border-top: 1px solid #f1f5f9;" contenteditable="true">
             Declaro ter conferido e recebido todas as ferramentas e insumos assinalados acima em perfeito estado de conservação.<br><br><br>
             _________________________________________________________<br>
             Assinatura do Instalador Responsável
@@ -348,50 +307,54 @@ require_once 'includes/header.php';
     </div>
 </div>
 
+<!-- ========================================================================= -->
+<!-- MODELO 4: ORDEM DE SEPARAÇÃO / PRODUÇÃO -->
+<!-- ========================================================================= -->
 <div id="mod_producao" class="tab-content hidden mt-6 bg-white rounded-lg shadow-sm overflow-auto">
-    <div class="print-area min-w-[1000px]" style="padding: 20px; box-sizing: border-box; height: 95vh; display: flex; flex-direction: column;">
+    <!-- Removido height fixo para a tabela respirar naturalmente e caber na folha -->
+    <div class="print-area min-w-[1000px]" style="padding: 20px 45px; box-sizing: border-box;">
         
-        <div class="header-print">
-            <img src="assets/images/sbg_oficial.png" alt="SBG Móveis & Design" onerror="this.style.display='none';">
-            <h2 contenteditable="true">ORDEM DE SEPARAÇÃO E CONFERÊNCIA (ROMANEIO)</h2>
-            <div style="font-family: Arial, sans-serif; font-size: 12px;">
-                <table style="border: none !important; margin:0;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 15px;">
+            <img src="assets/images/sbg_oficial.png" alt="SBG Móveis & Design" style="max-height: 35px;" onerror="this.style.display='none';">
+            <h2 contenteditable="true" style="margin: 0; font-size: 16px; font-weight: 800; color: #334155; text-transform: uppercase; font-family: Arial, sans-serif;">Ordem de Separação e Conferência (Romaneio)</h2>
+            <div style="font-family: Arial, sans-serif; font-size: 11px; color: #475569;">
+                <table style="border: none !important; margin:0; text-align: right;">
                     <tr>
-                        <td style="border: none !important; padding: 2px !important;" contenteditable="true"><strong>Cliente:</strong> _______________________</td>
-                        <td style="border: none !important; padding: 2px !important;" contenteditable="true"><strong>Ambiente:</strong> _______________________</td>
+                        <td style="border: none !important; padding: 2px !important; color: #475569 !important;" contenteditable="true"><strong>Cliente:</strong> _______________________</td>
+                        <td style="border: none !important; padding: 2px !important; color: #475569 !important;" contenteditable="true"><strong>Ambiente:</strong> _______________________</td>
                     </tr>
                     <tr>
-                        <td style="border: none !important; padding: 2px !important;" contenteditable="true"><strong>Responsável:</strong> ____________________</td>
-                        <td style="border: none !important; padding: 2px !important;" contenteditable="true"><strong>Data Prev:</strong> ___/___/20__</td>
+                        <td style="border: none !important; padding: 2px !important; color: #475569 !important;" contenteditable="true"><strong>Responsável:</strong> ____________________</td>
+                        <td style="border: none !important; padding: 2px !important; color: #475569 !important;" contenteditable="true"><strong>Data Prev:</strong> ___/___/20__</td>
                     </tr>
                 </table>
             </div>
         </div>
 
-        <table style="flex: 1; margin-bottom: 0;">
+        <table class="default-table" style="margin-bottom: 0;">
             <thead>
                 <tr>
-                    <th style="width: 5%;">ITEM</th>
-                    <th style="width: 25%;">DESCRIÇÃO DA PEÇA / MÓVEL</th>
-                    <th style="width: 5%;">QTD</th>
-                    <th style="width: 10%;">COMPRIMENTO</th>
-                    <th style="width: 10%;">LARGURA</th>
-                    <th style="width: 15%;">FITA DE BORDA</th>
-                    <th style="width: 25%;">OBSERVAÇÃO / FUROS</th>
-                    <th style="width: 5%;">CONF.</th>
+                    <th style="width: 4%; text-align: center;">ITEM</th>
+                    <th style="width: 26%; text-align: left;">DESCRIÇÃO DA PEÇA / MÓVEL</th>
+                    <th style="width: 5%; text-align: center;">QTD</th>
+                    <th style="width: 10%; text-align: center;">COMPR.</th>
+                    <th style="width: 10%; text-align: center;">LARG.</th>
+                    <th style="width: 15%; text-align: center;">FITA DE BORDA</th>
+                    <th style="width: 25%; text-align: left;">OBSERVAÇÃO / FUROS</th>
+                    <th style="width: 5%; text-align: center;">CONF.</th>
                 </tr>
             </thead>
             <tbody>
                 <?php for($i=1; $i<=22; $i++): ?>
                 <tr>
-                    <td contenteditable="true" style="text-align: center; font-weight: bold;"><?= str_pad($i, 2, '0', STR_PAD_LEFT) ?></td>
+                    <td contenteditable="true" style="text-align: center; font-weight: bold; color: #64748b !important;"><?= str_pad($i, 2, '0', STR_PAD_LEFT) ?></td>
                     <td contenteditable="true">&nbsp;</td>
                     <td contenteditable="true" style="text-align: center;"></td>
                     <td contenteditable="true" style="text-align: center;"></td>
                     <td contenteditable="true" style="text-align: center;"></td>
-                    <td contenteditable="true" style="text-align: center; font-size: 9px !important; color: #555;">[ ]L1 &nbsp; [ ]L2 &nbsp; [ ]C1 &nbsp; [ ]C2</td>
+                    <td contenteditable="true" style="text-align: center; font-size: 8px !important; color: #94a3b8 !important;">[ ]L1 &nbsp; [ ]L2 &nbsp; [ ]C1 &nbsp; [ ]C2</td>
                     <td contenteditable="true"></td>
-                    <td contenteditable="true" style="text-align: center;">[  ]</td>
+                    <td contenteditable="true" style="text-align: center; color: #94a3b8 !important;">[  ]</td>
                 </tr>
                 <?php endfor; ?>
             </tbody>
@@ -401,34 +364,28 @@ require_once 'includes/header.php';
 </div>
 
 <script>
-    // Lógica para alternar as abas no ecrã (não afeta a impressão)
     function mudarModelo(modelo) {
-        // Lista de todos os modelos disponíveis
         const modelos = ['capa', 'checklist', 'ferramentas', 'producao'];
         
         modelos.forEach(mod => {
-            // Esconde os conteúdos
             const el = document.getElementById('mod_' + mod);
             if(el) {
                 el.classList.add('hidden');
                 el.classList.remove('active-print-tab');
             }
             
-            // Reseta a cor dos botões para o padrão inativo
             const btn = document.getElementById('btn_' + mod);
             if(btn) {
                 btn.className = 'bg-gray-200 text-gray-700 hover:bg-gray-300 px-4 py-2 rounded text-sm font-bold shadow-sm transition-colors';
             }
         });
 
-        // Ativa o conteúdo selecionado
         const elAtivo = document.getElementById('mod_' + modelo);
         if(elAtivo) {
             elAtivo.classList.remove('hidden');
             elAtivo.classList.add('active-print-tab');
         }
 
-        // Pinta o botão ativo de azul
         const btnAtivo = document.getElementById('btn_' + modelo);
         if(btnAtivo) {
             btnAtivo.className = 'bg-blue-600 text-white px-4 py-2 rounded text-sm font-bold shadow-sm transition-colors';
