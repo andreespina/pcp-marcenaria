@@ -2,6 +2,7 @@
 // almoxarifado.php
 require_once 'includes/auth.php';
 protegerPagina();
+
 require_once 'config/conexao.php';
 
 try {
@@ -19,6 +20,20 @@ try {
             $estoque_ok++;
         }
     }
+
+    // --- NOVO: Buscando Cadastros Base para o Almoxarifado ---
+    $stmt_cad_almox = $pdo->query("SELECT tipo, nome FROM cadastros_base WHERE tipo IN ('CATEGORIA_ALMOX', 'UNIDADE_MEDIDA') ORDER BY nome ASC");
+    $cadastros_almox = $stmt_cad_almox->fetchAll(PDO::FETCH_ASSOC);
+    
+    $categorias_almox = [];
+    $unidades_medida = [];
+    
+    foreach($cadastros_almox as $cad) {
+        if($cad['tipo'] == 'CATEGORIA_ALMOX') $categorias_almox[] = $cad['nome'];
+        if($cad['tipo'] == 'UNIDADE_MEDIDA') $unidades_medida[] = $cad['nome'];
+    }
+    // ---------------------------------------------------------
+
 } catch (\PDOException $e) {
     die("Erro na consulta: " . $e->getMessage());
 }
@@ -64,7 +79,6 @@ require_once 'includes/header.php';
                 <p class="text-2xl font-black text-gray-800 dark:text-white"><?= $total_itens ?></p>
             </div>
         </div>
-
         <div class="bg-white dark:bg-[#222736] p-4 rounded-lg shadow-sm border border-gray-200 dark:border-[#2a3142] flex items-center">
             <div class="p-3 rounded-full bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 mr-4">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
@@ -74,7 +88,6 @@ require_once 'includes/header.php';
                 <p class="text-2xl font-black text-green-700 dark:text-green-300"><?= $estoque_ok ?></p>
             </div>
         </div>
-
         <div class="bg-white dark:bg-[#222736] p-4 rounded-lg shadow-sm border <?= $itens_criticos > 0 ? 'border-red-400 shadow-md animate-pulse' : 'border-gray-200 dark:border-[#2a3142]' ?> flex items-center">
             <div class="p-3 rounded-full bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 mr-4">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
@@ -84,7 +97,6 @@ require_once 'includes/header.php';
                 <p class="text-2xl font-black text-red-700 dark:text-red-300"><?= $itens_criticos ?></p>
             </div>
         </div>
-
         <div class="bg-white dark:bg-[#222736] p-4 rounded-lg shadow-sm border border-gray-200 dark:border-[#2a3142] flex flex-col justify-center">
             <label class="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Pesquisar Material</label>
             <div class="relative">
@@ -147,7 +159,7 @@ require_once 'includes/header.php';
                                     <button onclick="ajustarEstoque(<?= $i['id'] ?>, -1, <?= $i['quantidade'] ?>)" class="w-6 h-6 rounded bg-red-50 text-red-600 hover:bg-red-200 dark:bg-red-900/30 border border-red-200 dark:border-red-800 dark:text-red-400 flex items-center justify-center font-bold transition-colors" title="Retirar 1 unidade">-</button>
                                     
                                     <span class="font-black text-lg w-16 text-center <?= $is_critical ? 'text-red-600 dark:text-red-400' : 'text-gray-800 dark:text-gray-200' ?>">
-                                        <?= (float)$i['quantidade'] ?> 
+                                        <?= (float)$i['quantidade'] ?>
                                         <span class="text-[10px] font-normal text-gray-500 uppercase"><?= htmlspecialchars($i['unidade_medida']) ?></span>
                                     </span>
                                     
@@ -173,6 +185,7 @@ require_once 'includes/header.php';
             </table>
         </div>
     </div>
+
 </div>
 
 <!-- MODAL DE CADASTRO E EDIÇÃO -->
@@ -196,44 +209,34 @@ require_once 'includes/header.php';
                 <div>
                     <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Categoria</label>
                     <select id="item_categoria" class="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white rounded focus:ring-2 focus:ring-teal-500 uppercase font-bold">
-                        <option value="FERRAGENS">Ferragens</option>
-                        <option value="CHAPAS MDF">Chapas MDF</option>
-                        <option value="FITAS DE BORDA">Fitas de Borda</option>
-                        <option value="PARAFUSOS">Parafusos / Fixação</option>
-                        <option value="CONSUMIVEIS">Consumíveis (Cola, Lixa)</option>
-                        <option value="GERAL">Geral</option>
+                        <option value="">Selecione...</option>
+                        <?php foreach($categorias_almox as $cat): ?>
+                            <option value="<?= htmlspecialchars($cat) ?>"><?= htmlspecialchars($cat) ?></option>
+                        <?php endforeach; ?>
                     </select>
                 </div>
-
                 <div>
                     <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Unidade de Medida</label>
                     <select id="item_unidade" class="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white rounded focus:ring-2 focus:ring-teal-500 uppercase font-bold">
-                        <option value="UN">Unidade (UN)</option>
-                        <option value="CX">Caixa (CX)</option>
-                        <option value="M">Metro (M)</option>
-                        <option value="CH">Chapa (CH)</option>
-                        <option value="RL">Rolo (RL)</option>
-                        <option value="LT">Litro (LT)</option>
-                        <option value="KG">Quilo (KG)</option>
+                        <option value="">Selecione...</option>
+                        <?php foreach($unidades_medida as $un): ?>
+                            <option value="<?= htmlspecialchars($un) ?>"><?= htmlspecialchars($un) ?></option>
+                        <?php endforeach; ?>
                     </select>
                 </div>
-
                 <div>
                     <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Estoque Atual</label>
                     <input type="number" step="0.01" id="item_quantidade" value="0" required class="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-teal-600 dark:text-teal-400 font-black rounded focus:ring-2 focus:ring-teal-500">
                 </div>
-
                 <div>
                     <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1 text-red-600 dark:text-red-400">Estoque Mínimo (Alerta de Compra)</label>
                     <input type="number" step="0.01" id="item_minimo" value="0" required class="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-red-300 dark:border-red-800/50 text-red-600 dark:text-red-400 font-black rounded focus:ring-2 focus:ring-red-500">
                 </div>
             </div>
-
             <div class="mb-4">
                 <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Fornecedor / Observação (Opcional)</label>
                 <textarea id="item_observacao" rows="2" placeholder="Informações de compra, links..." class="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white rounded focus:ring-2 focus:ring-teal-500"></textarea>
             </div>
-
             <div class="flex justify-end space-x-3 border-t border-gray-200 dark:border-gray-700 pt-4 mt-6">
                 <button type="button" onclick="fecharModalItem()" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition font-medium">Cancelar</button>
                 <button type="submit" class="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded font-bold transition shadow-sm">Salvar Material</button>

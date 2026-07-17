@@ -2,6 +2,7 @@
 // assistencias.php
 require_once 'includes/auth.php';
 protegerPagina();
+
 require_once 'config/conexao.php';
 
 // Define a permissão do usuário
@@ -24,12 +25,26 @@ try {
     $stmt_cli = $pdo->query("SELECT * FROM clientes_cadastro ORDER BY nome_contrato ASC");
     $lista_clientes_base = $stmt_cli->fetchAll(PDO::FETCH_ASSOC);
 
+    // --- NOVO: Buscando Cadastros Base para Assistências ---
+    $stmt_cad = $pdo->query("SELECT tipo, nome FROM cadastros_base WHERE tipo IN ('EQUIPE_MONTAGEM', 'FORMA_PAGAMENTO') ORDER BY nome ASC");
+    $cadastros_base = $stmt_cad->fetchAll(PDO::FETCH_ASSOC);
+    
+    $equipes_montagem = [];
+    $formas_pagamento = [];
+    
+    foreach($cadastros_base as $cad) {
+        if($cad['tipo'] == 'EQUIPE_MONTAGEM') $equipes_montagem[] = $cad['nome'];
+        if($cad['tipo'] == 'FORMA_PAGAMENTO') $formas_pagamento[] = $cad['nome'];
+    }
+    // -------------------------------------------------------
+
     $colunas = [ 'pendente'  => [], 'agendada'  => [], 'concluida' => [] ];
     
     foreach ($assistencias as $a) {
         $status = isset($colunas[$a['status']]) ? $a['status'] : 'pendente';
         $colunas[$status][] = $a;
     }
+
 } catch (\PDOException $e) {
     die("Erro na consulta: " . $e->getMessage());
 }
@@ -66,7 +81,6 @@ $head_extras = '
 <!-- Quill.js (Editor Rico) -->
 <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
 <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
-
 <style>
     .dark body { background-color: #1a1e2b !important; }
     .kanban-column::-webkit-scrollbar { width: 6px; }
@@ -88,8 +102,7 @@ $head_extras = '
     .quill-content p { margin-bottom: 0.5rem; }
     .quill-content ul { list-style-type: disc; padding-left: 1.5rem; margin-bottom: 0.5rem; }
     .quill-content ol { list-style-type: decimal; padding-left: 1.5rem; margin-bottom: 0.5rem; }
-</style>
-';
+</style>';
 
 require_once 'includes/header.php';
 ?>
@@ -107,7 +120,6 @@ require_once 'includes/header.php';
                 <p class="text-2xl font-black text-red-700 dark:text-red-300"><?= count($colunas['pendente']) ?></p>
             </div>
         </div>
-
         <div class="bg-white dark:bg-[#222736] p-4 rounded-lg shadow-sm border border-gray-200 dark:border-[#2a3142] flex items-center">
             <div class="p-3 rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 mr-4">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
@@ -117,7 +129,6 @@ require_once 'includes/header.php';
                 <p class="text-2xl font-black text-blue-700 dark:text-blue-300"><?= count($colunas['agendada']) ?></p>
             </div>
         </div>
-
         <div class="bg-white dark:bg-[#222736] p-4 rounded-lg shadow-sm border border-gray-200 dark:border-[#2a3142] flex items-center">
             <div class="p-3 rounded-full bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 mr-4">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
@@ -127,7 +138,6 @@ require_once 'includes/header.php';
                 <p class="text-2xl font-black text-green-700 dark:text-green-300"><?= count($colunas['concluida']) ?></p>
             </div>
         </div>
-
         <div class="bg-white dark:bg-[#222736] p-4 rounded-lg shadow-sm border border-gray-200 dark:border-[#2a3142] flex flex-col justify-center">
             <label class="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Pesquisar Assistência</label>
             <div class="relative">
@@ -149,15 +159,15 @@ require_once 'includes/header.php';
         <div class="p-4 pt-0 mt-2 border-t border-amber-200 dark:border-amber-900/50">
             <ul class="text-sm text-gray-700 dark:text-gray-300 space-y-2 ml-1 mt-3">
                 <li class="flex items-start">
-                    <span class="mr-2">➕</span>
+                    <span class="mr-2">👉</span>
                     <span><strong>Abertura:</strong> Use o botão <em>"NOVA ASSISTÊNCIA"</em> para registrar um chamado, definindo se é Garantia ou Faturada.</span>
                 </li>
                 <li class="flex items-start">
-                    <span class="mr-2">🔄</span>
+                    <span class="mr-2">👉</span>
                     <span><strong>Fluxo Kanban:</strong> Arraste os cards entre as colunas para organizar o status. Cards arrastados para "Resolvidos" encolhem automaticamente para limpar a visualização.</span>
                 </li>
                 <li class="flex items-start">
-                    <span class="mr-2">⚡</span>
+                    <span class="mr-2">👉</span>
                     <span><strong>Ações e Detalhes:</strong> Clique no topo de qualquer card para expandi-lo e revelar as ações de <strong>Imprimir a OS</strong> (🖨️), <strong>Editar</strong> (✏️) ou ver o relatório completo.</span>
                 </li>
             </ul>
@@ -180,7 +190,7 @@ require_once 'includes/header.php';
 
                 <div id="col-<?= $status_chave ?>" data-status="<?= $status_chave ?>" class="kanban-column flex-1 overflow-y-auto space-y-3 pr-1">
                     
-            <?php foreach ($lista_assistencias as $a): ?>
+                    <?php foreach ($lista_assistencias as $a): ?>
                         <?php 
                             $codigo_exibicao = '';
                             if (!empty($a['codigo_cliente'])) {
@@ -269,7 +279,6 @@ require_once 'includes/header.php';
                                 <?php if ($a['projeto_id']): ?>
                                     <p class="text-[10px] text-gray-400 dark:text-gray-500 mt-1">(Ref. Projeto Original #<?= $a['projeto_id'] ?>)</p>
                                 <?php endif; ?>
-
                                 <?php if ($a['cidade'] || $a['condominio']): ?>
                                     <p class="text-[10px] text-gray-500 dark:text-gray-400 italic mt-0.5"><?= htmlspecialchars($a['condominio']) ?> <?= $a['cidade'] ? '- '.$a['cidade'] : '' ?></p>
                                 <?php endif; ?>
@@ -284,10 +293,11 @@ require_once 'includes/header.php';
 
                                 <?php if ($a['resolvido_assistencia'] === 'SIM'): ?>
                                     <div class="mt-3 pt-2 border-t border-gray-200 dark:border-gray-700 text-[10px] bg-green-50 dark:bg-green-900/10 p-2 rounded">
-                                        <p class="text-green-700 dark:text-green-400 font-bold">✔️ Resolvido por: <?= htmlspecialchars($a['tecnico_assistencia']) ?></p>
+                                        <p class="text-green-700 dark:text-green-400 font-bold">✅ Resolvido por: <?= htmlspecialchars($a['tecnico_assistencia']) ?></p>
                                         <p class="text-green-600 dark:text-green-500">Data de Resolução: <?= formatarData($a['data_assistencia']) ?></p>
                                     </div>
                                 <?php endif; ?>
+
                             </div>
                         </div>
                     <?php endforeach; ?>
@@ -304,19 +314,22 @@ require_once 'includes/header.php';
 <!-- 1. NOVA ASSISTÊNCIA -->
 <div id="modalNovaAssistencia" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 hidden opacity-0 transition-opacity duration-300">
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-3xl p-6 border border-gray-200 dark:border-gray-700 transform scale-95 transition-all duration-300 max-h-[95vh] overflow-y-auto" id="modalNovaAssistenciaConteudo">
+        
         <div class="flex justify-between items-center mb-4 border-b border-gray-200 dark:border-gray-700 pb-2">
             <h3 class="text-lg font-bold text-amber-600 dark:text-amber-500">Abrir Novo Chamado</h3>
             <button onclick="fecharModalNovaAssistencia()" class="text-gray-400 hover:text-gray-800 dark:hover:text-white text-2xl font-bold">&times;</button>
         </div>
         
         <form id="formNovaAssistencia" onsubmit="salvarNovaAssistencia(event)" enctype="multipart/form-data">
+            
             <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
                 <div class="md:col-span-3">
                     <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Escolher Cliente Cadastrado</label>
                     <input type="text" id="search_na_cliente" onkeyup="filtrarSelect('search_na_cliente', 'na_cliente')" placeholder="Pesquisar cliente..." autocomplete="off" class="w-full px-3 py-1.5 mb-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-2 focus:ring-amber-500">
+                    
                     <select id="na_cliente" name="cliente" required size="4" onchange="autoPreencherFormulario(this.value, 'na')" class="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded uppercase text-sm focus:ring-2 focus:ring-amber-500 scrollbar-thin">
                         <?php foreach ($lista_clientes_base as $cb): 
-                            $codigo_cb = !empty($cb['codigo_cliente']) ? $cb['codigo_cliente'] : "CLI-" . str_pad($cb['id'], 2, "0", STR_PAD_LEFT);
+                             $codigo_cb = !empty($cb['codigo_cliente']) ? $cb['codigo_cliente'] : "CLI-" . str_pad($cb['id'], 2, "0", STR_PAD_LEFT);
                         ?>
                         <option value="<?= htmlspecialchars($cb['nome_contrato']) ?>" class="p-1 border-b border-gray-100 dark:border-gray-700 hover:bg-amber-50 dark:hover:bg-gray-600">
                             [<?= htmlspecialchars($codigo_cb) ?>] - <?= htmlspecialchars($cb['nome_contrato']) ?>
@@ -366,12 +379,23 @@ require_once 'includes/header.php';
                     <input type="text" id="na_tel_cel" name="tel_cel" class="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded uppercase text-sm focus:ring-2 focus:ring-amber-500">
                 </div>
 
-                <div class="md:col-span-3 mt-2 border-t border-gray-200 dark:border-gray-700 pt-3">
-                    <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Tipo de Atendimento</label>
-                    <select id="na_tipo_cobranca" name="tipo_cobranca" onchange="toggleFaturamento('na')" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded text-sm focus:ring-2 focus:ring-amber-500 font-bold uppercase">
-                        <option value="GARANTIA">GARANTIA (Sem custo)</option>
-                        <option value="FATURADA">FATURADA (Cobrar do cliente)</option>
-                    </select>
+                <div class="md:col-span-3 mt-2 border-t border-gray-200 dark:border-gray-700 pt-3 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Tipo de Atendimento</label>
+                        <select id="na_tipo_cobranca" name="tipo_cobranca" onchange="toggleFaturamento('na')" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded text-sm focus:ring-2 focus:ring-amber-500 font-bold uppercase">
+                            <option value="GARANTIA">GARANTIA (Sem custo)</option>
+                            <option value="FATURADA">FATURADA (Cobrar do cliente)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Técnico / Equipe Responsável</label>
+                        <select id="na_tecnico_assistencia" name="tecnico_assistencia" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded text-sm focus:ring-2 focus:ring-amber-500 uppercase">
+                            <option value="">Não Atribuído</option>
+                            <?php foreach($equipes_montagem as $eq): ?>
+                                <option value="<?= htmlspecialchars($eq) ?>"><?= htmlspecialchars($eq) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
                 </div>
 
                 <div id="na_dados_faturamento" class="hidden md:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-3 bg-purple-50 dark:bg-purple-900/20 p-4 rounded border border-purple-200 dark:border-purple-800/50">
@@ -383,11 +407,9 @@ require_once 'includes/header.php';
                         <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Forma de Pagamento</label>
                         <select id="na_forma_pagamento" name="forma_pagamento" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded text-sm focus:ring-2 focus:ring-purple-500 uppercase">
                             <option value="">Selecione...</option>
-                            <option value="PIX">PIX</option>
-                            <option value="CARTAO CREDITO">Cartão de Crédito</option>
-                            <option value="CARTAO DEBITO">Cartão de Débito</option>
-                            <option value="BOLETO">Boleto</option>
-                            <option value="DINHEIRO">Dinheiro</option>
+                            <?php foreach($formas_pagamento as $fp): ?>
+                                <option value="<?= htmlspecialchars($fp) ?>"><?= htmlspecialchars($fp) ?></option>
+                            <?php endforeach; ?>
                         </select>
                     </div>
                     <div>
@@ -422,13 +444,14 @@ require_once 'includes/header.php';
         
         <form id="formEdicaoAssistencia" onsubmit="salvarEdicaoAssistencia(event)" enctype="multipart/form-data">
             <input type="hidden" id="ea_id" name="id">
+            
             <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
                 <div class="md:col-span-3">
                     <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Cliente</label>
                     <input type="text" id="search_ea_cliente" onkeyup="filtrarSelect('search_ea_cliente', 'ea_cliente')" placeholder="Pesquisar cliente..." autocomplete="off" class="w-full px-3 py-1.5 mb-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-2 focus:ring-blue-500">
                     <select id="ea_cliente" name="cliente" required size="4" onchange="autoPreencherFormulario(this.value, 'ea')" class="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded uppercase text-sm focus:ring-2 focus:ring-blue-500 scrollbar-thin">
                         <?php foreach ($lista_clientes_base as $cb): 
-                        $codigo_cb = !empty($cb['codigo_cliente']) ? $cb['codigo_cliente'] : "CLI-" . str_pad($cb['id'], 2, "0", STR_PAD_LEFT);
+                         $codigo_cb = !empty($cb['codigo_cliente']) ? $cb['codigo_cliente'] : "CLI-" . str_pad($cb['id'], 2, "0", STR_PAD_LEFT);
                         ?>
                         <option value="<?= htmlspecialchars($cb['nome_contrato']) ?>" class="p-1 border-b border-gray-100 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-gray-600">
                             [<?= htmlspecialchars($codigo_cb) ?>] - <?= htmlspecialchars($cb['nome_contrato']) ?>
@@ -478,12 +501,23 @@ require_once 'includes/header.php';
                     <input type="text" id="ea_tel_cel" name="tel_cel" class="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded uppercase text-sm focus:ring-2 focus:ring-blue-500">
                 </div>
 
-                <div class="md:col-span-3 mt-2 border-t border-gray-200 dark:border-gray-700 pt-3">
-                    <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Tipo de Atendimento</label>
-                    <select id="ea_tipo_cobranca" name="tipo_cobranca" onchange="toggleFaturamento('ea')" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded text-sm focus:ring-2 focus:ring-blue-500 font-bold uppercase">
-                        <option value="GARANTIA">GARANTIA (Sem custo)</option>
-                        <option value="FATURADA">FATURADA (Cobrar do cliente)</option>
-                    </select>
+                <div class="md:col-span-3 mt-2 border-t border-gray-200 dark:border-gray-700 pt-3 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Tipo de Atendimento</label>
+                        <select id="ea_tipo_cobranca" name="tipo_cobranca" onchange="toggleFaturamento('ea')" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded text-sm focus:ring-2 focus:ring-blue-500 font-bold uppercase">
+                            <option value="GARANTIA">GARANTIA (Sem custo)</option>
+                            <option value="FATURADA">FATURADA (Cobrar do cliente)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Técnico / Equipe Responsável</label>
+                        <select id="ea_tecnico" name="tecnico_assistencia" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded text-sm focus:ring-2 focus:ring-blue-500 uppercase">
+                            <option value="">Não Atribuído</option>
+                            <?php foreach($equipes_montagem as $eq): ?>
+                                <option value="<?= htmlspecialchars($eq) ?>"><?= htmlspecialchars($eq) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
                 </div>
 
                 <div id="ea_dados_faturamento" class="hidden md:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-3 bg-purple-50 dark:bg-purple-900/20 p-4 rounded border border-purple-200 dark:border-purple-800/50">
@@ -495,24 +529,18 @@ require_once 'includes/header.php';
                         <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Forma de Pagamento</label>
                         <select id="ea_forma_pagamento" name="forma_pagamento" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded text-sm focus:ring-2 focus:ring-purple-500 uppercase">
                             <option value="">Selecione...</option>
-                            <option value="PIX">PIX</option>
-                            <option value="CARTAO CREDITO">Cartão de Crédito</option>
-                            <option value="CARTAO DEBITO">Cartão de Débito</option>
-                            <option value="BOLETO">Boleto</option>
-                            <option value="DINHEIRO">Dinheiro</option>
+                            <?php foreach($formas_pagamento as $fp): ?>
+                                <option value="<?= htmlspecialchars($fp) ?>"><?= htmlspecialchars($fp) ?></option>
+                            <?php endforeach; ?>
                         </select>
                     </div>
                     <div>
-                        <div class="flex justify-between items-end mb-1">
-                            <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300">Anexar Novo Comprovante</label>
-                            <a href="#" id="ea_link_comprovante" target="_blank" class="hidden text-[10px] font-bold text-blue-600 dark:text-blue-400 hover:underline">Ver Atual</a>
-                        </div>
+                        <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Atualizar Comprovante</label>
                         <input type="file" id="ea_comprovante" name="comprovante" accept="image/*,.pdf" class="w-full text-xs text-gray-500 dark:text-gray-400 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-purple-100 file:text-purple-700 hover:file:bg-purple-200 dark:file:bg-purple-900/50 dark:file:text-purple-300 cursor-pointer">
                     </div>
                 </div>
             </div>
 
-            <!-- NOVO: Editor Quill para Editar Assistência -->
             <div class="mb-4">
                 <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Defeito ou Problema Relatado</label>
                 <input type="hidden" id="ea_observacao" name="observacao">
@@ -521,59 +549,12 @@ require_once 'includes/header.php';
 
             <div class="flex justify-end space-x-3 border-t border-gray-200 dark:border-gray-700 pt-4 mt-6">
                 <button type="button" onclick="fecharModalEdicaoAssistencia()" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition font-medium">Cancelar</button>
-                <button type="submit" class="px-4 py-2 bg-[#1e3a8a] dark:bg-blue-600 hover:bg-blue-800 text-white rounded font-bold transition shadow-sm">Salvar Alterações</button>
+                <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-bold transition shadow-sm">Salvar Alterações</button>
             </div>
         </form>
     </div>
 </div>
 
-<!-- 3. DAR BAIXA / CONCLUIR -->
-<div id="modalBaixa" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 hidden opacity-0 transition-opacity duration-300">
-    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md p-6 border border-gray-200 dark:border-gray-700 transform scale-95 transition-all duration-300" id="modalBaixaConteudo">
-        <div class="flex justify-between items-center mb-4 border-b border-gray-200 dark:border-gray-700 pb-2">
-            <h3 class="text-lg font-bold text-green-600 dark:text-green-400">Baixa de Assistência <span id="labelAstProjeto" class="text-gray-400 dark:text-gray-500 text-sm"></span></h3>
-            <button onclick="fecharModalBaixa()" class="text-gray-400 hover:text-gray-800 dark:hover:text-white text-2xl font-bold">&times;</button>
-        </div>
-        
-        <form id="formBaixa" onsubmit="salvarBaixaServidor(event)">
-            <input type="hidden" id="ast_id" name="id">
-            <div class="mb-4">
-                <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Técnico Responsável</label>
-                <input type="text" id="ast_tecnico" required placeholder="Nome do Técnico" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-2 focus:ring-green-500 uppercase">
-            </div>
-            <div class="grid grid-cols-2 gap-4 mb-4">
-                <div>
-                    <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Data da Visita/Reparo</label>
-                    <input type="date" id="ast_data" required class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-2 focus:ring-green-500">
-                </div>
-                <div>
-                    <label class="block text-sm font-semibold text-green-600 dark:text-green-400 mb-1">Problema Resolvido?</label>
-                    <select id="ast_resolvido" class="w-full px-3 py-2 border border-green-300 dark:border-green-600 dark:bg-gray-700 dark:text-white rounded focus:ring-2 focus:ring-green-500 font-bold uppercase">
-                        <option value="NAO">NÃO</option>
-                        <option value="SIM">SIM (Concluído)</option>
-                    </select>
-                </div>
-            </div>
-            
-            <!-- NOVO: Editor Quill para Baixa (Opcional, mas mantém a formatação) -->
-            <div class="mb-6">
-                <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Relato do Problema Original</label>
-                <input type="hidden" id="ast_observacao">
-                <div id="quill_ast_observacao"></div>
-            </div>
-            
-            <div class="flex justify-end space-x-3 border-t border-gray-200 dark:border-gray-700 pt-4 mt-6">
-                <button type="button" onclick="fecharModalBaixa()" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition font-medium">Cancelar</button>
-                <button type="submit" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded font-bold transition shadow-sm">Confirmar Baixa</button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<!-- Variáveis globais e Script -->
-<script>
-    window.CLIENTES_BASE_DATA = <?= json_encode($lista_clientes_base, JSON_UNESCAPED_UNICODE) ?>;
-</script>
 <script src="assets/js/assistencias.js?v=<?= time() ?>"></script>
 
 <?php require_once 'includes/footer.php'; ?>

@@ -2,6 +2,7 @@
 // financeiro.php
 require_once 'includes/auth.php';
 protegerPagina();
+
 require_once 'config/conexao.php';
 
 $mes_atual = date('m');
@@ -24,10 +25,24 @@ try {
     $map_clientes = []; foreach($clientes as $c) $map_clientes[$c['id']] = $c['nome'];
     $map_fornecedores = []; foreach($fornecedores as $f) $map_fornecedores[$f['id']] = $f['nome'];
 
+    // --- NOVO: Buscando Cadastros Base para o Financeiro ---
+    $stmt_cad = $pdo->query("SELECT tipo, nome FROM cadastros_base WHERE tipo IN ('PLANO_CONTA', 'FORMA_PAGAMENTO') ORDER BY nome ASC");
+    $cadastros_base = $stmt_cad->fetchAll(PDO::FETCH_ASSOC);
+    
+    $planos_conta = [];
+    $formas_pagamento = [];
+    
+    foreach($cadastros_base as $cad) {
+        if($cad['tipo'] == 'PLANO_CONTA') $planos_conta[] = $cad['nome'];
+        if($cad['tipo'] == 'FORMA_PAGAMENTO') $formas_pagamento[] = $cad['nome'];
+    }
+    // -------------------------------------------------------
+
     // 3. Cálculos do Dashboard e Agrupamento por Entidade
     $receitas_pagas = 0; $receitas_pendentes = 0;
     $despesas_pagas = 0; $despesas_pendentes = 0;
     $total_atrasado = 0;
+
     $agrupado = []; // Matriz que vai guardar os lançamentos agrupados
 
     foreach ($lancamentos as $l) {
@@ -48,6 +63,7 @@ try {
 
         // Lógica de Agrupamento
         $nome_entidade = 'DIVERSOS / NÃO INFORMADO';
+        
         if ($l['entidade_tipo'] === 'CLIENTE' && isset($map_clientes[$l['entidade_id']])) {
             $nome_entidade = $map_clientes[$l['entidade_id']];
         } elseif ($l['entidade_tipo'] === 'FORNECEDOR' && isset($map_fornecedores[$l['entidade_id']])) {
@@ -90,6 +106,7 @@ try {
         $data_alvo = strtotime("-$i months");
         $mes_num = date('m', $data_alvo);
         $ano_num = date('Y', $data_alvo);
+
         $chart_bar_labels[] = $meses_nomes[(int)$mes_num - 1] . '/' . substr($ano_num, 2);
         
         $stmt_rec = $pdo->prepare("SELECT SUM(valor) FROM financeiro WHERE tipo = 'RECEITA' AND MONTH(data_vencimento) = ? AND YEAR(data_vencimento) = ?");
@@ -110,7 +127,6 @@ $page_title = 'GESTÃO FINANCEIRA';
 $page_subtitle = 'Controle de Caixa, Contas a Pagar e Receber';
 $main_class = 'flex-1'; 
 $menu_button_text = 'MENU';
-
 $page_actions = '
 <button onclick="abrirModalLancamento()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded text-sm font-bold shadow-sm transition-colors flex items-center">
     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
@@ -141,7 +157,6 @@ require_once 'includes/header.php';
                 </p>
             </div>
         </div>
-
         <div class="bg-white dark:bg-[#222736] p-4 rounded-lg shadow-sm border border-gray-200 dark:border-[#2a3142] flex items-center">
             <div class="p-3 rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 mr-4">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
@@ -151,7 +166,6 @@ require_once 'includes/header.php';
                 <p class="text-2xl font-black text-blue-600 dark:text-blue-400 mt-0.5">R$ <?= number_format($saldo_previsto, 2, ',', '.') ?></p>
             </div>
         </div>
-
         <div class="bg-emerald-50 dark:bg-[#1c2333]/50 p-4 rounded-lg shadow-sm border border-emerald-200 dark:border-emerald-800/30 flex items-center">
             <div class="p-3 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 mr-4">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
@@ -161,7 +175,6 @@ require_once 'includes/header.php';
                 <p class="text-2xl font-black text-emerald-700 dark:text-emerald-400 mt-0.5">R$ <?= number_format($receitas_pendentes, 2, ',', '.') ?></p>
             </div>
         </div>
-
         <div class="bg-red-50 dark:bg-[#1c2333]/50 p-4 rounded-lg shadow-sm border <?= $total_atrasado > 0 ? 'border-red-400 animate-pulse' : 'border-red-200 dark:border-red-800/30' ?> flex items-center">
             <div class="p-3 rounded-full bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400 mr-4">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"></path></svg>
@@ -292,6 +305,7 @@ require_once 'includes/header.php';
             <?php endforeach; ?>
         </div>
     </div>
+
 </div>
 
 <!-- ========================================== -->
@@ -354,7 +368,12 @@ require_once 'includes/header.php';
                 
                 <div>
                     <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Forma de Pagamento</label>
-                    <input type="text" id="fin_forma_pagamento" placeholder="Ex: PIX, Boleto, Cartão" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded uppercase">
+                    <select id="fin_forma_pagamento" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded uppercase focus:ring-2 focus:ring-blue-500">
+                        <option value="">Selecione...</option>
+                        <?php foreach($formas_pagamento as $fp): ?>
+                            <option value="<?= htmlspecialchars($fp) ?>"><?= htmlspecialchars($fp) ?></option>
+                        <?php endforeach; ?>
+                    </select>
                 </div>
 
                 <div>
@@ -384,7 +403,12 @@ require_once 'includes/header.php';
                 
                 <div>
                     <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Plano de Contas</label>
-                    <input type="text" id="fin_plano_contas" placeholder="Ex: Fornecedores..." class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded uppercase">
+                    <select id="fin_plano_contas" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded uppercase focus:ring-2 focus:ring-blue-500">
+                        <option value="">Selecione...</option>
+                        <?php foreach($planos_conta as $pc): ?>
+                            <option value="<?= htmlspecialchars($pc) ?>"><?= htmlspecialchars($pc) ?></option>
+                        <?php endforeach; ?>
+                    </select>
                 </div>
                 
                 <div class="md:col-span-3">
@@ -406,6 +430,7 @@ require_once 'includes/header.php';
     </div>
 </div>
 
+<!-- Modal Baixar (Pagar/Receber) -->
 <div id="modalBaixa" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 hidden opacity-0 transition-opacity duration-300">
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-sm p-6 border border-gray-200 dark:border-gray-700 transform scale-95 transition-all duration-300" id="modalBaixaConteudo">
         <div class="flex justify-between items-center mb-4 border-b border-gray-200 dark:border-gray-700 pb-2">
@@ -433,7 +458,6 @@ require_once 'includes/header.php';
     window.clientes_data = <?= json_encode($clientes, JSON_UNESCAPED_UNICODE) ?>;
     window.fornecedores_data = <?= json_encode($fornecedores, JSON_UNESCAPED_UNICODE) ?>;
 </script>
-
 <script src="assets/js/financeiro.js?v=<?= time() ?>"></script>
 
 <!-- Script para a Geração dos Gráficos Interativos Chart.js -->

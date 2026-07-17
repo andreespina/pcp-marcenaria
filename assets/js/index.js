@@ -4,7 +4,8 @@ const nomesStatus = {
     'desenvolvimento': 'DESENV. PCP',
     'producao': 'PRODUÇÃO',
     'expedicao': 'EXPEDIÇÃO',
-    'instalacao': 'INSTALAÇÃO'
+    'instalacao': 'INSTALAÇÃO',
+    'entregue': 'ENTREGUES'
 };
 
 function filtrarSelect(inputId, selectId) {

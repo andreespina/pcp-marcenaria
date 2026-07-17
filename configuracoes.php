@@ -2,6 +2,7 @@
 // configuracoes.php
 require_once 'includes/auth.php';
 protegerPagina();
+
 require_once 'config/conexao.php';
 
 if (!isset($_SESSION['usuario_role']) || $_SESSION['usuario_role'] !== 'ADMIN') {
@@ -13,7 +14,6 @@ try {
     // 1. Empresa
     $stmtEmp = $pdo->query("SELECT * FROM configuracoes_empresa WHERE id = 1 LIMIT 1");
     $empresa = $stmtEmp->fetch(PDO::FETCH_ASSOC);
-
     if (!$empresa) {
         $empresa = [
             'nome_fantasia' => '', 'razao_social' => '', 'cnpj' => '', 
@@ -29,12 +29,18 @@ try {
     $stmtCad = $pdo->query("SELECT * FROM cadastros_base ORDER BY tipo ASC, nome ASC");
     $todos_cadastros = $stmtCad->fetchAll(PDO::FETCH_ASSOC);
 
+    // Expandido para comportar as novas amarrações do sistema
     $listas = [
         'CATEGORIA_ALMOX' => [],
         'PLANO_CONTA' => [],
         'FORMA_PAGAMENTO' => [],
-        'SETOR' => []
+        'SETOR' => [],
+        'PROJETISTA' => [],
+        'EQUIPE_MONTAGEM' => [],
+        'UNIDADE_MEDIDA' => [],
+        'ORIGEM_LEAD' => []
     ];
+
     foreach($todos_cadastros as $cad) {
         if(isset($listas[$cad['tipo']])) {
             $listas[$cad['tipo']][] = $cad;
@@ -54,7 +60,6 @@ require_once 'includes/header.php';
 ?>
 
 <div class="flex flex-col gap-6">
-
     <div class="border-b border-gray-200 dark:border-[#2a3142]">
         <ul class="flex flex-nowrap overflow-x-auto text-sm font-medium text-center" role="tablist">
             <li class="mr-2" role="presentation">
@@ -75,6 +80,7 @@ require_once 'includes/header.php';
         </ul>
     </div>
 
+    <!-- ABA 1: EMPRESA -->
     <div id="conteudo_empresa" class="tab-content">
         <form id="formEmpresa" onsubmit="salvarEmpresa(event)" enctype="multipart/form-data" class="bg-white dark:bg-[#222736] p-6 rounded-lg shadow-sm border border-gray-200 dark:border-[#2a3142]">
             <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -86,7 +92,7 @@ require_once 'includes/header.php';
                             <img src="<?= htmlspecialchars($empresa['logo_path']) ?>?v=<?= time() ?>" alt="Logo" class="max-w-full max-h-full object-contain p-2" id="preview_logo">
                         <?php else: ?>
                             <img src="" alt="Sem logo" class="hidden max-w-full max-h-full object-contain p-2" id="preview_logo">
-                            <span class="text-4xl text-gray-300 dark:text-gray-600" id="icone_sem_logo">🖼️</span>
+                            <span class="text-4xl text-gray-300 dark:text-gray-600" id="icone_sem_logo">🏢</span>
                         <?php endif; ?>
                     </div>
                     
@@ -135,6 +141,7 @@ require_once 'includes/header.php';
         </form>
     </div>
 
+    <!-- ABA 2: USUÁRIOS -->
     <div id="conteudo_usuarios" class="tab-content hidden">
         <div class="bg-white dark:bg-[#222736] p-10 rounded-lg shadow-sm border border-gray-200 dark:border-[#2a3142] text-center max-w-3xl mx-auto mt-6">
             <div class="w-20 h-20 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -151,13 +158,15 @@ require_once 'includes/header.php';
         </div>
     </div>
 
+    <!-- ABA 3: CADASTROS BASE (Expandida) -->
     <div id="conteudo_cadastros" class="tab-content hidden">
         
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             
+            <!-- ALMOXARIFADO: Categorias -->
             <div class="bg-white dark:bg-[#222736] rounded-lg shadow-sm border border-gray-200 dark:border-[#2a3142] flex flex-col h-[350px]">
                 <div class="p-3 border-b border-gray-200 dark:border-gray-700 bg-orange-50 dark:bg-orange-900/10 flex justify-between items-center">
-                    <h3 class="font-bold text-orange-700 dark:text-orange-500 text-xs uppercase tracking-wider flex items-center">
+                    <h3 class="font-bold text-orange-700 dark:text-orange-500 text-[11px] uppercase tracking-wider flex items-center">
                         <span class="w-6 h-6 bg-orange-100 text-orange-600 rounded flex items-center justify-center mr-2">📦</span>
                         Categorias de Estoque
                     </h3>
@@ -177,10 +186,34 @@ require_once 'includes/header.php';
                 </div>
             </div>
 
+            <!-- ALMOXARIFADO: Unidades de Medida -->
+            <div class="bg-white dark:bg-[#222736] rounded-lg shadow-sm border border-gray-200 dark:border-[#2a3142] flex flex-col h-[350px]">
+                <div class="p-3 border-b border-gray-200 dark:border-gray-700 bg-teal-50 dark:bg-teal-900/10 flex justify-between items-center">
+                    <h3 class="font-bold text-teal-700 dark:text-teal-500 text-[11px] uppercase tracking-wider flex items-center">
+                        <span class="w-6 h-6 bg-teal-100 text-teal-600 rounded flex items-center justify-center mr-2">📏</span>
+                        Unidades de Medida
+                    </h3>
+                    <button onclick="abrirModalCadastro('UNIDADE_MEDIDA', 'Unidade de Medida')" class="bg-teal-500 hover:bg-teal-600 text-white px-2 py-1 rounded text-[10px] font-bold shadow-sm transition-colors uppercase">
+                        + Adicionar
+                    </button>
+                </div>
+                <div class="flex-1 overflow-y-auto p-2 scrollbar-thin">
+                    <ul class="divide-y divide-gray-100 dark:divide-gray-700/50">
+                        <?php foreach($listas['UNIDADE_MEDIDA'] as $item): ?>
+                            <li class="py-2 px-2 flex justify-between items-center hover:bg-gray-50 dark:hover:bg-gray-800/50 rounded group">
+                                <span class="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase"><?= htmlspecialchars($item['nome']) ?></span>
+                                <button onclick="deletarCadastro(<?= $item['id'] ?>)" class="text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity" title="Apagar">&times;</button>
+                            </li>
+                        <?php endforeach; ?>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- FINANCEIRO: Planos de Conta -->
             <div class="bg-white dark:bg-[#222736] rounded-lg shadow-sm border border-gray-200 dark:border-[#2a3142] flex flex-col h-[350px]">
                 <div class="p-3 border-b border-gray-200 dark:border-gray-700 bg-emerald-50 dark:bg-emerald-900/10 flex justify-between items-center">
-                    <h3 class="font-bold text-emerald-700 dark:text-emerald-500 text-xs uppercase tracking-wider flex items-center">
-                        <span class="w-6 h-6 bg-emerald-100 text-emerald-600 rounded flex items-center justify-center mr-2">💰</span>
+                    <h3 class="font-bold text-emerald-700 dark:text-emerald-500 text-[11px] uppercase tracking-wider flex items-center">
+                        <span class="w-6 h-6 bg-emerald-100 text-emerald-600 rounded flex items-center justify-center mr-2">📊</span>
                         Planos de Conta (Fin)
                     </h3>
                     <button onclick="abrirModalCadastro('PLANO_CONTA', 'Plano de Conta')" class="bg-emerald-500 hover:bg-emerald-600 text-white px-2 py-1 rounded text-[10px] font-bold shadow-sm transition-colors uppercase">
@@ -199,9 +232,10 @@ require_once 'includes/header.php';
                 </div>
             </div>
 
+            <!-- FINANCEIRO: Formas de Pagamento -->
             <div class="bg-white dark:bg-[#222736] rounded-lg shadow-sm border border-gray-200 dark:border-[#2a3142] flex flex-col h-[350px]">
                 <div class="p-3 border-b border-gray-200 dark:border-gray-700 bg-purple-50 dark:bg-purple-900/10 flex justify-between items-center">
-                    <h3 class="font-bold text-purple-700 dark:text-purple-500 text-xs uppercase tracking-wider flex items-center">
+                    <h3 class="font-bold text-purple-700 dark:text-purple-500 text-[11px] uppercase tracking-wider flex items-center">
                         <span class="w-6 h-6 bg-purple-100 text-purple-600 rounded flex items-center justify-center mr-2">💳</span>
                         Formas de Pagamento
                     </h3>
@@ -221,9 +255,10 @@ require_once 'includes/header.php';
                 </div>
             </div>
 
+            <!-- USUÁRIOS E RECADOS: Setores -->
             <div class="bg-white dark:bg-[#222736] rounded-lg shadow-sm border border-gray-200 dark:border-[#2a3142] flex flex-col h-[350px]">
                 <div class="p-3 border-b border-gray-200 dark:border-gray-700 bg-blue-50 dark:bg-blue-900/10 flex justify-between items-center">
-                    <h3 class="font-bold text-blue-700 dark:text-blue-500 text-xs uppercase tracking-wider flex items-center">
+                    <h3 class="font-bold text-blue-700 dark:text-blue-500 text-[11px] uppercase tracking-wider flex items-center">
                         <span class="w-6 h-6 bg-blue-100 text-blue-600 rounded flex items-center justify-center mr-2">🏢</span>
                         Setores / Departamentos
                     </h3>
@@ -243,10 +278,80 @@ require_once 'includes/header.php';
                 </div>
             </div>
 
+            <!-- COMERCIAL: Projetistas -->
+            <div class="bg-white dark:bg-[#222736] rounded-lg shadow-sm border border-gray-200 dark:border-[#2a3142] flex flex-col h-[350px]">
+                <div class="p-3 border-b border-gray-200 dark:border-gray-700 bg-indigo-50 dark:bg-indigo-900/10 flex justify-between items-center">
+                    <h3 class="font-bold text-indigo-700 dark:text-indigo-500 text-[11px] uppercase tracking-wider flex items-center">
+                        <span class="w-6 h-6 bg-indigo-100 text-indigo-600 rounded flex items-center justify-center mr-2">✏️</span>
+                        Projetistas (Comercial)
+                    </h3>
+                    <button onclick="abrirModalCadastro('PROJETISTA', 'Projetista')" class="bg-indigo-500 hover:bg-indigo-600 text-white px-2 py-1 rounded text-[10px] font-bold shadow-sm transition-colors uppercase">
+                        + Adicionar
+                    </button>
+                </div>
+                <div class="flex-1 overflow-y-auto p-2 scrollbar-thin">
+                    <ul class="divide-y divide-gray-100 dark:divide-gray-700/50">
+                        <?php foreach($listas['PROJETISTA'] as $item): ?>
+                            <li class="py-2 px-2 flex justify-between items-center hover:bg-gray-50 dark:hover:bg-gray-800/50 rounded group">
+                                <span class="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase"><?= htmlspecialchars($item['nome']) ?></span>
+                                <button onclick="deletarCadastro(<?= $item['id'] ?>)" class="text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity" title="Apagar">&times;</button>
+                            </li>
+                        <?php endforeach; ?>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- COMERCIAL: Origem do Lead -->
+            <div class="bg-white dark:bg-[#222736] rounded-lg shadow-sm border border-gray-200 dark:border-[#2a3142] flex flex-col h-[350px]">
+                <div class="p-3 border-b border-gray-200 dark:border-gray-700 bg-pink-50 dark:bg-pink-900/10 flex justify-between items-center">
+                    <h3 class="font-bold text-pink-700 dark:text-pink-500 text-[11px] uppercase tracking-wider flex items-center">
+                        <span class="w-6 h-6 bg-pink-100 text-pink-600 rounded flex items-center justify-center mr-2">🎯</span>
+                        Origem do Lead
+                    </h3>
+                    <button onclick="abrirModalCadastro('ORIGEM_LEAD', 'Origem do Lead')" class="bg-pink-500 hover:bg-pink-600 text-white px-2 py-1 rounded text-[10px] font-bold shadow-sm transition-colors uppercase">
+                        + Adicionar
+                    </button>
+                </div>
+                <div class="flex-1 overflow-y-auto p-2 scrollbar-thin">
+                    <ul class="divide-y divide-gray-100 dark:divide-gray-700/50">
+                        <?php foreach($listas['ORIGEM_LEAD'] as $item): ?>
+                            <li class="py-2 px-2 flex justify-between items-center hover:bg-gray-50 dark:hover:bg-gray-800/50 rounded group">
+                                <span class="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase"><?= htmlspecialchars($item['nome']) ?></span>
+                                <button onclick="deletarCadastro(<?= $item['id'] ?>)" class="text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity" title="Apagar">&times;</button>
+                            </li>
+                        <?php endforeach; ?>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- PCP / ASSISTÊNCIAS: Equipes de Montagem -->
+            <div class="bg-white dark:bg-[#222736] rounded-lg shadow-sm border border-gray-200 dark:border-[#2a3142] flex flex-col h-[350px]">
+                <div class="p-3 border-b border-gray-200 dark:border-gray-700 bg-amber-50 dark:bg-amber-900/10 flex justify-between items-center">
+                    <h3 class="font-bold text-amber-700 dark:text-amber-500 text-[11px] uppercase tracking-wider flex items-center">
+                        <span class="w-6 h-6 bg-amber-100 text-amber-600 rounded flex items-center justify-center mr-2">🧰</span>
+                        Equipes de Montagem
+                    </h3>
+                    <button onclick="abrirModalCadastro('EQUIPE_MONTAGEM', 'Equipe de Montagem')" class="bg-amber-500 hover:bg-amber-600 text-white px-2 py-1 rounded text-[10px] font-bold shadow-sm transition-colors uppercase">
+                        + Adicionar
+                    </button>
+                </div>
+                <div class="flex-1 overflow-y-auto p-2 scrollbar-thin">
+                    <ul class="divide-y divide-gray-100 dark:divide-gray-700/50">
+                        <?php foreach($listas['EQUIPE_MONTAGEM'] as $item): ?>
+                            <li class="py-2 px-2 flex justify-between items-center hover:bg-gray-50 dark:hover:bg-gray-800/50 rounded group">
+                                <span class="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase"><?= htmlspecialchars($item['nome']) ?></span>
+                                <button onclick="deletarCadastro(<?= $item['id'] ?>)" class="text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity" title="Apagar">&times;</button>
+                            </li>
+                        <?php endforeach; ?>
+                    </ul>
+                </div>
+            </div>
+
         </div>
     </div>
 </div>
 
+<!-- Modal Padrão de Adição -->
 <div id="modalCadastroBase" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 hidden opacity-0 transition-opacity duration-300">
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-sm p-6 border border-gray-200 dark:border-gray-700 transform scale-95 transition-all duration-300" id="modalCadastroBaseConteudo">
         <div class="flex justify-between items-center mb-4 border-b border-gray-200 dark:border-gray-700 pb-2">

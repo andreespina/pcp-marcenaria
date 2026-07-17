@@ -8,6 +8,19 @@ try {
     $stmt_cli = $pdo->query("SELECT id, codigo_cliente, nome_contrato FROM clientes_cadastro ORDER BY nome_contrato ASC");
     $clientes_db = $stmt_cli->fetchAll(PDO::FETCH_ASSOC);
 
+    // --- NOVO: Buscando Cadastros Base para o CRM ---
+    $stmt_cad = $pdo->query("SELECT tipo, nome FROM cadastros_base WHERE tipo IN ('PROJETISTA', 'ORIGEM_LEAD') ORDER BY nome ASC");
+    $cadastros_base = $stmt_cad->fetchAll(PDO::FETCH_ASSOC);
+    
+    $projetistas = [];
+    $origens_lead = [];
+    
+    foreach($cadastros_base as $cad) {
+        if($cad['tipo'] == 'PROJETISTA') $projetistas[] = $cad['nome'];
+        if($cad['tipo'] == 'ORIGEM_LEAD') $origens_lead[] = $cad['nome'];
+    }
+    // ------------------------------------------------
+
     $stmt = $pdo->query("SELECT cl.*, c.nome_contrato as nome_cadastrado, c.codigo_cliente 
                          FROM comercial_leads cl 
                          LEFT JOIN clientes_cadastro c ON cl.cliente_id = c.id 
@@ -20,7 +33,7 @@ try {
         'CONTATO'      => ['titulo' => 'Novo Contato', 'cor' => 'border-gray-500', 'bg' => 'bg-gray-100 dark:bg-gray-800/50', 'leads' => []],
         'PROJETO_3D'   => ['titulo' => 'Projeto 3D', 'cor' => 'border-indigo-500', 'bg' => 'bg-indigo-50 dark:bg-[#1c2333]/50', 'leads' => []],
         'ORCAMENTO'    => ['titulo' => 'Orçamento', 'cor' => 'border-amber-500', 'bg' => 'bg-amber-50 dark:bg-[#1c2333]/50', 'leads' => []],
-        'REUNIAO' => ['titulo' => 'Reunião', 'cor' => 'border-blue-500', 'bg' => 'bg-blue-50 dark:bg-[#1c2333]/50', 'leads' => []],
+        'REUNIAO'      => ['titulo' => 'Reunião', 'cor' => 'border-blue-500', 'bg' => 'bg-blue-50 dark:bg-[#1c2333]/50', 'leads' => []],
         'FECHADO'      => ['titulo' => 'Venda Fechada', 'cor' => 'border-emerald-500', 'bg' => 'bg-emerald-50 dark:bg-[#15231d]/50', 'leads' => []],
         'PAUSADO'      => ['titulo' => 'Pausados', 'cor' => 'border-purple-500', 'bg' => 'bg-purple-50 dark:bg-[#2e1f3d]/40', 'leads' => []],
         'PERDIDO'      => ['titulo' => 'Perdidos', 'cor' => 'border-red-500', 'bg' => 'bg-red-50 dark:bg-red-900/20', 'leads' => []]
@@ -200,7 +213,7 @@ require_once 'includes/header.php';
         
         <div class="flex-1 bg-white dark:bg-[#222736] rounded-lg border border-gray-200 dark:border-[#2a3142] shadow-sm p-4 transition-colors duration-300 flex flex-col">
             <h2 class="text-blue-700 dark:text-blue-400 font-bold mb-4 flex items-center text-lg tracking-wide">
-                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002-2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
                 Indicadores de Performance
             </h2>
             
@@ -334,7 +347,7 @@ require_once 'includes/header.php';
                             <div class="flex justify-between items-center border-b border-gray-100 dark:border-gray-700 pb-2 mb-2">
                                 <span class="text-[10px] text-gray-500 dark:text-gray-400 font-medium">Entrada: <?= date('d/m/y', strtotime($l['data_entrada'])) ?></span>
                                 <div class="flex items-center">
-                                    <span class="text-[9px] text-gray-800 dark:text-gray-200 bg-gray-200 dark:bg-gray-700 px-1 font-bold rounded uppercase mr-2"><?= $l['origem'] ?></span>
+                                    <span class="text-[9px] text-gray-800 dark:text-gray-200 bg-gray-200 dark:bg-gray-700 px-1 font-bold rounded uppercase mr-2"><?= htmlspecialchars($l['origem']) ?></span>
                                     
                                     <a href="#" onclick="abrirGoogleCalendar('<?= $nome_formatado ?>', '<?= !empty($l['data_apresentacao']) ? $l['data_apresentacao'] : '' ?>', '<?= $obs_formatada ?>'); return false;" class="text-gray-400 hover:text-green-600 dark:hover:text-green-400 mr-2" title="Salvar no Google Agenda">
                                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
@@ -480,12 +493,20 @@ require_once 'includes/header.php';
                 <div>
                     <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Origem do Lead</label>
                     <select id="lead_origem" name="origem" class="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white rounded uppercase focus:ring-2 focus:ring-blue-500">
-                        <option value="INSTAGRAM">Instagram</option><option value="INDICACAO">Indicação</option><option value="ARQUITETO">Arquiteto(a)</option><option value="SHOWROOM">Visita Loja</option><option value="OUTROS">Outros</option>
+                        <option value="">Selecione...</option>
+                        <?php foreach($origens_lead as $origem): ?>
+                            <option value="<?= htmlspecialchars($origem) ?>"><?= htmlspecialchars($origem) ?></option>
+                        <?php endforeach; ?>
                     </select>
                 </div>
                 <div>
                     <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Projetista Responsável</label>
-                    <input type="text" id="lead_projetista" name="projetista_responsavel" class="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white rounded uppercase">
+                    <select id="lead_projetista" name="projetista_responsavel" class="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white rounded uppercase focus:ring-2 focus:ring-blue-500">
+                        <option value="">Não Atribuído</option>
+                        <?php foreach($projetistas as $proj): ?>
+                            <option value="<?= htmlspecialchars($proj) ?>"><?= htmlspecialchars($proj) ?></option>
+                        <?php endforeach; ?>
+                    </select>
                 </div>
                 <div>
                     <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Ambientes</label>

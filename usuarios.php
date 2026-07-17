@@ -1,7 +1,7 @@
 <?php
 // usuarios.php
 require_once 'includes/auth.php';
-protegerPagina(); 
+protegerPagina();
 
 // Bloqueio de segurança: Apenas utilizadores com perfil ADMIN podem ver esta tela
 if (!isset($_SESSION['usuario_role']) || $_SESSION['usuario_role'] !== 'ADMIN') {
@@ -15,6 +15,12 @@ try {
     // Busca todos os usuários do sistema
     $stmt = $pdo->query("SELECT id, nome_completo, usuario, setor, role, permissoes FROM usuarios ORDER BY nome_completo ASC");
     $lista_usuarios = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // --- NOVO: Buscando Cadastros Base para Usuários ---
+    $stmt_setor = $pdo->query("SELECT nome FROM cadastros_base WHERE tipo = 'SETOR' ORDER BY nome ASC");
+    $setores = $stmt_setor->fetchAll(PDO::FETCH_COLUMN);
+    // ---------------------------------------------------
+
 } catch (\PDOException $e) {
     die("Erro ao buscar utilizadores: " . $e->getMessage());
 }
@@ -42,6 +48,7 @@ require_once 'includes/header.php';
 
 <div class="app-container gap-6">
     <div class="bg-white dark:bg-[#222736] rounded-lg border border-gray-200 dark:border-[#2a3142] shadow-sm overflow-hidden flex flex-col flex-1 transition-colors duration-300">
+        
         <div class="p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 flex justify-between items-center">
             <h3 class="font-bold text-gray-700 dark:text-gray-200 text-sm uppercase tracking-wider">Controlo de Contas Ativas</h3>
             <span class="text-xs font-bold text-gray-500 dark:text-gray-400"><?= count($lista_usuarios) ?> Usuários no Sistema</span>
@@ -127,17 +134,11 @@ require_once 'includes/header.php';
                     <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Setor / Departamento</label>
                     <select id="usr_setor" name="setor" required class="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white rounded uppercase focus:ring-2 focus:ring-blue-500 font-bold">
                         <option value="">Selecione...</option>
-                        <option value="PROJETOS">Projetos / Design</option>
-                        <option value="PCP">PCP Marcenaria</option>
-                        <option value="ADMINISTRATIVO">Administrativo</option>
-                        <option value="PRODUÇÃO">Produção / Fábrica</option>
-                        <option value="ALMOXARIFADO">Almoxarifado</option>
-                        <option value="RH">Recursos Humanos (RH)</option>
-                        <option value="DIRETORIA">Diretoria</option>
-                        <option value="ADMIN">Administração de TI</option>
+                        <?php foreach($setores as $setor): ?>
+                            <option value="<?= htmlspecialchars($setor) ?>"><?= htmlspecialchars($setor) ?></option>
+                        <?php endforeach; ?>
                     </select>
                 </div>
-
                 <div>
                     <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Perfil Tipo de Acesso</label>
                     <select id="usr_role" name="role" required onchange="togglePermissoesVisuais()" class="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white rounded uppercase focus:ring-2 focus:ring-blue-500 font-bold">
@@ -145,12 +146,10 @@ require_once 'includes/header.php';
                         <option value="ADMIN">Administrador Master (ADMIN)</option>
                     </select>
                 </div>
-
                 <div>
                     <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Nome de Usuário (Login)</label>
                     <input type="text" id="usr_username" name="usuario" required placeholder="Ex: andre.espina" class="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white rounded font-mono focus:ring-2 focus:ring-blue-500">
                 </div>
-
                 <div>
                     <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Senha de Acesso</label>
                     <input type="password" id="usr_password" name="senha" placeholder="Deixe em branco para manter a atual" class="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white rounded focus:ring-2 focus:ring-blue-500">

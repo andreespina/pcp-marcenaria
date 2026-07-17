@@ -2,14 +2,18 @@
 // index.php
 require_once 'includes/auth.php';
 protegerPagina();
-require_once 'config/conexao.php'; 
+
+require_once 'config/conexao.php';
 
 // --- FUNÇÃO PARA CALCULAR DIAS ÚTEIS ---
 function calcularDiasUteis($data_inicial, $data_final) {
     if (!$data_inicial || !$data_final) return null;
+    
     $inicio = new DateTime($data_inicial);
     $fim = new DateTime($data_final);
+    
     if ($inicio > $fim) return 0;
+    
     $diasUteis = 0;
     while ($inicio <= $fim) {
         if ($inicio->format('N') < 6) { $diasUteis++; }
@@ -23,7 +27,8 @@ $titulos_colunas = [
     'desenvolvimento' => ['titulo' => 'DESENV. PCP', 'cor' => 'border-gray-500', 'data_label' => 'Entrega:'],
     'producao'        => ['titulo' => 'PRODUÇÃO', 'cor' => 'border-blue-500', 'data_label' => 'Entrega:'],
     'expedicao'       => ['titulo' => 'EXPEDIÇÃO', 'cor' => 'border-indigo-500', 'data_label' => 'Entrega:'],
-    'instalacao'      => ['titulo' => 'INSTALAÇÃO', 'cor' => 'border-emerald-500', 'data_label' => 'Finalização:']
+    'instalacao'      => ['titulo' => 'INSTALAÇÃO', 'cor' => 'border-emerald-500', 'data_label' => 'Finalização:'],
+    'entregue'        => ['titulo' => 'ENTREGUES', 'cor' => 'border-purple-500', 'data_label' => 'Finalizado:']
 ];
 
 try {
@@ -35,6 +40,11 @@ try {
 
     $stmt_lista_cli = $pdo->query("SELECT id, codigo_cliente, nome_contrato FROM clientes_cadastro ORDER BY nome_contrato ASC");
     $lista_clientes_oficial = $stmt_lista_cli->fetchAll(PDO::FETCH_ASSOC);
+
+    // --- NOVO: Buscando Cadastros Base para o PCP ---
+    $stmt_equipes = $pdo->query("SELECT nome FROM cadastros_base WHERE tipo = 'EQUIPE_MONTAGEM' ORDER BY nome ASC");
+    $equipes_montagem = $stmt_equipes->fetchAll(PDO::FETCH_COLUMN);
+    // ------------------------------------------------
 
     $total_assistencias_abertas = 0;
     try {
@@ -59,30 +69,43 @@ try {
     } catch (\PDOException $e) {}
 
     $colunas = [
-        'desenvolvimento' => [], 'producao' => [], 'expedicao' => [], 'instalacao' => []
+        'desenvolvimento' => [], 'producao' => [], 'expedicao' => [], 'instalacao' => [], 'entregue' => []
     ];
+
     $proximas_entregas = [];
 
     foreach ($projetos as $p) {
         if ($p['status'] === 'assistencia') continue; 
         
-        // Proteção caso tenha ficado preso no status antigo 'atrasou'
+        // Proteção e atribuição de status
         $status_atual = array_key_exists($p['status'], $colunas) ? $p['status'] : 'instalacao';
         
-        $colunas[$status_atual][] = $p;
-        
-        if (!empty($p['data_limite']) && in_array($status_atual, ['desenvolvimento', 'producao', 'expedicao'])) {
-            if (count($proximas_entregas) < 5) { $proximas_entregas[] = $p; }
+        // Lógica: Se for entregue, verifica se está dentro dos últimos 6 meses
+        if ($status_atual === 'entregue') {
+            // Pega a data da instalação final ou a data limite como base
+            $data_ref = !empty($p['data_fim_instalacao']) ? $p['data_fim_instalacao'] : (!empty($p['data_limite']) ? $p['data_limite'] : date('Y-m-d'));
+            $seis_meses_atras = date('Y-m-d', strtotime('-6 months'));
+            
+            if ($data_ref >= $seis_meses_atras) {
+                $colunas['entregue'][] = $p;
+            }
+        } else {
+            $colunas[$status_atual][] = $p;
+            
+            if (!empty($p['data_limite']) && in_array($status_atual, ['desenvolvimento', 'producao', 'expedicao'])) {
+                if (count($proximas_entregas) < 5) { $proximas_entregas[] = $p; }
+            }
         }
     }
 
     // --- LÓGICA DE DADOS PARA OS GRÁFICOS ---
-    $chart_rosca_labels = ['Desenv. PCP', 'Produção', 'Expedição', 'Instalação'];
+    $chart_rosca_labels = ['Desenv. PCP', 'Produção', 'Expedição', 'Instalação', 'Entregues (6m)'];
     $chart_rosca_data = [
         count($colunas['desenvolvimento']),
         count($colunas['producao']),
         count($colunas['expedicao']),
-        count($colunas['instalacao'])
+        count($colunas['instalacao']),
+        count($colunas['entregue'])
     ];
 
     $meses_nomes = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
@@ -95,6 +118,7 @@ try {
         $data_alvo = strtotime("-$i months");
         $mes_num = date('m', $data_alvo);
         $ano_num = date('Y', $data_alvo);
+
         $chart_bar_labels[] = $meses_nomes[(int)$mes_num - 1] . '/' . substr($ano_num, 2);
         
         $stmt_proj_mes = $pdo->prepare("SELECT COUNT(*) FROM projetos_pcp WHERE status = 'assistencia' AND MONTH(data_limite) = ? AND YEAR(data_limite) = ?");
@@ -113,20 +137,24 @@ try {
 }
 
 function formatarData($data) {
-    if (!$data) return ''; return date('d/m/Y', strtotime($data));
+    if (!$data) return '';
+    return date('d/m/Y', strtotime($data));
 }
+
 function corChecklist($valor) {
     if ($valor === 'SIM') return 'text-green-600 dark:text-green-400 font-bold';
     if ($valor === 'PROJETANDO' || $valor === 'FAZENDO') return 'text-yellow-600 dark:text-yellow-400 font-bold';
     return 'text-gray-500 dark:text-gray-400 font-medium';
 }
+
 function jsSafe($val) {
-    if ($val === null) $val = ''; return htmlspecialchars(json_encode($val), ENT_QUOTES, 'UTF-8');
+    if ($val === null) $val = '';
+    return htmlspecialchars(json_encode($val), ENT_QUOTES, 'UTF-8');
 }
 
 $page_title = 'PAINEL DE CONTROLE';
 $page_subtitle = 'SBG Móveis & Design';
-$main_class = 'flex-1';
+$main_class = 'flex-1'; 
 $menu_button_text = 'MENU';
 $menu_button_class = 'bg-[#1e3a8a] dark:bg-blue-600 hover:bg-blue-800 dark:hover:bg-blue-500 text-white';
 
@@ -148,13 +176,14 @@ require_once 'includes/header.php';
 ?>
 
 <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
+    
     <div class="lg:col-span-3 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-5 transition-colors duration-300 flex flex-col">
         <h2 class="text-lg font-bold text-[#1e3a8a] dark:text-blue-400 mb-4 flex items-center">
             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
             Resumo da Produção
         </h2>
         
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
             <div class="bg-gray-50 dark:bg-gray-700/50 p-3 rounded border border-gray-200 dark:border-gray-600">
                 <div class="text-gray-500 dark:text-gray-400 text-xs font-bold uppercase">Desenv. PCP</div>
                 <div class="text-2xl font-black text-[#1e3a8a] dark:text-blue-300"><?= count($colunas['desenvolvimento']) ?></div>
@@ -171,22 +200,9 @@ require_once 'includes/header.php';
                 <div class="text-emerald-600 dark:text-emerald-400 text-xs font-bold uppercase">Instalação</div>
                 <div class="text-2xl font-black text-emerald-700 dark:text-emerald-300"><?= count($colunas['instalacao']) ?></div>
             </div>
-            
             <div class="bg-purple-50 dark:bg-purple-900/20 p-3 rounded border border-purple-100 dark:border-purple-800">
-                <div class="text-purple-600 dark:text-purple-400 text-xs font-bold uppercase">Entregues (Mês)</div>
-                <div class="text-2xl font-black text-purple-700 dark:text-purple-300"><?= $entregues_este_mes ?></div>
-            </div>
-            <div class="bg-amber-50 dark:bg-amber-900/20 p-3 rounded border border-amber-100 dark:border-amber-800">
-                <div class="text-amber-600 dark:text-amber-400 text-xs font-bold uppercase">Ass. Técnicas</div>
-                <div class="text-2xl font-black text-amber-700 dark:text-amber-300"><?= $total_assistencias_abertas ?></div>
-            </div>
-            <div class="bg-pink-50 dark:bg-pink-900/20 p-3 rounded border border-pink-100 dark:border-pink-800">
-                <div class="text-pink-600 dark:text-pink-400 text-xs font-bold uppercase">Clientes Base</div>
-                <div class="text-2xl font-black text-pink-700 dark:text-pink-300"><?= $total_clientes ?></div>
-            </div>
-            <div class="bg-orange-50 dark:bg-orange-900/20 p-3 rounded border border-orange-100 dark:border-orange-800">
-                <div class="text-orange-600 dark:text-orange-400 text-xs font-bold uppercase">Itens em Falta</div>
-                <div class="text-2xl font-black text-orange-700 dark:text-orange-300"><?= $total_critico ?></div>
+                <div class="text-purple-600 dark:text-purple-400 text-[10px] sm:text-xs font-bold uppercase">Entregues (6m)</div>
+                <div class="text-2xl font-black text-purple-700 dark:text-purple-300"><?= count($colunas['entregue']) ?></div>
             </div>
         </div>
 
@@ -197,7 +213,6 @@ require_once 'includes/header.php';
                     <canvas id="chartRosca"></canvas>
                 </div>
             </div>
-
             <div class="bg-gray-50 dark:bg-gray-700/30 p-4 rounded-xl border border-gray-200 dark:border-gray-700 flex flex-col justify-center shadow-inner">
                 <h3 class="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest w-full text-center mb-4">Desempenho (Últimos 6 Meses)</h3>
                 <div class="relative w-full h-44">
@@ -322,7 +337,7 @@ require_once 'includes/header.php';
     </div>
 </div>
 
-<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
     <?php foreach ($colunas as $status_chave => $lista_projetos): $conf = $titulos_colunas[$status_chave]; ?>
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-3 flex flex-col h-[500px] transition-colors duration-300">
             <h2 class="text-sm font-bold uppercase tracking-wider border-b-2 <?= $conf['cor'] ?> pb-2 mb-3 dark:text-gray-100"><?= $conf['titulo'] ?></h2>
@@ -339,12 +354,12 @@ require_once 'includes/header.php';
                         $dt_ini_inst = isset($p['data_inicio_instalacao']) ? $p['data_inicio_instalacao'] : '';
                         $dt_fim_inst = isset($p['data_fim_instalacao']) ? $p['data_fim_instalacao'] : '';
                         $dias_uteis = calcularDiasUteis($dt_ini_inst, $dt_fim_inst);
-
                         $proj_exec = isset($p['projeto_executivo']) ? $p['projeto_executivo'] : 'PARA FAZER';
                         $situacao_obra = isset($p['situacao_obra']) ? $p['situacao_obra'] : 'NORMAL';
                         
                         // Lógica de Atraso
                         $is_atrasado = false;
+                        $hoje = date('Y-m-d');
                         if (!empty($p['data_fim_instalacao']) && $p['data_fim_instalacao'] < $hoje) {
                             $is_atrasado = true;
                         } elseif (!empty($p['data_limite']) && $p['data_limite'] < $hoje) {
@@ -363,22 +378,22 @@ require_once 'includes/header.php';
                                 $card_border = 'border-red-400 dark:border-red-500 shadow-[0_0_8px_rgba(239,68,68,0.3)]';
                                 $card_bg = 'bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30';
                             }
+                        } elseif ($status_chave === 'entregue') {
+                            $card_border = 'border-purple-300 dark:border-purple-700 opacity-70 hover:opacity-100';
+                            $card_bg = 'bg-purple-50/50 dark:bg-purple-900/10 hover:bg-purple-100 dark:hover:bg-purple-900/30';
                         }
                     ?>
-
                     <div class="<?= $card_bg ?> border <?= $card_border ?> p-3 rounded shadow-sm cursor-grab active:cursor-grabbing transition-all duration-200" data-id="<?= $p['id'] ?>">
                         <div class="flex justify-between items-start mb-1">
                             <div class="flex items-center space-x-1.5 w-full justify-end">
                                 <button onclick='imprimirFicha(<?= $p['id'] ?>, <?= jsSafe($p['cliente']) ?>, <?= jsSafe($conf['titulo']) ?>, <?= jsSafe($p['data_limite']) ?>, <?= jsSafe($p['observacao']) ?>, <?= jsSafe($p['promob']) ?>, <?= jsSafe($p['corte_furacao']) ?>, <?= jsSafe($p['lista_compras']) ?>, <?= jsSafe($p['lista_ferragens']) ?>, <?= jsSafe($chk_resp) ?>, <?= jsSafe($med_agen) ?>, <?= jsSafe($med_data) ?>, <?= jsSafe($equipe_inst) ?>, <?= jsSafe($dt_ini_inst) ?>, <?= jsSafe($dt_fim_inst) ?>, <?= jsSafe($dias_uteis) ?>, <?= jsSafe($proj_exec) ?>)' class="text-gray-400 hover:text-gray-800 dark:hover:text-gray-100 transition-colors text-xs px-1" title="Imprimir Ordem de Serviço">
                                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
                                 </button>
-
-                                <?php if ($status_chave === 'instalacao'): ?>
+                                <?php if ($status_chave === 'instalacao' || $status_chave === 'entregue'): ?>
                                     <button onclick='abrirModalNovaAssistencia(event, <?= $p['id'] ?>, <?= jsSafe($p['cliente']) ?>)' class="text-amber-500 hover:text-amber-600 dark:hover:text-amber-400 transition-colors text-xs px-1" title="Abrir Chamado de Assistência">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
                                     </button>
                                 <?php endif; ?>
-
                                 <button onclick='abrirModalEdicao(event, <?= $p['id'] ?>, <?= jsSafe($p['cliente']) ?>, <?= jsSafe($p['data_limite']) ?>, <?= jsSafe($p['observacao']) ?>, <?= jsSafe($p['promob']) ?>, <?= jsSafe($p['corte_furacao']) ?>, <?= jsSafe($p['lista_compras']) ?>, <?= jsSafe($p['lista_ferragens']) ?>, <?= jsSafe($chk_resp) ?>, <?= jsSafe($chk_link) ?>, <?= jsSafe($med_agen) ?>, <?= jsSafe($med_data) ?>, <?= jsSafe($equipe_inst) ?>, <?= jsSafe($dt_ini_inst) ?>, <?= jsSafe($dt_fim_inst) ?>, <?= jsSafe($proj_exec) ?>, <?= jsSafe($situacao_obra) ?>)' class="text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors text-xs px-1" title="Editar Projeto">&#9998;</button>
                                 
                                 <?php if ($role === 'ADMIN'): ?>
@@ -386,7 +401,6 @@ require_once 'includes/header.php';
                                 <?php endif; ?>
                             </div>
                         </div>
-
                         <?php if($conf['data_label'] && $p['data_limite']): ?>
                             <span class="text-[10px] font-semibold text-gray-500 dark:text-gray-400"><?= $conf['data_label'] ?> <?= formatarData($p['data_limite']) ?></span>
                         <?php endif; ?>
@@ -394,11 +408,17 @@ require_once 'includes/header.php';
                         <p class="font-bold text-gray-800 dark:text-gray-100 uppercase text-xs mt-1 flex items-center">
                             <?= preg_replace('/^(\[.*?\])/', '<span class="text-blue-600 dark:text-blue-400 font-black mr-1.5">$1</span>', htmlspecialchars($p['cliente'])) ?>
                         </p>
+
+                        <?php if ($status_chave === 'entregue'): ?>
+                            <div class="mt-2 mb-1 flex space-x-2">
+                                <span class="bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-400 px-1.5 py-0.5 rounded text-[9px] font-bold border border-purple-200 dark:border-purple-800 uppercase">✅ CONCLUÍDO</span>
+                            </div>
+                        <?php endif; ?>
                         
                         <?php if ($status_chave === 'instalacao'): ?>
                             <div class="mt-2 mb-1 flex space-x-2">
                                 <?php if ($situacao_obra === 'PAUSADA'): ?>
-                                    <span class="bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-400 px-1.5 py-0.5 rounded text-[9px] font-bold border border-orange-200 dark:border-orange-800 uppercase animate-pulse">⏸️ OBRA PAUSADA</span>
+                                    <span class="bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-400 px-1.5 py-0.5 rounded text-[9px] font-bold border border-orange-200 dark:border-orange-800 uppercase animate-pulse">🚧 OBRA PAUSADA</span>
                                 <?php elseif ($is_atrasado): ?>
                                     <span class="bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-400 px-1.5 py-0.5 rounded text-[9px] font-bold border border-red-200 dark:border-red-800 uppercase animate-pulse">⚠️ COM ATRASO</span>
                                 <?php endif; ?>
@@ -458,8 +478,10 @@ require_once 'includes/header.php';
                                 <div class="flex justify-between items-center"><span class="text-gray-500 dark:text-gray-400">Ferragens:</span> <span class="<?= corChecklist($p['lista_ferragens']) ?>"><?= $p['lista_ferragens'] ?></span></div>
                             </div>
                         <?php endif; ?>
+
                     </div>
                 <?php endforeach; ?>
+
             </div>
         </div>
     <?php endforeach; ?>
@@ -468,7 +490,6 @@ require_once 'includes/header.php';
 <!-- ============================================== -->
 <!-- MODAIS DO PCP                                  -->
 <!-- ============================================== -->
-
 <div id="modalNovo" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 hidden opacity-0 transition-opacity duration-300">
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-2xl p-6 border border-gray-200 dark:border-gray-700 transform scale-95 transition-all duration-300 max-h-[90vh] overflow-y-auto" id="modalNovoConteudo">
         <div class="flex justify-between items-center mb-4 border-b dark:border-gray-700 pb-2">
@@ -483,7 +504,7 @@ require_once 'includes/header.php';
                     <input type="text" id="search_novo_cliente" onkeyup="filtrarSelect('search_novo_cliente', 'novo_cliente')" placeholder="Pesquisar cliente..." autocomplete="off" class="w-full px-3 py-1.5 mb-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-2 focus:ring-blue-500">
                     <select id="novo_cliente" required size="4" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-2 focus:ring-blue-500 uppercase scrollbar-thin">
                         <?php foreach ($lista_clientes_oficial as $cli): 
-                            $codigo_cli = !empty($cli['codigo_cliente']) ? $cli['codigo_cliente'] : "CLI-" . str_pad($cli['id'], 2, "0", STR_PAD_LEFT); 
+                            $codigo_cli = !empty($cli['codigo_cliente']) ? $cli['codigo_cliente'] : "CLI-" . str_pad($cli['id'], 2, "0", STR_PAD_LEFT);
                         ?>
                         <option value="<?= htmlspecialchars($cli['nome_contrato']) ?>" class="p-1 border-b border-gray-100 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-gray-600">
                             [<?= htmlspecialchars($codigo_cli) ?>] - <?= htmlspecialchars($cli['nome_contrato']) ?>
@@ -494,6 +515,7 @@ require_once 'includes/header.php';
                 <div>
                     <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Status Inicial</label>
                     <select id="novo_status" name="status" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-2 focus:ring-blue-500">
+                        <option value="entregue">ENTREGUE</option>
                         <option value="instalacao">INSTALAÇÃO</option>
                         <option value="expedicao">EXPEDIÇÃO</option>
                         <option value="producao">PRODUÇÃO</option>
@@ -582,7 +604,12 @@ require_once 'includes/header.php';
                     </div>
                     <div class="lg:col-span-2">
                         <label class="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Equipe Responsável</label>
-                        <input type="text" id="novo_equipe" placeholder="Ex: Equipe A" class="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded uppercase">
+                        <select id="novo_equipe" class="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded uppercase font-bold">
+                            <option value="">Selecione...</option>
+                            <?php foreach($equipes_montagem as $eq): ?>
+                                <option value="<?= htmlspecialchars($eq) ?>"><?= htmlspecialchars($eq) ?></option>
+                            <?php endforeach; ?>
+                        </select>
                     </div>
                     <div class="lg:col-span-2">
                         <label class="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Data Início Instalação</label>
@@ -622,13 +649,13 @@ require_once 'includes/header.php';
         
         <form id="formEdicao" onsubmit="salvarEdicaoServidor(event)">
             <input type="hidden" id="edit_id" name="id">
-
+            
             <div class="mb-4">
                 <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Selecionar Cliente Oficial</label>
                 <input type="text" id="search_edit_cliente" onkeyup="filtrarSelect('search_edit_cliente', 'edit_cliente')" placeholder="Pesquisar cliente..." autocomplete="off" class="w-full px-3 py-1.5 mb-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-2 focus:ring-blue-500">
                 <select id="edit_cliente" required size="4" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-2 focus:ring-blue-500 uppercase scrollbar-thin">
                     <?php foreach ($lista_clientes_oficial as $cli): 
-                        $codigo_cli = !empty($cli['codigo_cliente']) ? $cli['codigo_cliente'] : "CLI-" . str_pad($cli['id'], 2, "0", STR_PAD_LEFT); 
+                        $codigo_cli = !empty($cli['codigo_cliente']) ? $cli['codigo_cliente'] : "CLI-" . str_pad($cli['id'], 2, "0", STR_PAD_LEFT);
                     ?>
                     <option value="<?= htmlspecialchars($cli['nome_contrato']) ?>" class="p-1 border-b border-gray-100 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-gray-600">
                         [<?= htmlspecialchars($codigo_cli) ?>] - <?= htmlspecialchars($cli['nome_contrato']) ?>
@@ -717,7 +744,12 @@ require_once 'includes/header.php';
                     </div>
                     <div class="lg:col-span-2">
                         <label class="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Equipe Responsável</label>
-                        <input type="text" id="edit_equipe" placeholder="Ex: Equipe A" class="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded uppercase">
+                        <select id="edit_equipe" class="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded uppercase font-bold">
+                            <option value="">Selecione...</option>
+                            <?php foreach($equipes_montagem as $eq): ?>
+                                <option value="<?= htmlspecialchars($eq) ?>"><?= htmlspecialchars($eq) ?></option>
+                            <?php endforeach; ?>
+                        </select>
                     </div>
                     <div class="lg:col-span-2">
                         <label class="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Data Início Instalação</label>
@@ -807,7 +839,6 @@ require_once 'includes/header.php';
 </div>
 
 <script src="assets/js/index.js?v=<?= time() ?>"></script>
-
 <script>
     const corTexto = document.documentElement.classList.contains('dark') ? '#9ca3af' : '#475569';
     const corGrade = document.documentElement.classList.contains('dark') ? '#374151' : '#e2e8f0';
@@ -820,7 +851,7 @@ require_once 'includes/header.php';
                 labels: <?= json_encode($chart_rosca_labels) ?>,
                 datasets: [{
                     data: <?= json_encode($chart_rosca_data) ?>,
-                    backgroundColor: ['#6b7280', '#3b82f6', '#6366f1', '#10b981'],
+                    backgroundColor: ['#6b7280', '#3b82f6', '#6366f1', '#10b981', '#a855f7'],
                     borderWidth: 0,
                     hoverOffset: 4
                 }]

@@ -2,6 +2,7 @@
 // recados.php
 require_once 'includes/auth.php';
 protegerPagina();
+
 require_once 'config/conexao.php';
 
 try {
@@ -12,6 +13,11 @@ try {
     // Busca as mensagens padrões
     $stmt_msg = $pdo->query("SELECT * FROM mensagens_padroes ORDER BY etapa ASC, titulo ASC");
     $mensagens_padroes = $stmt_msg->fetchAll(PDO::FETCH_ASSOC);
+
+    // --- NOVO: Buscando Cadastros Base para Recados ---
+    $stmt_setor = $pdo->query("SELECT nome FROM cadastros_base WHERE tipo = 'SETOR' ORDER BY nome ASC");
+    $setores = $stmt_setor->fetchAll(PDO::FETCH_COLUMN);
+    // --------------------------------------------------
 
 } catch (\PDOException $e) {
     die("Erro na consulta: " . $e->getMessage());
@@ -59,11 +65,11 @@ require_once 'includes/header.php';
         <div class="p-4 pt-0 mt-2 border-t border-yellow-200 dark:border-yellow-900/50">
             <ul class="text-sm text-gray-700 dark:text-gray-300 space-y-2 ml-1 mt-3">
                 <li class="flex items-start">
-                    <span class="mr-2">📝</span>
+                    <span class="mr-2">📌</span>
                     <span><strong>Mural Interno:</strong> Use o botão <em>"NOVO RECADO"</em> para deixar mensagens para outros setores (ex: Projetos para Produção). Recados de alta prioridade ficam destacados em vermelho no topo.</span>
                 </li>
                 <li class="flex items-start">
-                    <span class="mr-2">📱</span>
+                    <span class="mr-2">💬</span>
                     <span><strong>Textos Padrões:</strong> Crie mensagens de WhatsApp (botão <em>"TEXTO WPP"</em>) que você envia com frequência aos clientes. Depois, basta clicar em "Copiar Texto" no bloco verde para colar direto no WhatsApp Web!</span>
                 </li>
             </ul>
@@ -76,6 +82,7 @@ require_once 'includes/header.php';
             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg>
             Textos Padrões (WhatsApp / E-mail)
         </h2>
+
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             <?php if (empty($mensagens_padroes)): ?>
                 <div class="col-span-full bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 text-center">
@@ -114,6 +121,7 @@ require_once 'includes/header.php';
             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
             Mural de Recados Internos
         </h2>
+        
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             <?php if (empty($recados)): ?>
                 <div class="col-span-full bg-white dark:bg-gray-800 p-8 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 text-center">
@@ -150,7 +158,7 @@ require_once 'includes/header.php';
                         <span class="text-[10px] font-bold text-gray-500 dark:text-gray-400"><?= formatarData($r['data_recado']) ?></span>
                         <span class="text-[9px] font-black uppercase px-2 py-0.5 rounded border <?= $cor_borda ?> bg-white/50 dark:bg-gray-800/50 <?= $cor_texto_pri ?> tracking-wider"><?= $r['prioridade'] ?></span>
                     </div>
-
+                    
                     <div class="mb-3 space-y-0.5">
                         <p class="text-xs font-semibold text-gray-800 dark:text-gray-200">De: <span class="font-normal"><?= htmlspecialchars($r['de_quem']) ?></span></p>
                         <p class="text-xs font-semibold text-gray-800 dark:text-gray-200">Para: <span class="font-normal"><?= htmlspecialchars($r['para_quem']) ?></span></p>
@@ -203,7 +211,12 @@ require_once 'includes/header.php';
                 </div>
                 <div class="col-span-2">
                     <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Setor / Departamento Destino</label>
-                    <input type="text" id="recado_setor" required placeholder="Ex: Produção, Expedição..." class="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white rounded focus:ring-2 focus:ring-yellow-500 uppercase text-sm">
+                    <select id="recado_setor" required class="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white rounded focus:ring-2 focus:ring-yellow-500 uppercase text-sm">
+                        <option value="">Selecione o Setor...</option>
+                        <?php foreach($setores as $setor): ?>
+                            <option value="<?= htmlspecialchars($setor) ?>"><?= htmlspecialchars($setor) ?></option>
+                        <?php endforeach; ?>
+                    </select>
                 </div>
             </div>
 
@@ -262,5 +275,4 @@ require_once 'includes/header.php';
 </div>
 
 <script src="assets/js/recados.js?v=<?= time() ?>"></script>
-
 <?php require_once 'includes/footer.php'; ?>
