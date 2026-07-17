@@ -536,7 +536,11 @@ require_once 'includes/header.php';
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Atualizar Comprovante</label>
-                        <input type="file" id="ea_comprovante" name="comprovante" accept="image/*,.pdf" class="w-full text-xs text-gray-500 dark:text-gray-400 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-purple-100 file:text-purple-700 hover:file:bg-purple-200 dark:file:bg-purple-900/50 dark:file:text-purple-300 cursor-pointer">
+                        <input type="file" id="ea_comprovante" name="comprovante" accept="image/*,.pdf" class="w-full text-xs text-gray-500 dark:text-gray-400 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-purple-100 file:text-purple-700 hover:file:bg-purple-200 dark:file:bg-purple-900/50 dark:file:text-purple-300 cursor-pointer mb-1">
+                        <a href="#" id="ea_link_comprovante" target="_blank" class="hidden text-[10px] text-blue-600 dark:text-blue-400 hover:underline font-bold mt-1 inline-flex items-center">
+                            <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path></svg>
+                            VER COMPROVANTE ATUAL
+                        </a>
                     </div>
                 </div>
             </div>
@@ -555,6 +559,57 @@ require_once 'includes/header.php';
     </div>
 </div>
 
+<!-- 3. BAIXA ASSISTÊNCIA -->
+<div id="modalBaixa" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 hidden opacity-0 transition-opacity duration-300">
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-2xl p-6 border border-gray-200 dark:border-gray-700 transform scale-95 transition-all duration-300" id="modalBaixaConteudo">
+        <div class="flex justify-between items-center mb-4 border-b border-gray-200 dark:border-gray-700 pb-2">
+            <h3 class="text-lg font-bold text-green-600 dark:text-green-400">Gerenciar / Baixar Chamado <span id="labelAstProjeto" class="text-gray-400 dark:text-gray-500 text-sm"></span></h3>
+            <button onclick="fecharModalBaixa()" class="text-gray-400 hover:text-gray-800 dark:hover:text-white text-2xl font-bold">&times;</button>
+        </div>
+        <form id="formBaixa" onsubmit="salvarBaixaServidor(event)">
+            <input type="hidden" id="ast_id" name="id">
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Técnico Responsável</label>
+                    <select id="ast_tecnico" name="tecnico_assistencia" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded text-sm focus:ring-2 focus:ring-green-500 uppercase">
+                        <option value="">Não Atribuído</option>
+                        <?php foreach($equipes_montagem as $eq): ?>
+                            <option value="<?= htmlspecialchars($eq) ?>"><?= htmlspecialchars($eq) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Data do Atendimento / Resolução</label>
+                    <input type="date" id="ast_data" name="data_assistencia" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded text-sm focus:ring-2 focus:ring-green-500">
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Problema Resolvido?</label>
+                    <select id="ast_resolvido" name="resolvido_assistencia" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white font-bold rounded text-sm focus:ring-2 focus:ring-green-500">
+                        <option value="NAO" class="text-red-500">NÃO - Ainda pendente / Agendado</option>
+                        <option value="SIM" class="text-green-500">SIM - Resolvido e Baixado</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Relato Final / Observação do Técnico</label>
+                <input type="hidden" id="ast_observacao" name="observacao">
+                <div id="quill_ast_observacao"></div>
+            </div>
+
+            <div class="flex justify-end space-x-3 border-t border-gray-200 dark:border-gray-700 pt-4 mt-6">
+                <button type="button" onclick="fecharModalBaixa()" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition font-medium">Cancelar</button>
+                <button type="submit" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded font-bold transition shadow-sm">Salvar Informações</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // Variável global para o JavaScript conseguir buscar os dados do cliente e preencher os endereços sozinho
+    window.CLIENTES_BASE_DATA = <?= json_encode($lista_clientes_base, JSON_UNESCAPED_UNICODE) ?>;
+</script>
 <script src="assets/js/assistencias.js?v=<?= time() ?>"></script>
 
 <?php require_once 'includes/footer.php'; ?>
