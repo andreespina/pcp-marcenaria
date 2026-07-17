@@ -27,8 +27,8 @@ try {
     ];
 
     $total_projetos = count($leads);
-    $fechados_ano = 0; $cancelados = 0; $para_inicio = 0;
-    $em_andamento = 0; $finalizados = 0; $para_orcamento = 0; $projetos_memorial = 0; 
+    $finalizados = 0; $cancelados = 0; $para_inicio = 0;
+    $em_andamento = 0; $para_orcamento = 0; 
 
     $proximas_apresentacoes = []; $projetos_atraso = [];
     $eventos_calendario = []; 
@@ -40,17 +40,11 @@ try {
         if (array_key_exists($fase, $funil)) {
             $funil[$fase]['leads'][] = $l;
             
-            if ($fase === 'FECHADO') {
-                $finalizados++;
-                if (!empty($l['data_fechamento']) && date('Y', strtotime($l['data_fechamento'])) == $ano_atual) $fechados_ano++;
+            if ($fase === 'FECHADO') { $finalizados++;
             } elseif ($fase === 'PERDIDO') { $cancelados++;
             } elseif ($fase === 'CONTATO') { $para_inicio++;
             } elseif (in_array($fase, ['REUNIAO', 'PROJETO_3D'])) { $em_andamento++;
             } elseif ($fase === 'ORCAMENTO') { $para_orcamento++; }
-
-            if ($fase !== 'PERDIDO' && $fase !== 'PAUSADO' && in_array($l['memorial_descritivo'], ['PRA FAZER', 'PROJETANDO'])) {
-                $projetos_memorial++;
-            }
 
             if(!empty($l['data_apresentacao']) && $fase != 'FECHADO' && $fase != 'PERDIDO' && $fase != 'PAUSADO' && empty($l['apresentacao_realizada'])) {
                 if ($l['data_apresentacao'] >= $hoje) $proximas_apresentacoes[] = $l;
@@ -65,12 +59,59 @@ try {
                     'extendedProps' => ['obs' => $l['observacao']]
                 ];
             }
+
+            // INÍCIO: Adicionar múltiplas reuniões (Reprojetos) no Calendário
+            if (!empty($l['historico_reprojetos'])) {
+                $historico_apres = json_decode($l['historico_reprojetos'], true);
+                if (is_array($historico_apres)) {
+                    foreach ($historico_apres as $h) {
+                        $nome_cli = !empty($l['nome_cadastrado']) ? $l['nome_cadastrado'] : $l['cliente_nome'];
+                        $eventos_calendario[] = [
+                            'id' => $l['id'] . '_rev_' . $h['revisao'],
+                            'title' => $nome_cli . ' (REV ' . str_pad($h['revisao'], 2, '0', STR_PAD_LEFT) . ')',
+                            'start' => $h['data'],
+                            'color' => '#f59e0b', // Laranja
+                            'extendedProps' => ['obs' => 'Motivo do Reprojeto: ' . $h['motivo']]
+                        ];
+                    }
+                }
+            }
         }
     }
     
     usort($proximas_apresentacoes, function($a, $b) { return strtotime($a['data_apresentacao']) - strtotime($b['data_apresentacao']); });
     usort($projetos_atraso, function($a, $b) { return strtotime($a['data_apresentacao']) - strtotime($b['data_apresentacao']); });
     
+    // --- LÓGICA DE DADOS PARA OS GRÁFICOS DO COMERCIAL ---
+    $chart_funil_labels = ['Contato', 'Projeto 3D', 'Orçamento', 'Reunião', 'Pausados'];
+    $chart_funil_data = [
+        count($funil['CONTATO']['leads']),
+        count($funil['PROJETO_3D']['leads']),
+        count($funil['ORCAMENTO']['leads']),
+        count($funil['REUNIAO']['leads']),
+        count($funil['PAUSADO']['leads'])
+    ];
+
+    $meses_nomes = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    $chart_bar_labels = [];
+    $chart_bar_novos = [];
+    $chart_bar_fechados = [];
+
+    for ($i = 5; $i >= 0; $i--) {
+        $data_alvo = strtotime("-$i months");
+        $mes_num = date('m', $data_alvo);
+        $ano_num = date('Y', $data_alvo);
+        $chart_bar_labels[] = $meses_nomes[(int)$mes_num - 1] . '/' . substr($ano_num, 2);
+        
+        $stmt_novos = $pdo->prepare("SELECT COUNT(*) FROM comercial_leads WHERE MONTH(data_entrada) = ? AND YEAR(data_entrada) = ? AND ativo = 1");
+        $stmt_novos->execute([$mes_num, $ano_num]);
+        $chart_bar_novos[] = $stmt_novos->fetchColumn();
+
+        $stmt_fechados = $pdo->prepare("SELECT COUNT(*) FROM comercial_leads WHERE fase = 'FECHADO' AND MONTH(COALESCE(data_fechamento, data_entrada)) = ? AND YEAR(COALESCE(data_fechamento, data_entrada)) = ? AND ativo = 1");
+        $stmt_fechados->execute([$mes_num, $ano_num]);
+        $chart_bar_fechados[] = $stmt_fechados->fetchColumn();
+    }
+
 } catch (\PDOException $e) { die("Erro: " . $e->getMessage()); }
 
 function corMemorial($status) {
@@ -84,7 +125,6 @@ $page_subtitle = 'SBG Móveis & Design';
 $main_class = 'flex-1'; 
 $menu_button_text = 'MENU';
 
-// GERA O MENU DE FILTROS BASEADO NO FUNIL DINÂMICO
 $filtro_colunas_html = '';
 foreach ($funil as $fase_chave => $col) {
     $filtro_colunas_html .= '
@@ -148,34 +188,70 @@ $head_extras = '
     .fc-event { cursor: pointer; }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>';
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+';
 
 require_once 'includes/header.php';
 ?>
 
 <div class="app-container gap-6">
     <div class="flex flex-col xl:flex-row gap-6 shrink-0">
-        <div class="flex-1 bg-white dark:bg-[#222736] rounded-lg border border-gray-200 dark:border-[#2a3142] shadow-sm p-4 transition-colors duration-300">
+        
+        <div class="flex-1 bg-white dark:bg-[#222736] rounded-lg border border-gray-200 dark:border-[#2a3142] shadow-sm p-4 transition-colors duration-300 flex flex-col">
             <h2 class="text-blue-700 dark:text-blue-400 font-bold mb-4 flex items-center text-lg tracking-wide">
                 <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
-                Dashboard
+                Indicadores de Performance
             </h2>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div class="bg-gray-50 dark:bg-transparent border border-gray-300 dark:border-[#4b5563] rounded p-4 shadow-sm transition-colors duration-300"><p class="text-[11px] font-bold text-gray-500 dark:text-[#9ca3af] uppercase mb-1 tracking-wider">Total de Projetos</p><p class="text-3xl font-black text-gray-700 dark:text-[#93c5fd]"><?= $total_projetos ?></p></div>
-                <div class="bg-blue-50 dark:bg-transparent border border-blue-300 dark:border-[#1e3a8a] rounded p-4 shadow-sm transition-colors duration-300"><p class="text-[11px] font-bold text-blue-600 dark:text-[#60a5fa] uppercase mb-1 tracking-wider">Projetos Fechados</p><p class="text-3xl font-black text-blue-600 dark:text-[#93c5fd]"><?= $fechados_ano ?></p></div>
-                <div class="bg-indigo-50 dark:bg-transparent border border-indigo-300 dark:border-[#312e81] rounded p-4 shadow-sm transition-colors duration-300"><p class="text-[11px] font-bold text-indigo-600 dark:text-[#818cf8] uppercase mb-1 tracking-wider">Projetos Cancelados</p><p class="text-3xl font-black text-indigo-600 dark:text-[#a5b4fc]"><?= $cancelados ?></p></div>
-                <div class="bg-emerald-50 dark:bg-transparent border border-emerald-300 dark:border-[#064e3b] rounded p-4 shadow-sm transition-colors duration-300"><p class="text-[11px] font-bold text-emerald-600 dark:text-[#34d399] uppercase mb-1 tracking-wider">Projetos Para Início</p><p class="text-3xl font-black text-emerald-600 dark:text-[#6ee7b7]"><?= $para_inicio ?></p></div>
-                <div class="bg-red-50 dark:bg-transparent border border-red-300 dark:border-[#7f1d1d] rounded p-4 shadow-sm transition-colors duration-300"><p class="text-[11px] font-bold text-red-600 dark:text-[#f87171] uppercase mb-1 tracking-wider">Projetos em Andamento</p><p class="text-3xl font-black text-red-600 dark:text-[#fca5a5]"><?= $em_andamento ?></p></div>
-                <div class="bg-yellow-50 dark:bg-transparent border border-yellow-300 dark:border-[#78350f] rounded p-4 shadow-sm transition-colors duration-300"><p class="text-[11px] font-bold text-yellow-600 dark:text-[#fbbf24] uppercase mb-1 tracking-wider">Projetos Finalizados</p><p class="text-3xl font-black text-yellow-600 dark:text-[#fcd34d]"><?= $finalizados ?></p></div>
-                <div class="bg-pink-50 dark:bg-transparent border border-pink-300 dark:border-[#831843] rounded p-4 shadow-sm transition-colors duration-300"><p class="text-[11px] font-bold text-pink-600 dark:text-[#f472b6] uppercase mb-1 tracking-wider">Projetos para Orçamento</p><p class="text-3xl font-black text-pink-600 dark:text-[#f9a8d4]"><?= $para_orcamento ?></p></div>
-                <div class="bg-orange-50 dark:bg-transparent border border-orange-300 dark:border-[#7c2d12] rounded p-4 shadow-sm transition-colors duration-300"><p class="text-[11px] font-bold text-orange-600 dark:text-[#fb923c] uppercase mb-1 tracking-wider">Projetos Memorial</p><p class="text-3xl font-black text-orange-600 dark:text-[#fdba74]"><?= $projetos_memorial ?></p></div>
+            
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-5">
+                <div class="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg p-2.5 shadow-sm text-center">
+                    <p class="text-[9px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-0.5 tracking-wider">Total de Projetos</p>
+                    <p class="text-xl font-black text-gray-800 dark:text-gray-100"><?= $total_projetos ?></p>
+                </div>
+                <div class="bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-200 dark:border-emerald-800/50 rounded-lg p-2.5 shadow-sm text-center">
+                    <p class="text-[9px] font-bold text-emerald-600 dark:text-emerald-500 uppercase mb-0.5 tracking-wider">Projetos Fechados</p>
+                    <p class="text-xl font-black text-emerald-700 dark:text-emerald-400"><?= $finalizados ?></p>
+                </div>
+                <div class="bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800/50 rounded-lg p-2.5 shadow-sm text-center">
+                    <p class="text-[9px] font-bold text-red-600 dark:text-red-500 uppercase mb-0.5 tracking-wider">Projetos Cancelados</p>
+                    <p class="text-xl font-black text-red-700 dark:text-red-400"><?= $cancelados ?></p>
+                </div>
+                <div class="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg p-2.5 shadow-sm text-center">
+                    <p class="text-[9px] font-bold text-slate-600 dark:text-slate-400 uppercase mb-0.5 tracking-wider">Projetos Para Início</p>
+                    <p class="text-xl font-black text-slate-700 dark:text-slate-300"><?= $para_inicio ?></p>
+                </div>
+                <div class="bg-indigo-50 dark:bg-indigo-900/10 border border-indigo-200 dark:border-indigo-800/50 rounded-lg p-2.5 shadow-sm text-center">
+                    <p class="text-[9px] font-bold text-indigo-600 dark:text-indigo-400 uppercase mb-0.5 tracking-wider">Em Andamento</p>
+                    <p class="text-xl font-black text-indigo-700 dark:text-indigo-400"><?= $em_andamento ?></p>
+                </div>
+                <div class="bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/50 rounded-lg p-2.5 shadow-sm text-center">
+                    <p class="text-[9px] font-bold text-amber-600 dark:text-amber-500 uppercase mb-0.5 tracking-wider">Orçando</p>
+                    <p class="text-xl font-black text-amber-700 dark:text-amber-400"><?= $para_orcamento ?></p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1">
+                <div class="bg-gray-50 dark:bg-gray-900/30 p-3 rounded-xl border border-gray-200 dark:border-gray-700 flex flex-col justify-center items-center shadow-inner h-52">
+                    <h3 class="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest w-full text-center mb-2">Funil de Vendas (Ativos)</h3>
+                    <div class="relative w-full h-40 flex justify-center">
+                        <canvas id="chartFunil"></canvas>
+                    </div>
+                </div>
+
+                <div class="bg-gray-50 dark:bg-gray-900/30 p-3 rounded-xl border border-gray-200 dark:border-gray-700 flex flex-col justify-center items-center shadow-inner h-52">
+                    <h3 class="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest w-full text-center mb-2">Novos Leads vs Vendas (6 Meses)</h3>
+                    <div class="relative w-full h-40 flex justify-center">
+                        <canvas id="chartEvolucao"></canvas>
+                    </div>
+                </div>
             </div>
         </div>
 
         <div class="w-full xl:w-96 flex flex-col gap-4">
             <div class="bg-white dark:bg-[#222736] border border-gray-200 dark:border-[#2a3142] rounded-lg shadow-sm p-4 flex-1 transition-colors duration-300">
-                <span class="bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white text-xs font-bold px-3 py-1 inline-block mb-3 rounded-sm shadow-sm border border-gray-200 dark:border-gray-600">Próximas Apresentações</span>
-                <div class="space-y-3 overflow-y-auto max-h-[140px] pr-2 kanban-col">
+                <span class="bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white text-xs font-bold px-3 py-1 inline-block mb-3 rounded-sm shadow-sm border border-gray-200 dark:border-gray-600">Próximas Apresentações / Reuniões</span>
+                <div class="space-y-3 overflow-y-auto max-h-[220px] pr-2 kanban-col">
                     <?php if(empty($proximas_apresentacoes)): ?>
                         <p class="text-xs text-gray-500 italic">Nenhuma apresentação agendada.</p>
                     <?php endif; ?>
@@ -384,7 +460,7 @@ require_once 'includes/header.php';
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div class="bg-gray-50 dark:bg-gray-900 p-2 border border-gray-200 dark:border-gray-700 rounded flex flex-col justify-center">
-                    <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Data da Apresentação</label>
+                    <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Data da Apresentação / Reunião</label>
                     <div class="flex items-center space-x-2">
                         <input type="date" id="lead_apresentacao" name="data_apresentacao" class="w-full px-2 py-1.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white rounded">
                         <label class="flex flex-col items-center cursor-pointer ml-2">
@@ -425,6 +501,36 @@ require_once 'includes/header.php';
                     <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Observações</label>
                     <textarea id="lead_obs" name="observacao" rows="2" class="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white rounded"></textarea>
                 </div>
+
+                <!-- Container de Históricos (Reuniões e Reprojetos) -->
+                <div class="md:col-span-2 hidden mt-4 pt-4 border-t border-gray-100 dark:border-gray-700" id="grid_historicos_gerais">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        
+                        <!-- Histórico de Reuniões -->
+                        <div id="div_historico_reunioes" class="hidden">
+                            <label class="block text-sm font-semibold text-green-600 dark:text-green-400 mb-2 flex items-center">
+                                <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                Reuniões Realizadas (<span id="count_reunioes">0</span>)
+                            </label>
+                            <div id="lista_historico_reunioes" class="max-h-40 overflow-y-auto bg-green-50 dark:bg-green-900/10 p-3 border border-green-200 dark:border-green-800/50 rounded-lg text-xs space-y-1 scrollbar-thin">
+                                <!-- Povoado pelo JS -->
+                            </div>
+                        </div>
+
+                        <!-- Histórico de Reprojetos -->
+                        <div id="div_historico_reprojetos" class="hidden">
+                            <label class="block text-sm font-semibold text-orange-600 dark:text-orange-400 mb-2 flex items-center">
+                                <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                Histórico de Reprojetos (<span id="count_reprojetos">0</span>)
+                            </label>
+                            <div id="lista_historico_reprojetos" class="max-h-40 overflow-y-auto bg-orange-50 dark:bg-orange-900/10 p-3 border border-orange-200 dark:border-orange-800/50 rounded-lg scrollbar-thin">
+                                <!-- Povoado pelo JS -->
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
             </div>
             <div class="flex justify-end space-x-3 border-t border-gray-200 dark:border-gray-700 pt-4">
                 <button type="button" onclick="fecharModalLead()" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition">Cancelar</button>
@@ -473,13 +579,17 @@ require_once 'includes/header.php';
         <p class="text-xs text-gray-600 dark:text-gray-400 mb-4">O projeto retornará para a fase de Projeto 3D.</p>
         <form id="formReprojeto" onsubmit="salvarReprojeto(event)">
             <input type="hidden" id="reprojeto_lead_id">
-            <div class="mb-5">
+            <div class="mb-4">
                 <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Nova Data de Apresentação</label>
                 <input type="date" id="reprojeto_data" required class="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white rounded focus:ring-2 focus:ring-orange-500">
             </div>
+            <div class="mb-5">
+                <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Motivo / Alterações Solicitadas</label>
+                <textarea id="reprojeto_motivo" required rows="3" placeholder="Descreva o que o cliente pediu para alterar..." class="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white rounded focus:ring-2 focus:ring-orange-500"></textarea>
+            </div>
             <div class="flex justify-end space-x-3">
                 <button type="button" onclick="fecharModalReprojeto()" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition">Cancelar</button>
-                <button type="submit" class="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded font-bold transition shadow-sm">Confirmar</button>
+                <button type="submit" class="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded font-bold transition shadow-sm">Confirmar Retorno</button>
             </div>
         </form>
     </div>
@@ -490,4 +600,59 @@ require_once 'includes/header.php';
     const eventosCalendario = <?= json_encode($eventos_calendario, JSON_UNESCAPED_UNICODE) ?>;
 </script>
 <script src="assets/js/comercial.js?v=<?= time() ?>"></script>
+
+<script>
+    const corTexto = document.documentElement.classList.contains('dark') ? '#9ca3af' : '#475569';
+    const corGrade = document.documentElement.classList.contains('dark') ? '#374151' : '#e2e8f0';
+
+    const ctxFunil = document.getElementById('chartFunil');
+    if (ctxFunil) {
+        new Chart(ctxFunil.getContext('2d'), {
+            type: 'doughnut',
+            data: {
+                labels: <?= json_encode($chart_funil_labels) ?>,
+                datasets: [{
+                    data: <?= json_encode($chart_funil_data) ?>,
+                    backgroundColor: ['#9ca3af', '#6366f1', '#f59e0b', '#3b82f6', '#a855f7'],
+                    borderWidth: 0,
+                    hoverOffset: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '70%',
+                plugins: {
+                    legend: { position: 'right', labels: { color: corTexto, font: { size: 9, weight: 'bold' }, boxWidth: 10 } }
+                }
+            }
+        });
+    }
+
+    const ctxEvo = document.getElementById('chartEvolucao');
+    if (ctxEvo) {
+        new Chart(ctxEvo.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: <?= json_encode($chart_bar_labels) ?>,
+                datasets: [
+                    { label: 'Novos Leads', data: <?= json_encode($chart_bar_novos) ?>, backgroundColor: '#3b82f6', borderRadius: 3 },
+                    { label: 'Vendas Fechadas', data: <?= json_encode($chart_bar_fechados) ?>, backgroundColor: '#10b981', borderRadius: 3 }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'top', labels: { color: corTexto, font: { size: 9, weight: 'bold' }, boxWidth: 10 } }
+                },
+                scales: {
+                    y: { beginAtZero: true, ticks: { stepSize: 1, color: corTexto, font: { size: 9 } }, grid: { color: corGrade } },
+                    x: { ticks: { color: corTexto, font: { size: 9 } }, grid: { display: false } }
+                }
+            }
+        });
+    }
+</script>
+
 <?php require_once 'includes/footer.php'; ?>

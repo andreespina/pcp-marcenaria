@@ -3,7 +3,7 @@
 let dragItemTemp = null;
 let dragFromTemp = null;
 let fullCalendarInstance = null;
-let isProcessingDrop = false; // O CADEADO ANTI-DUPLICAÇÃO
+let isProcessingDrop = false;
 
 // ==============================================================
 // GESTÃO DE FILTROS DE COLUNA
@@ -62,7 +62,6 @@ document.addEventListener('DOMContentLoaded', () => {
             animation: 150, 
             ghostClass: 'sortable-ghost',
             onEnd: async function (evt) { 
-                // Impede que um duplo-disparo execute comandos fantasmas
                 if (isProcessingDrop) return;
                 isProcessingDrop = true;
 
@@ -71,7 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const faseAnterior = evt.from.getAttribute('data-fase');
                 
                 if (!id || faseAnterior === novaFase) {
-                    isProcessingDrop = false; // Destranca
+                    isProcessingDrop = false;
                     return;
                 }
                 
@@ -83,7 +82,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     dragItemTemp = evt.item;
                     dragFromTemp = evt.from;
                     abrirModalMotivo(id, novaFase);
-                    isProcessingDrop = false; // Destranca para permitir uso do modal
+                    isProcessingDrop = false;
                 } 
                 else {
                     await atualizarFase(id, novaFase, false, null);
@@ -94,20 +93,22 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function toggleNovoCliente() {
-    const val = document.getElementById('lead_cliente_id').value;
+    const val = document.getElementById('lead_cliente_id');
     const div = document.getElementById('div_novo_cliente');
     const inputNome = document.getElementById('lead_nome');
-    if(val === 'NOVO') {
-        div.style.display = 'grid';
-        inputNome.setAttribute('required', 'required');
-    } else {
-        div.style.display = 'none';
-        inputNome.removeAttribute('required');
+    if(val && div && inputNome) {
+        if(val.value === 'NOVO') {
+            div.style.display = 'grid';
+            inputNome.setAttribute('required', 'required');
+        } else {
+            div.style.display = 'none';
+            inputNome.removeAttribute('required');
+        }
     }
 }
 
 // ==============================================================
-// MÓDULOS DE INTEGRAÇÃO
+// MÓDULOS DE INTEGRAÇÃO E CALENDÁRIO
 // ==============================================================
 function toggleViewMode() {
     const viewKanban = document.getElementById('view-kanban');
@@ -130,7 +131,10 @@ function toggleViewMode() {
                 locale: 'pt-br',
                 headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek' },
                 events: eventosCalendario,
-                eventClick: function(info) { abrirEdicaoPorId(info.event.id); }
+                eventClick: function(info) { 
+                    const realId = info.event.id.split('_')[0];
+                    abrirEdicaoPorId(realId); 
+                }
             });
             fullCalendarInstance.render();
         } else if (fullCalendarInstance) {
@@ -173,7 +177,9 @@ function abrirEdicaoPorId(id) {
     } else { alert("Erro fatal: Base da memória não carregada."); }
 }
 
-// MODAIS
+// ==============================================================
+// MODAL: MOTIVO (Pausado/Perdido)
+// ==============================================================
 const modalMotivo = document.getElementById('modalMotivo');
 const modalMotivoConteudo = document.getElementById('modalMotivoConteudo');
 
@@ -206,6 +212,9 @@ function confirmarMotivo(event) {
     atualizarFase(id, fase, false, detalhes ? selecao + " - " + detalhes : selecao);
 }
 
+// ==============================================================
+// MODAL: NOVO/EDITAR LEAD
+// ==============================================================
 const modalLead = document.getElementById('modalLead');
 const modalLeadConteudo = document.getElementById('modalLeadConteudo');
 
@@ -214,6 +223,10 @@ function abrirModalLead() {
     const setVal = (id, val) => { const el = document.getElementById(id); if(el) el.value = val; };
     setVal('lead_id', ''); setVal('lead_cliente_id', 'NOVO');
     toggleNovoCliente();
+    
+    const gridHist = document.getElementById('grid_historicos_gerais');
+    if (gridHist) gridHist.classList.add('hidden');
+
     const titulo = document.getElementById('modalTitulo'); if(titulo) titulo.innerText = 'Cadastrar Novo Lead';
     if(modalLead) { modalLead.classList.remove('hidden'); setTimeout(() => { modalLead.classList.remove('opacity-0'); modalLeadConteudo.classList.remove('scale-95'); }, 10); }
 }
@@ -232,7 +245,58 @@ function editarLead(lead) {
     setVal('lead_inicio_projeto', lead.data_inicio_projeto || ''); setVal('lead_prazo_dias', lead.prazo_projeto_dias || '');
     setVal('lead_entrega_projeto', lead.data_entrega_projeto || ''); setVal('lead_obs', lead.observacao || '');
     setCheck('lead_apres_realizada', (lead.apresentacao_realizada == 1));
+
+    // -- POPULAR HISTÓRICOS (Reuniões e Reprojetos) --
+    let temReprojeto = false;
+    const divHistRep = document.getElementById('div_historico_reprojetos');
+    const listaHistRep = document.getElementById('lista_historico_reprojetos');
     
+    if(lead.historico_reprojetos && divHistRep && listaHistRep) {
+        try {
+            const histRep = JSON.parse(lead.historico_reprojetos);
+            if(histRep && histRep.length > 0) {
+                temReprojeto = true;
+                divHistRep.classList.remove('hidden');
+                document.getElementById('count_reprojetos').innerText = histRep.length;
+                listaHistRep.innerHTML = histRep.map(h => `
+                    <div class="border-b border-orange-200 dark:border-orange-800/50 pb-2 mb-2 last:border-0 last:pb-0 last:mb-0">
+                        <span class="font-bold text-orange-600 dark:text-orange-400 bg-orange-100 dark:bg-orange-900/30 px-1 rounded text-[10px] mr-1">REV ${String(h.revisao).padStart(2, '0')}</span> 
+                        <span class="text-gray-600 dark:text-gray-300 font-semibold text-[10px]">Agendado: ${h.data.split('-').reverse().join('/')}</span>
+                        <p class="text-gray-700 dark:text-gray-300 italic mt-1 text-xs font-medium">" ${h.motivo} "</p>
+                    </div>
+                `).join('');
+            } else { divHistRep.classList.add('hidden'); }
+        } catch(e) { divHistRep.classList.add('hidden'); }
+    } else if (divHistRep) { divHistRep.classList.add('hidden'); }
+
+    let temReuniao = false;
+    const divHistReu = document.getElementById('div_historico_reunioes');
+    const listaHistReu = document.getElementById('lista_historico_reunioes');
+
+    if(lead.historico_reunioes && divHistReu && listaHistReu) {
+        try {
+            const histReu = JSON.parse(lead.historico_reunioes);
+            if(histReu && histReu.length > 0) {
+                temReuniao = true;
+                divHistReu.classList.remove('hidden');
+                document.getElementById('count_reunioes').innerText = histReu.length;
+                listaHistReu.innerHTML = histReu.map((r, index) => `
+                    <div class="flex items-center justify-between border-b border-green-200 dark:border-green-800/50 pb-1 mb-1 last:border-0 last:pb-0 last:mb-0">
+                        <span class="text-green-700 dark:text-green-400 font-bold">#${index + 1}</span>
+                        <span class="text-gray-700 dark:text-gray-300 font-bold">${r.data.split('-').reverse().join('/')}</span>
+                        <span class="text-[10px] font-bold text-green-600 dark:text-green-500 bg-green-100 dark:bg-green-900/40 px-1.5 py-0.5 rounded">REALIZADA</span>
+                    </div>
+                `).join('');
+            } else { divHistReu.classList.add('hidden'); }
+        } catch(e) { divHistReu.classList.add('hidden'); }
+    } else if (divHistReu) { divHistReu.classList.add('hidden'); }
+
+    const gridHist = document.getElementById('grid_historicos_gerais');
+    if (gridHist) {
+        if (temReprojeto || temReuniao) gridHist.classList.remove('hidden');
+        else gridHist.classList.add('hidden');
+    }
+
     const titulo = document.getElementById('modalTitulo'); if(titulo) titulo.innerText = 'Editar Detalhes do Lead';
     if(modalLead) { modalLead.classList.remove('hidden'); setTimeout(() => { modalLead.classList.remove('opacity-0'); modalLeadConteudo.classList.remove('scale-95'); }, 10); }
 }
@@ -272,21 +336,40 @@ async function excluirLead(id) {
     } catch(e) { alert('Falha na API.'); }
 }
 
+// ==============================================================
+// MODAL: REPROJETO
+// ==============================================================
 const modalReprojeto = document.getElementById('modalReprojeto');
 const modalReprojetoConteudo = document.getElementById('modalReprojetoConteudo');
+
 function abrirModalReprojeto(id) {
-    document.getElementById('formReprojeto').reset(); document.getElementById('reprojeto_lead_id').value = id;
-    modalReprojeto.classList.remove('hidden'); setTimeout(() => { modalReprojeto.classList.remove('opacity-0'); modalReprojetoConteudo.classList.remove('scale-95'); }, 10);
+    document.getElementById('formReprojeto').reset(); 
+    document.getElementById('reprojeto_lead_id').value = id;
+    modalReprojeto.classList.remove('hidden'); 
+    setTimeout(() => { modalReprojeto.classList.remove('opacity-0'); modalReprojetoConteudo.classList.remove('scale-95'); }, 10);
 }
+
 function fecharModalReprojeto() {
-    modalReprojeto.classList.add('opacity-0'); modalReprojetoConteudo.classList.add('scale-95'); setTimeout(() => { modalReprojeto.classList.add('hidden'); }, 300);
+    modalReprojeto.classList.add('opacity-0'); 
+    modalReprojetoConteudo.classList.add('scale-95'); 
+    setTimeout(() => { modalReprojeto.classList.add('hidden'); }, 300);
 }
+
 async function salvarReprojeto(event) {
     event.preventDefault();
-    const id = document.getElementById('reprojeto_lead_id').value; const novaData = document.getElementById('reprojeto_data').value;
+    const id = document.getElementById('reprojeto_lead_id').value; 
+    const novaData = document.getElementById('reprojeto_data').value;
+    const elMotivo = document.getElementById('reprojeto_motivo');
+    const motivo = elMotivo ? elMotivo.value : 'Revisão solicitada pelo cliente';
+    
     try {
-        const res = await fetch('api/request_reprojeto.php', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({id: id, nova_data: novaData}) });
+        const res = await fetch('api/request_reprojeto.php', { 
+            method: 'POST', 
+            headers: {'Content-Type': 'application/json'}, 
+            body: JSON.stringify({id: id, nova_data: novaData, motivo: motivo}) 
+        });
         const result = await res.json();
-        if(result.success) window.location.reload(); else alert('Erro: ' + result.error);
-    } catch(e) { alert('Falha de rede.'); }
+        if(result.success) window.location.reload(); 
+        else alert('Erro: ' + result.error);
+    } catch(e) { alert('Falha de rede ao solicitar reprojeto.'); }
 }

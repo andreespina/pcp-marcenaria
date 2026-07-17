@@ -32,12 +32,32 @@ if ($data && isset($data['id'])) {
         $obs = !empty($data['observacao']) ? $data['observacao'] : '';
         $memorial = !empty($data['memorial_descritivo']) ? mb_strtoupper($data['memorial_descritivo'], 'UTF-8') : 'PRA FAZER';
         
-        // SLA, Apresentação e Baixas
         $dt_apres = !empty($data['data_apresentacao']) ? $data['data_apresentacao'] : null;
         $apres_realizada = !empty($data['apresentacao_realizada']) ? 1 : 0;
         $dt_inicio = !empty($data['data_inicio_projeto']) ? $data['data_inicio_projeto'] : null;
         $prazo_dias = !empty($data['prazo_projeto_dias']) ? (int) $data['prazo_projeto_dias'] : 0;
         $dt_entrega = !empty($data['data_entrega_projeto']) ? $data['data_entrega_projeto'] : null;
+
+        // NOVO: Inteligência para evitar duplicar a mesma reunião no histórico
+        $stmtSel = $pdo->prepare("SELECT historico_reunioes FROM comercial_leads WHERE id = ?");
+        $stmtSel->execute([$data['id']]);
+        $curr_lead = $stmtSel->fetch(PDO::FETCH_ASSOC);
+
+        $hist_reunioes = [];
+        if (!empty($curr_lead['historico_reunioes'])) {
+            $hist_reunioes = json_decode($curr_lead['historico_reunioes'], true) ?: [];
+        }
+
+        if ($apres_realizada == 1 && !empty($dt_apres)) {
+            $existe = false;
+            foreach ($hist_reunioes as $hr) {
+                if ($hr['data'] === $dt_apres) { $existe = true; break; }
+            }
+            if (!$existe) {
+                $hist_reunioes[] = ['data' => $dt_apres, 'registro' => date('Y-m-d H:i:s')];
+            }
+        }
+        $historico_reunioes_json = json_encode($hist_reunioes, JSON_UNESCAPED_UNICODE);
 
         $stmt = $pdo->prepare("UPDATE comercial_leads SET 
             cliente_id = :cid, cliente_nome = :nome, telefone = :tel, origem = :origem, 
@@ -45,7 +65,7 @@ if ($data && isset($data['id'])) {
             valor_estimado = :valor, probabilidade = :prob, 
             data_apresentacao = :dt_apres, apresentacao_realizada = :apres_realizada, 
             data_inicio_projeto = :dt_ini, prazo_projeto_dias = :prazo, data_entrega_projeto = :dt_entrega, 
-            observacao = :obs, memorial_descritivo = :memorial
+            observacao = :obs, memorial_descritivo = :memorial, historico_reunioes = :hist_reu
             WHERE id = :id");
         
         $stmt->execute([
@@ -65,7 +85,8 @@ if ($data && isset($data['id'])) {
             'prazo'    => $prazo_dias,
             'dt_entrega'=> $dt_entrega,
             'obs'      => $obs,
-            'memorial' => $memorial
+            'memorial' => $memorial,
+            'hist_reu' => $historico_reunioes_json
         ]);
 
         echo json_encode(['success' => true]);

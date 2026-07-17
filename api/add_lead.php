@@ -34,16 +34,22 @@ if ($data) {
         $obs = !empty($data['observacao']) ? $data['observacao'] : '';
         $memorial = !empty($data['memorial_descritivo']) ? mb_strtoupper($data['memorial_descritivo'], 'UTF-8') : 'PRA FAZER';
         
-        // SLA, Apresentação e Baixas
         $dt_apres = !empty($data['data_apresentacao']) ? $data['data_apresentacao'] : null;
         $apres_realizada = !empty($data['apresentacao_realizada']) ? 1 : 0;
         $dt_inicio = !empty($data['data_inicio_projeto']) ? $data['data_inicio_projeto'] : null;
         $prazo_dias = !empty($data['prazo_projeto_dias']) ? (int) $data['prazo_projeto_dias'] : 0;
         $dt_entrega = !empty($data['data_entrega_projeto']) ? $data['data_entrega_projeto'] : null;
 
+        // NOVO: Lógica do Histórico de Reuniões
+        $hist_reunioes = [];
+        if ($apres_realizada == 1 && !empty($dt_apres)) {
+            $hist_reunioes[] = ['data' => $dt_apres, 'registro' => date('Y-m-d H:i:s')];
+        }
+        $hist_reunioes_json = json_encode($hist_reunioes, JSON_UNESCAPED_UNICODE);
+
         $stmt = $pdo->prepare("INSERT INTO comercial_leads 
-            (cliente_id, cliente_nome, telefone, origem, arquiteto_nome, projetista_responsavel, ambientes, valor_estimado, probabilidade, data_apresentacao, apresentacao_realizada, data_inicio_projeto, prazo_projeto_dias, data_entrega_projeto, observacao, memorial_descritivo) 
-            VALUES (:cid, :nome, :tel, :origem, :arq, :proj, :amb, :valor, :prob, :dt_apres, :apres_realizada, :dt_ini, :prazo, :dt_entrega, :obs, :memorial)");
+            (cliente_id, cliente_nome, telefone, origem, arquiteto_nome, projetista_responsavel, ambientes, valor_estimado, probabilidade, data_apresentacao, apresentacao_realizada, data_inicio_projeto, prazo_projeto_dias, data_entrega_projeto, observacao, memorial_descritivo, historico_reunioes) 
+            VALUES (:cid, :nome, :tel, :origem, :arq, :proj, :amb, :valor, :prob, :dt_apres, :apres_realizada, :dt_ini, :prazo, :dt_entrega, :obs, :memorial, :hist_reu)");
         
         $stmt->execute([
             'cid'      => $cliente_id,
@@ -61,7 +67,8 @@ if ($data) {
             'prazo'    => $prazo_dias,
             'dt_entrega'=> $dt_entrega,
             'obs'      => $obs,
-            'memorial' => $memorial
+            'memorial' => $memorial,
+            'hist_reu' => $hist_reunioes_json
         ]);
 
         $pdo->commit();
