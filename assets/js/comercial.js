@@ -326,14 +326,24 @@ async function salvarLead(event) {
     } catch(e) { alert('Falha na API.'); }
 }
 
-async function excluirLead(id) {
-    if(!confirm("Deseja realmente cancelar/ocultar este lead?")) return;
+// Botão Lixeira - Agora atua como soft-delete / PERDIDO e já foi redirecionado no PHP para abrirModalMotivo
+// Este botão "X" atua como exclusão irreversível:
+async function excluirLeadPermanente(id) {
+    if(!confirm("⚠️ ATENÇÃO EXTREMA:\nDeseja realmente excluir este lead de forma PERMANENTE?\n\nO projeto será totalmente apagado do banco de dados e NÃO poderá ser recuperado. (Dica: Se ele apenas não fechou negócio, prefira usar o ícone da Lixeira para movê-lo para 'Perdidos').")) return;
+    
     try {
-        const res = await fetch('api/delete_lead_soft.php', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({id: id}) });
+        const res = await fetch('api/delete_lead_permanente.php', { 
+            method: 'POST', 
+            headers: {'Content-Type': 'application/json'}, 
+            body: JSON.stringify({id: id}) 
+        });
         const result = await res.json();
+        
         if(result.success) window.location.reload();
-        else alert('Erro ao ocultar: ' + result.error);
-    } catch(e) { alert('Falha na API.'); }
+        else alert('Erro ao excluir: ' + result.error);
+    } catch(e) { 
+        alert('Falha na API ao tentar exclusão permanente.'); 
+    }
 }
 
 // ==============================================================
