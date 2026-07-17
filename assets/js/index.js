@@ -1,10 +1,10 @@
-// Dicionário para deixar os nomes dos estados amigáveis no ecrã
+// assets/js/index.js
+
 const nomesStatus = {
     'desenvolvimento': 'DESENV. PCP',
     'producao': 'PRODUÇÃO',
     'expedicao': 'EXPEDIÇÃO',
-    'instalacao': 'INSTALAÇÃO',
-    'atrasou': 'OBRA ATRASOU'
+    'instalacao': 'INSTALAÇÃO'
 };
 
 function filtrarSelect(inputId, selectId) {
@@ -23,13 +23,35 @@ document.addEventListener('DOMContentLoaded', () => {
         new Sortable(col, {
             group: 'pcp_shared_group', animation: 180, ghostClass: 'sortable-ghost',
             delay: 150, delayOnTouchOnly: true, fallbackTolerance: 3,
-            onEnd: async function (evt) { await atualizarStatusNoServidor(evt.item.getAttribute('data-id'), evt.to.getAttribute('data-status')); },
+            onEnd: async function (evt) { 
+                const id = evt.item.getAttribute('data-id');
+                const newStatus = evt.to.getAttribute('data-status');
+                const oldStatus = evt.from.getAttribute('data-status');
+                
+                if (newStatus !== oldStatus) {
+                    await atualizarStatusNoServidor(id, newStatus); 
+                }
+            },
         });
     });
 });
 
 async function atualizarStatusNoServidor(id, status) {
-    try { await fetch('api/update_status.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: id, status: status }) }); } catch (error) { console.error('Erro:', error); }
+    try { 
+        const response = await fetch('api/update_status.php', { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' }, 
+            body: JSON.stringify({ id: id, status: status }) 
+        }); 
+        const result = await response.json();
+        if(result.success) {
+            window.location.reload();
+        } else {
+            console.error('Erro na atualização:', result.error);
+        }
+    } catch (error) { 
+        window.location.reload();
+    }
 }
 
 async function deletarCliente(event, id) {
@@ -39,7 +61,14 @@ async function deletarCliente(event, id) {
     try {
         const response = await fetch('api/delete_client.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: id }) });
         const result = await response.json();
-        if (result.success) { cardElement.style.opacity = '0'; cardElement.style.transform = 'scale(0.9)'; setTimeout(() => cardElement.remove(), 200); } 
+        if (result.success) { 
+            cardElement.style.opacity = '0'; 
+            cardElement.style.transform = 'scale(0.9)'; 
+            setTimeout(() => {
+                cardElement.remove();
+                window.location.reload();
+            }, 200); 
+        } 
     } catch (error) { alert('Erro de rede.'); }
 }
 
@@ -61,27 +90,24 @@ function imprimirFicha(id, cliente, statusAtual, dataLimite, observacao, promob,
     const janelaPrint = window.open('', '_blank', 'width=800,height=600'); janelaPrint.document.write(html); janelaPrint.document.close(); janelaPrint.focus(); setTimeout(() => { janelaPrint.print(); janelaPrint.close(); }, 500);
 }
 
-// FUNÇÃO NOVA: CARREGAR HISTÓRICO DE LOG
 function carregarHistoricoProjeto(projetoId) {
     const timelineContainer = document.getElementById('timeline_projeto');
     if (!timelineContainer) return;
 
-    // Reset de carregamento
     timelineContainer.innerHTML = '<p class="italic text-gray-400 animate-pulse">A carregar histórico...</p>';
 
     fetch(`api/get_project_logs.php?id=${projetoId}`)
         .then(response => response.json())
         .then(data => {
             if (data.success && data.logs.length > 0) {
-                timelineContainer.innerHTML = ''; // Limpa o carregando
+                timelineContainer.innerHTML = '';
 
                 data.logs.forEach(log => {
                     const dataFormatada = new Date(log.data_mudanca).toLocaleString('pt-PT');
                     const statusAnt = nomesStatus[log.status_anterior] || 'NÃO DEFINIDO';
                     const statusNovo = nomesStatus[log.status_novo] || 'NÃO DEFINIDO';
 
-                    // Define cores dependendo se foi um status de alerta
-                    const badgeCor = log.status_novo === 'atrasou' ? 'text-red-600 bg-red-50 dark:bg-red-900/20' : 'text-blue-600 bg-blue-50 dark:bg-blue-900/20';
+                    const badgeCor = 'text-blue-600 bg-blue-50 dark:bg-blue-900/20';
 
                     const itemHtml = `
                         <div class="flex items-start justify-between p-2 rounded bg-gray-50 dark:bg-gray-700/50 border border-gray-100 dark:border-gray-700">
@@ -105,7 +131,6 @@ function carregarHistoricoProjeto(projetoId) {
         });
 }
 
-// MODAL CONTROLLERS
 const modalNovo = document.getElementById('modalNovo'); const modalNovoConteudo = document.getElementById('modalNovoConteudo');
 function abrirModalNovo() { 
     document.getElementById('search_novo_cliente').value = '';
@@ -123,7 +148,8 @@ async function salvarNovoServidor(event) {
         lista_compras: document.getElementById('novo_compras').value, lista_ferragens: document.getElementById('novo_ferragens').value,
         checklist_respondido: document.getElementById('novo_checklist').value, checklist_link: document.getElementById('novo_checklist_link').value,
         medicao_agendada: document.getElementById('novo_medicao').value, medicao_data: document.getElementById('novo_medicao_data').value,
-        equipe_instalacao: document.getElementById('novo_equipe').value, data_inicio_instalacao: document.getElementById('novo_dt_ini_inst').value, data_fim_instalacao: document.getElementById('novo_dt_fim_inst').value
+        equipe_instalacao: document.getElementById('novo_equipe').value, data_inicio_instalacao: document.getElementById('novo_dt_ini_inst').value, data_fim_instalacao: document.getElementById('novo_dt_fim_inst').value,
+        situacao_obra: document.getElementById('novo_situacao').value
     };
     try {
         const response = await fetch('api/add_client.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
@@ -133,19 +159,17 @@ async function salvarNovoServidor(event) {
 }
 
 const modalEdicao = document.getElementById('modalEdicao'); const modalConteudo = document.getElementById('modalConteudo');
-function abrirModalEdicao(event, id, cliente, dataLimite, observacao, promob, corte, compras, ferragens, chkResp, chkLink, medAgen, medData, equipe, dtIni, dtFim, projExec) {
+function abrirModalEdicao(event, id, cliente, dataLimite, observacao, promob, corte, compras, ferragens, chkResp, chkLink, medAgen, medData, equipe, dtIni, dtFim, projExec, situacaoObra) {
     event.stopPropagation();
     document.getElementById('search_edit_cliente').value = '';
     filtrarSelect('search_edit_cliente', 'edit_cliente');
     
     document.getElementById('edit_id').value = id; 
     
-    // MÁGICA: Remove a tag [AE56] e qualquer espaço sobrando para encontrar no Select
     let nomeLimpo = cliente.replace(/^\[.*?\]\s*/, '').trim().toUpperCase();
     let selectCliente = document.getElementById('edit_cliente');
     let optionFound = false;
     
-    // Procura na lista de opções o cliente exato
     for (let i = 0; i < selectCliente.options.length; i++) {
         if (selectCliente.options[i].text.toUpperCase() === nomeLimpo || selectCliente.options[i].value.toUpperCase() === nomeLimpo) {
             selectCliente.selectedIndex = i;
@@ -153,11 +177,7 @@ function abrirModalEdicao(event, id, cliente, dataLimite, observacao, promob, co
             break;
         }
     }
-    
-    // Se por acaso não achar, tenta setar o valor bruto
-    if (!optionFound) {
-        selectCliente.value = nomeLimpo;
-    }
+    if (!optionFound) { selectCliente.value = nomeLimpo; }
 
     document.getElementById('edit_data_limite').value = dataLimite ? dataLimite : ''; 
     document.getElementById('edit_observacao').value = observacao ? observacao : '';
@@ -173,6 +193,7 @@ function abrirModalEdicao(event, id, cliente, dataLimite, observacao, promob, co
     document.getElementById('edit_equipe').value = equipe || ''; 
     document.getElementById('edit_dt_ini_inst').value = dtIni || ''; 
     document.getElementById('edit_dt_fim_inst').value = dtFim || '';
+    document.getElementById('edit_situacao').value = situacaoObra || 'NORMAL';
     document.getElementById('labelIdProjeto').innerText = `(ID #${id})`;
     
     carregarHistoricoProjeto(id);
@@ -191,7 +212,8 @@ async function salvarEdicaoServidor(event) {
         lista_compras: document.getElementById('edit_compras').value, lista_ferragens: document.getElementById('edit_ferragens').value,
         checklist_respondido: document.getElementById('edit_checklist').value, checklist_link: document.getElementById('edit_checklist_link').value,
         medicao_agendada: document.getElementById('edit_medicao').value, medicao_data: document.getElementById('edit_medicao_data').value,
-        equipe_instalacao: document.getElementById('edit_equipe').value, data_inicio_instalacao: document.getElementById('edit_dt_ini_inst').value, data_fim_instalacao: document.getElementById('edit_dt_fim_inst').value
+        equipe_instalacao: document.getElementById('edit_equipe').value, data_inicio_instalacao: document.getElementById('edit_dt_ini_inst').value, data_fim_instalacao: document.getElementById('edit_dt_fim_inst').value,
+        situacao_obra: document.getElementById('edit_situacao').value
     };
     try {
         const response = await fetch('api/edit_client.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
@@ -204,41 +226,16 @@ const modalUsuario = document.getElementById('modalUsuario'); function abrirModa
 function fecharModalUsuario() { modalUsuario.classList.add('opacity-0'); document.getElementById('modalUsuarioConteudo').classList.add('scale-95'); setTimeout(() => { modalUsuario.classList.add('hidden'); document.getElementById('formUsuario').reset(); }, 300); }
 async function salvarUsuarioServidor(event) { 
     event.preventDefault(); 
-    
-    // Captura o nível selecionado
     const roleSelecionado = document.getElementById('novo_role') ? document.getElementById('novo_role').value : 'USER';
-    
-    // Captura as caixas de seleção que estiverem marcadas
     const checkboxes = document.querySelectorAll('input[name="permissoes[]"]:checked');
     let permissoesSelecionadas = [];
-    checkboxes.forEach((cb) => {
-        permissoesSelecionadas.push(cb.value);
-    });
-
-    const payload = { 
-        usuario: document.getElementById('novo_login').value, 
-        senha: document.getElementById('novo_senha').value,
-        role: roleSelecionado,
-        permissoes: permissoesSelecionadas
-    }; 
-    
+    checkboxes.forEach((cb) => { permissoesSelecionadas.push(cb.value); });
+    const payload = { usuario: document.getElementById('novo_login').value, senha: document.getElementById('novo_senha').value, role: roleSelecionado, permissoes: permissoesSelecionadas }; 
     try { 
-        const response = await fetch('api/add_user.php', { 
-            method: 'POST', 
-            headers: { 'Content-Type': 'application/json' }, 
-            body: JSON.stringify(payload) 
-        }); 
+        const response = await fetch('api/add_user.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); 
         const result = await response.json(); 
-        
-        if (result.success) { 
-            alert('Utilizador registado com sucesso!'); 
-            fecharModalUsuario(); 
-        } else { 
-            alert('Erro: ' + result.error); 
-        } 
-    } catch (error) { 
-        alert('Erro de rede.'); 
-    } 
+        if (result.success) { alert('Utilizador registado com sucesso!'); fecharModalUsuario(); } else { alert('Erro: ' + result.error); } 
+    } catch (error) { alert('Erro de rede.'); } 
 }
 
 const modalSenha = document.getElementById('modalSenha'); function abrirModalSenha() { modalSenha.classList.remove('hidden'); setTimeout(() => { modalSenha.classList.remove('opacity-0'); document.getElementById('modalSenhaConteudo').classList.remove('scale-95'); }, 10); }

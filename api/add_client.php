@@ -56,11 +56,13 @@ if (!empty($cliente)) {
     $equipe_instalacao      = !empty($data->equipe_instalacao) ? trim($data->equipe_instalacao) : null;
     $data_inicio_instalacao = !empty($data->data_inicio_instalacao) ? $data->data_inicio_instalacao : null;
     $data_fim_instalacao    = !empty($data->data_fim_instalacao) ? $data->data_fim_instalacao : null;
+    
+    $situacao_obra = isset($data->situacao_obra) ? $data->situacao_obra : 'NORMAL';
 
     try {
         $stmt = $pdo->prepare("INSERT INTO projetos_pcp 
-            (cliente_id, cliente, data_limite, observacao, status, promob, projeto_executivo, corte_furacao, lista_compras, lista_ferragens, checklist_respondido, checklist_link, medicao_agendada, medicao_data, equipe_instalacao, data_inicio_instalacao, data_fim_instalacao) 
-            VALUES (:cliente_id, :cliente, :data_limite, :observacao, :status, :promob, :projeto_executivo, :corte_furacao, :lista_compras, :lista_ferragens, :checklist_respondido, :checklist_link, :medicao_agendada, :medicao_data, :equipe_instalacao, :data_inicio_instalacao, :data_fim_instalacao)");
+            (cliente_id, cliente, data_limite, observacao, status, promob, projeto_executivo, corte_furacao, lista_compras, lista_ferragens, checklist_respondido, checklist_link, medicao_agendada, medicao_data, equipe_instalacao, data_inicio_instalacao, data_fim_instalacao, situacao_obra) 
+            VALUES (:cliente_id, :cliente, :data_limite, :observacao, :status, :promob, :projeto_executivo, :corte_furacao, :lista_compras, :lista_ferragens, :checklist_respondido, :checklist_link, :medicao_agendada, :medicao_data, :equipe_instalacao, :data_inicio_instalacao, :data_fim_instalacao, :situacao_obra)");
         
         $stmt->execute([
             'cliente_id'             => $cliente_id,
@@ -79,7 +81,8 @@ if (!empty($cliente)) {
             'medicao_data'           => $medicao_data,
             'equipe_instalacao'      => $equipe_instalacao,
             'data_inicio_instalacao' => $data_inicio_instalacao,
-            'data_fim_instalacao'    => $data_fim_instalacao
+            'data_fim_instalacao'    => $data_fim_instalacao,
+            'situacao_obra'          => $situacao_obra
         ]);
 
         echo json_encode(['success' => true]);

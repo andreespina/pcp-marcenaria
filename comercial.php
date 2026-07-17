@@ -20,7 +20,7 @@ try {
         'CONTATO'      => ['titulo' => 'Novo Contato', 'cor' => 'border-gray-500', 'bg' => 'bg-gray-100 dark:bg-gray-800/50', 'leads' => []],
         'PROJETO_3D'   => ['titulo' => 'Projeto 3D', 'cor' => 'border-indigo-500', 'bg' => 'bg-indigo-50 dark:bg-[#1c2333]/50', 'leads' => []],
         'ORCAMENTO'    => ['titulo' => 'Orçamento', 'cor' => 'border-amber-500', 'bg' => 'bg-amber-50 dark:bg-[#1c2333]/50', 'leads' => []],
-        'APRESENTACAO' => ['titulo' => 'Reunião', 'cor' => 'border-blue-500', 'bg' => 'bg-blue-50 dark:bg-[#1c2333]/50', 'leads' => []],
+        'REUNIAO' => ['titulo' => 'Reunião', 'cor' => 'border-blue-500', 'bg' => 'bg-blue-50 dark:bg-[#1c2333]/50', 'leads' => []],
         'FECHADO'      => ['titulo' => 'Venda Fechada', 'cor' => 'border-emerald-500', 'bg' => 'bg-emerald-50 dark:bg-[#15231d]/50', 'leads' => []],
         'PAUSADO'      => ['titulo' => 'Pausados', 'cor' => 'border-purple-500', 'bg' => 'bg-purple-50 dark:bg-[#2e1f3d]/40', 'leads' => []],
         'PERDIDO'      => ['titulo' => 'Perdidos', 'cor' => 'border-red-500', 'bg' => 'bg-red-50 dark:bg-red-900/20', 'leads' => []]
@@ -43,7 +43,7 @@ try {
             if ($fase === 'FECHADO') { $finalizados++;
             } elseif ($fase === 'PERDIDO') { $cancelados++;
             } elseif ($fase === 'CONTATO') { $para_inicio++;
-            } elseif (in_array($fase, ['APRESENTACAO', 'PROJETO_3D'])) { $em_andamento++;
+            } elseif (in_array($fase, ['REUNIAO', 'PROJETO_3D'])) { $em_andamento++;
             } elseif ($fase === 'ORCAMENTO') { $para_orcamento++; }
 
             if(!empty($l['data_apresentacao']) && $fase != 'FECHADO' && $fase != 'PERDIDO' && $fase != 'PAUSADO' && empty($l['apresentacao_realizada'])) {
@@ -88,7 +88,7 @@ try {
         count($funil['CONTATO']['leads']),
         count($funil['PROJETO_3D']['leads']),
         count($funil['ORCAMENTO']['leads']),
-        count($funil['APRESENTACAO']['leads']),
+        count($funil['REUNIAO']['leads']),
         count($funil['PAUSADO']['leads'])
     ];
 

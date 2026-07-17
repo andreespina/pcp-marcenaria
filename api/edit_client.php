@@ -61,6 +61,8 @@ if ($id > 0 && !empty($cliente)) {
     $equipe_instalacao      = !empty($data->equipe_instalacao) ? trim($data->equipe_instalacao) : null;
     $data_inicio_instalacao = !empty($data->data_inicio_instalacao) ? $data->data_inicio_instalacao : null;
     $data_fim_instalacao    = !empty($data->data_fim_instalacao) ? $data->data_fim_instalacao : null;
+    
+    $situacao_obra = isset($data->situacao_obra) ? $data->situacao_obra : 'NORMAL';
 
     try {
         $pdo->beginTransaction();
@@ -89,7 +91,8 @@ if ($id > 0 && !empty($cliente)) {
             medicao_data = :medicao_data,
             equipe_instalacao = :equipe_instalacao,
             data_inicio_instalacao = :data_inicio_instalacao,
-            data_fim_instalacao = :data_fim_instalacao
+            data_fim_instalacao = :data_fim_instalacao,
+            situacao_obra = :situacao_obra
             WHERE id = :id");
         
         $stmt->execute([
@@ -109,6 +112,7 @@ if ($id > 0 && !empty($cliente)) {
             'equipe_instalacao'      => $equipe_instalacao,
             'data_inicio_instalacao' => $data_inicio_instalacao,
             'data_fim_instalacao'    => $data_fim_instalacao,
+            'situacao_obra'          => $situacao_obra,
             'id'                     => $id
         ]);
 
