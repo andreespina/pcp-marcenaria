@@ -200,6 +200,7 @@ function fecharModalMotivo() {
 function cancelarMotivo() {
     if(dragFromTemp && dragItemTemp) dragFromTemp.appendChild(dragItemTemp);
     fecharModalMotivo();
+    isProcessingDrop = false; // <-- Trava liberada para não bugar o Drag & Drop
 }
 
 function confirmarMotivo(event) {
