@@ -1,5 +1,8 @@
 // assets/js/assistencias.js
 
+// Instâncias Globais do Quill Editor
+let quillNA, quillEA, quillBaixa;
+
 // 1. Utilitários Base
 function filtrarSelect(inputId, selectId) {
     let filter = document.getElementById(inputId).value.toUpperCase();
@@ -82,8 +85,45 @@ function toggleAssistenciaCard(element) {
     }
 }
 
-// 2. Drag & Drop do Kanban
+// 2. Setup Inicial (Quill e Kanban Drag & Drop)
 document.addEventListener('DOMContentLoaded', () => {
+    
+    // Configuração da Toolbar estilo "Word" para o Quill.js
+    const quillOptions = {
+        theme: 'snow',
+        modules: {
+            toolbar: [
+                ['bold', 'italic', 'underline', 'strike'], 
+                [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                [{ 'color': [] }, { 'background': [] }],
+                ['clean'] // Remove formatações
+            ]
+        }
+    };
+
+    // Inicialização dos 3 editores
+    if (document.getElementById('quill_na_observacao')) {
+        quillNA = new Quill('#quill_na_observacao', quillOptions);
+        quillNA.on('text-change', function() {
+            document.getElementById('na_observacao').value = quillNA.root.innerHTML;
+        });
+    }
+    
+    if (document.getElementById('quill_ea_observacao')) {
+        quillEA = new Quill('#quill_ea_observacao', quillOptions);
+        quillEA.on('text-change', function() {
+            document.getElementById('ea_observacao').value = quillEA.root.innerHTML;
+        });
+    }
+
+    if (document.getElementById('quill_ast_observacao')) {
+        quillBaixa = new Quill('#quill_ast_observacao', quillOptions);
+        quillBaixa.on('text-change', function() {
+            document.getElementById('ast_observacao').value = quillBaixa.root.innerHTML;
+        });
+    }
+
+    // Inicialização do Kanban
     const columns = document.querySelectorAll('.kanban-column');
     columns.forEach(col => { 
         new Sortable(col, { 
@@ -97,7 +137,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 const card = evt.item;
                 const newStatus = evt.to.getAttribute('data-status');
                 
-                // Animação Inteligente: Encolhe se for pra Concluída, Expande se sair de lá
                 const conteudo = card.querySelector('.conteudo-assistencia');
                 const icone = card.querySelector('.icon-seta');
                 
@@ -181,17 +220,10 @@ async function deletarAssistencia(event, id) {
     }
 }
 
-// 4. Impressão de Ordem de Serviço
+// 4. Impressão de Ordem de Serviço (Ajustada para entender HTML do Quill)
 function imprimirOSAssistencia(dados) {
-    let obsItens = ''; 
-    if(dados.obs) { 
-        const linhas = dados.obs.split(/\r?\n/); 
-        linhas.forEach(linha => { 
-            if(linha.trim() !== '') obsItens += `<li>${linha.trim()}</li>`; 
-        }); 
-    } else { 
-        obsItens = `<li>Verificar defeito no local.</li>`; 
-    }
+    // Agora dados.obs já contém o HTML do Quill (<ul>, <li>, <p>, <strong>, etc)
+    let obsItens = dados.obs ? dados.obs : `<p>Verificar defeito no local.</p>`; 
     
     const codigoCli = dados.codigo_cli ? `[${dados.codigo_cli}]` : '';
 
@@ -217,9 +249,9 @@ function imprimirOSAssistencia(dados) {
             .client-info table { width: 100%; border-collapse: collapse; }
             .client-info td { padding: 4px 0; vertical-align: top; }
             .address-box { margin-top: 8px; padding: 12px; border: 1px solid #ccc; background-color: #f9f9f9; border-radius: 4px; }
-            .tasks { margin-top: 20px; font-size: 15px; font-weight: bold; min-height: 250px; }
-            .tasks ul { list-style-type: none; padding-left: 0; margin-top: 10px; line-height: 1.8; }
-            .tasks li::before { content: "- "; }
+            .tasks { margin-top: 20px; font-size: 15px; min-height: 250px; }
+            .tasks p { margin-top: 5px; margin-bottom: 5px; }
+            .tasks ul, .tasks ol { padding-left: 20px; margin-top: 10px; line-height: 1.8; }
             .footer-section { margin-top: 40px; padding-top: 20px; }
             .warning { font-size: 13px; font-weight: bold; text-align: left; margin-bottom: 50px; text-transform: uppercase; }
             .signature-row { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 40px; }
@@ -263,10 +295,10 @@ function imprimirOSAssistencia(dados) {
         </div>
         
         <div class="tasks">
-            <p style="margin:0; text-transform: uppercase; border-bottom: 1px solid #ccc; display: inline-block;">Defeito / Relato / Serviço a executar:</p>
-            <ul>
+            <p style="margin:0; text-transform: uppercase; font-weight: bold; border-bottom: 1px solid #ccc; display: inline-block;">Defeito / Relato / Serviço a executar:</p>
+            <div style="margin-top: 15px;">
                 ${obsItens}
-            </ul>
+            </div>
         </div>
         
         <div class="footer-section">
@@ -299,6 +331,10 @@ function abrirModalNovaAssistencia() {
     document.getElementById('search_na_cliente').value = ''; 
     filtrarSelect('search_na_cliente', 'na_cliente'); 
     
+    // Limpar o Editor Quill
+    if(quillNA) quillNA.setText('');
+    document.getElementById('na_observacao').value = '';
+
     modalNA.classList.remove('hidden'); 
     setTimeout(() => { 
         modalNA.classList.remove('opacity-0'); 
@@ -321,6 +357,13 @@ async function salvarNovaAssistencia(event) {
     const form = document.getElementById('formNovaAssistencia');
     const formData = new FormData(form);
     
+    // Verificando se o conteúdo rico não está vazio (Quill deixa <p><br></p> por padrão)
+    const obsVal = document.getElementById('na_observacao').value;
+    if(obsVal === '<p><br></p>' || obsVal.trim() === '') {
+        alert("Por favor, preencha o defeito ou problema relatado.");
+        return;
+    }
+    
     try { 
         const response = await fetch('api/nova_assistencia.php', { method: 'POST', body: formData }); 
         const result = await response.json(); 
@@ -331,7 +374,7 @@ async function salvarNovaAssistencia(event) {
             alert('Erro: ' + (result.error || 'Erro desconhecido')); 
         } 
     } catch (error) { 
-        alert('Erro de comunicação. Execute o código SQL do banco se for sua primeira vez atualizando.'); 
+        alert('Erro de comunicação. Verifique a sua conexão.'); 
     }
 }
 
@@ -345,7 +388,6 @@ function abrirModalEdicaoAssistencia(dados) {
     
     document.getElementById('ea_id').value = dados.id; 
     document.getElementById('ea_cliente').value = dados.cliente || ''; 
-    document.getElementById('ea_observacao').value = dados.obs || ''; 
     document.getElementById('ea_endereco').value = dados.end || ''; 
     document.getElementById('ea_numero').value = dados.num || ''; 
     document.getElementById('ea_quadra').value = dados.qd || ''; 
@@ -361,6 +403,12 @@ function abrirModalEdicaoAssistencia(dados) {
     document.getElementById('ea_valor').value = dados.valor_cobrado || '';
     document.getElementById('ea_forma_pagamento').value = dados.forma_pagamento || '';
     toggleFaturamento('ea');
+
+    // Preencher o Editor Quill de Edição
+    if(quillEA) {
+        quillEA.root.innerHTML = dados.obs || '';
+    }
+    document.getElementById('ea_observacao').value = dados.obs || ''; 
 
     const linkComprovante = document.getElementById('ea_link_comprovante');
     if (dados.comprovante_file) {
@@ -404,7 +452,7 @@ async function salvarEdicaoAssistencia(event) {
             alert('Erro: ' + (result.error || 'Erro desconhecido')); 
         } 
     } catch (error) { 
-        alert('Erro de comunicação. Certifique-se que executou o SQL no banco.'); 
+        alert('Erro de comunicação. Verifique a sua conexão.'); 
     }
 }
 
@@ -416,8 +464,13 @@ function abrirModalBaixa(dados) {
     document.getElementById('ast_tecnico').value = dados.tecnico ? dados.tecnico : ''; 
     document.getElementById('ast_data').value = dados.dt_agend_raw ? dados.dt_agend_raw : ''; 
     document.getElementById('ast_resolvido').value = dados.resolvido ? dados.resolvido : 'NAO'; 
-    document.getElementById('ast_observacao').value = dados.obs ? dados.obs : ''; 
     document.getElementById('labelAstProjeto').innerText = `(ID #${dados.id})`;
+    
+    // Preencher o Editor Quill de Baixa
+    if(quillBaixa) {
+        quillBaixa.root.innerHTML = dados.obs || '';
+    }
+    document.getElementById('ast_observacao').value = dados.obs ? dados.obs : ''; 
     
     modalBaixa.classList.remove('hidden'); 
     setTimeout(() => { 

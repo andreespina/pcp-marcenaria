@@ -60,9 +60,13 @@ $page_actions = '
     NOVA ASSISTÊNCIA
 </button>';
 
-// Estilos extras para o Kanban
+// Estilos extras para o Kanban e Quill.js
 $head_extras = '
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+<!-- Quill.js (Editor Rico) -->
+<link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
+<script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
+
 <style>
     .dark body { background-color: #1a1e2b !important; }
     .kanban-column::-webkit-scrollbar { width: 6px; }
@@ -70,6 +74,20 @@ $head_extras = '
     .dark .kanban-column::-webkit-scrollbar-thumb { background-color: #4b5563; }
     .sortable-ghost { opacity: 0.4; background-color: #fef3c7; border: 2px dashed #d97706; }
     .dark .sortable-ghost { background-color: #451a03; border-color: #b45309; }
+    
+    /* Configurações visuais do Editor Quill para casar com o Tailwind e Dark Mode */
+    .ql-toolbar.ql-snow { border-color: #d1d5db; border-radius: 0.375rem 0.375rem 0 0; background: #f8fafc; }
+    .ql-container.ql-snow { border-color: #d1d5db; border-radius: 0 0 0.375rem 0.375rem; background: #ffffff; min-height: 120px; font-family: inherit; font-size: inherit; }
+    .dark .ql-toolbar.ql-snow { border-color: #4b5563; background: #374151; }
+    .dark .ql-container.ql-snow { border-color: #4b5563; background: #1f2937; color: #e5e7eb; }
+    .dark .ql-snow .ql-stroke { stroke: #e5e7eb; }
+    .dark .ql-snow .ql-fill, .dark .ql-snow .ql-stroke.ql-fill { fill: #e5e7eb; }
+    .dark .ql-snow .ql-picker { color: #e5e7eb; }
+    
+    /* Formatação de saída do conteúdo Quill dentro dos Cards */
+    .quill-content p { margin-bottom: 0.5rem; }
+    .quill-content ul { list-style-type: disc; padding-left: 1.5rem; margin-bottom: 0.5rem; }
+    .quill-content ol { list-style-type: decimal; padding-left: 1.5rem; margin-bottom: 0.5rem; }
 </style>
 ';
 
@@ -256,10 +274,12 @@ require_once 'includes/header.php';
                                     <p class="text-[10px] text-gray-500 dark:text-gray-400 italic mt-0.5"><?= htmlspecialchars($a['condominio']) ?> <?= $a['cidade'] ? '- '.$a['cidade'] : '' ?></p>
                                 <?php endif; ?>
                                 
+                                <!-- Exibição Formatada do Relato com CSS do Quill -->
                                 <?php if ($a['obs_assistencia']): ?>
-                                    <p class="text-xs mt-2 italic text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 p-2 rounded texto-pesquisa">
-                                        <strong class="text-red-500 dark:text-red-400 not-italic">Relato:</strong> <br><?= nl2br(htmlspecialchars($a['obs_assistencia'])) ?>
-                                    </p>
+                                    <div class="text-xs mt-2 text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 p-2 rounded texto-pesquisa">
+                                        <strong class="text-red-500 dark:text-red-400">Relato:</strong>
+                                        <div class="quill-content mt-1"><?= $a['obs_assistencia'] ?></div>
+                                    </div>
                                 <?php endif; ?>
 
                                 <?php if ($a['resolvido_assistencia'] === 'SIM'): ?>
@@ -377,9 +397,11 @@ require_once 'includes/header.php';
                 </div>
             </div>
 
+            <!-- NOVO: Editor Quill para Nova Assistência -->
             <div class="mb-4">
                 <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Defeito ou Problema Relatado</label>
-                <textarea id="na_observacao" name="observacao" rows="3" required class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-2 focus:ring-amber-500"></textarea>
+                <input type="hidden" id="na_observacao" name="observacao">
+                <div id="quill_na_observacao"></div>
             </div>
 
             <div class="flex justify-end space-x-3 border-t border-gray-200 dark:border-gray-700 pt-4 mt-6">
@@ -490,9 +512,11 @@ require_once 'includes/header.php';
                 </div>
             </div>
 
+            <!-- NOVO: Editor Quill para Editar Assistência -->
             <div class="mb-4">
                 <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Defeito ou Problema Relatado</label>
-                <textarea id="ea_observacao" name="observacao" rows="3" required class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-2 focus:ring-blue-500"></textarea>
+                <input type="hidden" id="ea_observacao" name="observacao">
+                <div id="quill_ea_observacao"></div>
             </div>
 
             <div class="flex justify-end space-x-3 border-t border-gray-200 dark:border-gray-700 pt-4 mt-6">
@@ -530,10 +554,14 @@ require_once 'includes/header.php';
                     </select>
                 </div>
             </div>
+            
+            <!-- NOVO: Editor Quill para Baixa (Opcional, mas mantém a formatação) -->
             <div class="mb-6">
                 <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Relato do Problema Original</label>
-                <textarea id="ast_observacao" rows="4" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-2 focus:ring-green-500"></textarea>
+                <input type="hidden" id="ast_observacao">
+                <div id="quill_ast_observacao"></div>
             </div>
+            
             <div class="flex justify-end space-x-3 border-t border-gray-200 dark:border-gray-700 pt-4 mt-6">
                 <button type="button" onclick="fecharModalBaixa()" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition font-medium">Cancelar</button>
                 <button type="submit" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded font-bold transition shadow-sm">Confirmar Baixa</button>
