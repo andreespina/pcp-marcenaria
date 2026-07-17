@@ -13,20 +13,49 @@ try {
     $stmt = $pdo->query("SELECT * FROM administrativo_contratos ORDER BY id DESC");
     $contratos = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    $total_valor = 0; $pendentes = 0; $a_faturar = 0; $pagos = 0;
+    $total_valor = 0; 
+    $pendentes = 0; 
+    $a_faturar = 0; 
+    $faturado = 0;
+    $pagos = 0;
+
+    // Métricas de Custos
+    $total_mdf = 0;
+    $total_ferragens = 0;
+    $total_comissoes = 0;
+    $total_outros = 0;
+    $total_lucro = 0;
 
     foreach ($contratos as $c) {
-        $total_valor += $c['valor'];
+        $total_valor += (float)$c['valor'];
+        
         if ($c['status_contrato'] === 'PENDENTE') $pendentes++;
+        
         if ($c['status_financeiro'] === 'A FATURAR') $a_faturar++;
+        if ($c['status_financeiro'] === 'FATURADO') $faturado++;
         if ($c['status_financeiro'] === 'PAGO') $pagos++;
+
+        // CORREÇÃO: Substituído o '??' por 'isset()' para compatibilidade com PHP mais antigo
+        $mdf = isset($c['custo_mdf']) ? (float)$c['custo_mdf'] : 0;
+        $fer = isset($c['custo_ferragens']) ? (float)$c['custo_ferragens'] : 0;
+        $com = isset($c['custo_comissao']) ? (float)$c['custo_comissao'] : 0;
+        $out = isset($c['custo_outros']) ? (float)$c['custo_outros'] : 0;
+        
+        $custos_totais = $mdf + $fer + $com + $out;
+        $lucro = (float)$c['valor'] - $custos_totais;
+
+        $total_mdf += $mdf;
+        $total_ferragens += $fer;
+        $total_comissoes += $com;
+        $total_outros += $out;
+        $total_lucro += $lucro;
     }
 } catch (\PDOException $e) { 
     die("Erro ao carregar dados: " . $e->getMessage()); 
 }
 
 $page_title = 'ADMINISTRATIVO & FINANCEIRO';
-$page_subtitle = 'SBG Móveis & Design';
+$page_subtitle = 'Gestão de Contratos, Custos e Faturamento';
 $main_class = 'flex-1'; 
 $menu_button_text = 'MENU';
 $page_actions = '
@@ -36,9 +65,10 @@ $page_actions = '
 </button>';
 
 $head_extras = '
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
     .dark body { background-color: #1a1e2b !important; }
-    .table-container { height: calc(100vh - 280px); overflow-y: auto; }
+    .table-container { height: calc(100vh - 420px); overflow-y: auto; }
     .table-container::-webkit-scrollbar { width: 6px; }
     .table-container::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 4px; }
     .dark .table-container::-webkit-scrollbar-thumb { background-color: #4b5563; }
@@ -48,6 +78,7 @@ require_once 'includes/header.php';
 ?>
 
 <div class="flex flex-col gap-6">
+    <!-- DASHBOARD DE NÚMEROS -->
     <div class="bg-white dark:bg-[#222736] rounded-lg border border-gray-200 dark:border-[#2a3142] shadow-sm p-4">
         <h2 class="text-blue-700 dark:text-blue-400 font-bold mb-4 flex items-center text-lg tracking-wide">
             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
@@ -73,9 +104,30 @@ require_once 'includes/header.php';
         </div>
     </div>
 
+    <!-- DASHBOARD DE GRÁFICOS -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="bg-white dark:bg-[#222736] p-4 rounded-lg shadow-sm border border-gray-200 dark:border-[#2a3142] flex flex-col justify-center items-center h-[260px]">
+            <h3 class="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest w-full text-center mb-4">Status de Faturamento</h3>
+            <div class="relative w-full h-48 flex justify-center">
+                <canvas id="chartAdminStatus"></canvas>
+            </div>
+        </div>
+        <div class="bg-white dark:bg-[#222736] p-4 rounded-lg shadow-sm border border-gray-200 dark:border-[#2a3142] flex flex-col justify-center items-center h-[260px]">
+            <h3 class="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest w-full text-center mb-4">Distribuição: Custos vs Lucro Global</h3>
+            <div class="relative w-full h-48 flex justify-center">
+                <canvas id="chartAdminCustos"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- LISTAGEM / TABELA -->
     <div class="bg-white dark:bg-[#222736] rounded-lg border border-gray-200 dark:border-[#2a3142] shadow-sm overflow-hidden flex flex-col">
-        <div class="p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 flex justify-between items-center">
+        <div class="p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 flex flex-col sm:flex-row justify-between items-center gap-3">
             <h3 class="font-bold text-gray-700 dark:text-gray-200 text-sm uppercase tracking-wider">Gestão de Contratos e Recebimentos</h3>
+            <div class="relative w-full sm:w-1/3">
+                <input type="text" id="filtro_admin" onkeyup="filtrarTabelaAdmin()" placeholder="Buscar cliente ou NF..." class="w-full px-4 py-1.5 pl-9 border border-gray-300 dark:border-gray-600 dark:bg-gray-700/50 dark:text-white rounded text-sm focus:ring-2 focus:ring-blue-500 transition-colors">
+                <svg class="w-4 h-4 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+            </div>
         </div>
         
         <div class="overflow-x-auto table-container">
@@ -96,7 +148,7 @@ require_once 'includes/header.php';
                     <?php endif; ?>
                     
                     <?php foreach ($contratos as $c): ?>
-                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
+                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors tr-busca">
                             <td class="px-6 py-4 font-bold uppercase text-gray-900 dark:text-white">
                                 <?= preg_replace('/^(\[.*?\])/', '<span class="text-blue-600 dark:text-blue-400 font-black mr-1">$1</span>', htmlspecialchars($c['cliente_nome'])) ?>
                             </td>
@@ -136,6 +188,9 @@ require_once 'includes/header.php';
     </div>
 </div>
 
+<!-- ========================================== -->
+<!-- MODAIS                                     -->
+<!-- ========================================== -->
 <div id="modalNovoContrato" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 hidden opacity-0 transition-opacity duration-300">
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-lg p-6 border border-gray-200 dark:border-gray-700 transform scale-95 transition-all duration-300" id="modalNovoContratoConteudo">
         
@@ -270,8 +325,8 @@ require_once 'includes/header.php';
                             GERAR PRÉVIA DO FATURAMENTO
                         </button>
 
-                        <div id="lista_previa_parcelas" class="space-y-1 max-h-32 overflow-y-auto text-xs hidden">
-                            </div>
+                        <div id="lista_previa_parcelas" class="space-y-1 max-h-32 overflow-y-auto text-xs hidden pr-1 scrollbar-thin">
+                        </div>
                     </div>
                 </div>
 
@@ -284,19 +339,19 @@ require_once 'includes/header.php';
                     <div class="space-y-3">
                         <div>
                             <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Custo: MDF / Chapas (R$)</label>
-                            <input type="number" step="0.01" id="custo_mdf" name="custo_mdf" onkeyup="calcularLucro()" onchange="calcularLucro()" class="w-full px-3 py-1.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-red-600 dark:text-red-400 font-bold rounded">
+                            <input type="number" step="0.01" id="custo_mdf" name="custo_mdf" onkeyup="calcularLucro()" onchange="calcularLucro()" class="w-full px-3 py-1.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-red-600 dark:text-red-400 font-bold rounded focus:ring-2 focus:ring-red-500">
                         </div>
                         <div>
                             <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Custo: Ferragens / Acessórios (R$)</label>
-                            <input type="number" step="0.01" id="custo_ferragens" name="custo_ferragens" onkeyup="calcularLucro()" onchange="calcularLucro()" class="w-full px-3 py-1.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-red-600 dark:text-red-400 font-bold rounded">
+                            <input type="number" step="0.01" id="custo_ferragens" name="custo_ferragens" onkeyup="calcularLucro()" onchange="calcularLucro()" class="w-full px-3 py-1.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-red-600 dark:text-red-400 font-bold rounded focus:ring-2 focus:ring-red-500">
                         </div>
                         <div>
                             <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Comissões (R$)</label>
-                            <input type="number" step="0.01" id="custo_comissao" name="custo_comissao" onkeyup="calcularLucro()" onchange="calcularLucro()" class="w-full px-3 py-1.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-red-600 dark:text-red-400 font-bold rounded">
+                            <input type="number" step="0.01" id="custo_comissao" name="custo_comissao" onkeyup="calcularLucro()" onchange="calcularLucro()" class="w-full px-3 py-1.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-red-600 dark:text-red-400 font-bold rounded focus:ring-2 focus:ring-red-500">
                         </div>
                         <div>
                             <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Outros Custos / Terceiros (R$)</label>
-                            <input type="number" step="0.01" id="custo_outros" name="custo_outros" onkeyup="calcularLucro()" onchange="calcularLucro()" class="w-full px-3 py-1.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-red-600 dark:text-red-400 font-bold rounded">
+                            <input type="number" step="0.01" id="custo_outros" name="custo_outros" onkeyup="calcularLucro()" onchange="calcularLucro()" class="w-full px-3 py-1.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-red-600 dark:text-red-400 font-bold rounded focus:ring-2 focus:ring-red-500">
                         </div>
                     </div>
 
@@ -325,210 +380,11 @@ require_once 'includes/header.php';
 </div>
 
 <script>
-    // Utils
-    function filtrarSelect(inputId, selectId) {
-        let filter = document.getElementById(inputId).value.toUpperCase();
-        let select = document.getElementById(selectId);
-        let options = select.getElementsByTagName('option');
-        for (let i = 0; i < options.length; i++) {
-            let txtValue = options[i].textContent || options[i].innerText;
-            if (txtValue.toUpperCase().indexOf(filter) > -1) { options[i].style.display = ""; } else { options[i].style.display = "none"; }
-        }
-    }
-
-    // Modal Novo Contrato Manual
-    const modalNovoContrato = document.getElementById('modalNovoContrato');
-    const modalNovoContratoConteudo = document.getElementById('modalNovoContratoConteudo');
-
-    function abrirModalNovoContrato() {
-        document.getElementById('formNovoContrato').reset();
-        document.getElementById('search_manual_cliente').value = '';
-        filtrarSelect('search_manual_cliente', 'manual_cliente_id');
-        
-        modalNovoContrato.classList.remove('hidden');
-        setTimeout(() => { modalNovoContrato.classList.remove('opacity-0'); modalNovoContratoConteudo.classList.remove('scale-95'); }, 10);
-    }
-
-    function fecharModalNovoContrato() {
-        modalNovoContrato.classList.add('opacity-0'); modalNovoContratoConteudo.classList.add('scale-95');
-        setTimeout(() => { modalNovoContrato.classList.add('hidden'); }, 300);
-    }
-
-    async function salvarNovoContrato(event) {
-        event.preventDefault();
-        
-        const payload = {
-            cliente_id: document.getElementById('manual_cliente_id').value,
-            valor: document.getElementById('manual_valor').value,
-            status_contrato: document.getElementById('manual_status_contrato').value,
-            status_financeiro: document.getElementById('manual_status_financeiro').value
-        };
-
-        try {
-            const response = await fetch('api/add_administrativo_manual.php', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
-            });
-            const result = await response.json();
-            
-            if(result.success) {
-                fecharModalNovoContrato();
-                window.location.reload();
-            } else {
-                alert('Erro: ' + result.error);
-            }
-        } catch(e) {
-            alert('Falha na conexão com a API.');
-        }
-    }
-
-    // Modal Gerenciar
-    const modalGerenciar = document.getElementById('modalGerenciar');
-    const modalGerenciarConteudo = document.getElementById('modalGerenciarConteudo');
-    let parcelasConfirmadas = [];
-
-    function abrirModalGerenciar(contrato) {
-        document.getElementById('formGerenciar').reset();
-        parcelasConfirmadas = [];
-        document.getElementById('lista_previa_parcelas').innerHTML = '';
-        document.getElementById('lista_previa_parcelas').classList.add('hidden');
-        
-        document.getElementById('gerenciar_id').value = contrato.id;
-        document.getElementById('gerenciar_nome_cliente').innerText = contrato.cliente_nome;
-        document.getElementById('gerenciar_valor_total').value = contrato.valor;
-        document.getElementById('label_valor_venda').innerText = parseFloat(contrato.valor).toLocaleString('pt-BR', {minimumFractionDigits: 2});
-        
-        document.getElementById('gerenciar_status_contrato').value = contrato.status_contrato || 'PENDENTE';
-        document.getElementById('gerenciar_status_financeiro').value = contrato.status_financeiro || 'A FATURAR';
-        document.getElementById('gerenciar_nf').value = contrato.numero_nf || '';
-        
-        document.getElementById('custo_mdf').value = contrato.custo_mdf || '';
-        document.getElementById('custo_ferragens').value = contrato.custo_ferragens || '';
-        document.getElementById('custo_comissao').value = contrato.custo_comissao || '';
-        document.getElementById('custo_outros').value = contrato.custo_outros || '';
-        
-        verificarStatusFinanceiro();
-        calcularLucro();
-        
-        modalGerenciar.classList.remove('hidden');
-        setTimeout(() => { modalGerenciar.classList.remove('opacity-0'); modalGerenciarConteudo.classList.remove('scale-95'); }, 10);
-    }
-
-    function fecharModalGerenciar() {
-        modalGerenciar.classList.add('opacity-0'); modalGerenciarConteudo.classList.add('scale-95');
-        setTimeout(() => { modalGerenciar.classList.add('hidden'); }, 300);
-    }
-
-    function verificarStatusFinanceiro() {
-        const statusFin = document.getElementById('gerenciar_status_financeiro').value;
-        const boxParcelas = document.getElementById('box_parcelamento');
-        if(statusFin === 'FATURADO') {
-            boxParcelas.style.opacity = '1';
-            boxParcelas.style.pointerEvents = 'auto';
-        } else {
-            boxParcelas.style.opacity = '0.4';
-            boxParcelas.style.pointerEvents = 'none';
-        }
-    }
-
-    function calcularLucro() {
-        const valorVenda = parseFloat(document.getElementById('gerenciar_valor_total').value) || 0;
-        const cMdf = parseFloat(document.getElementById('custo_mdf').value) || 0;
-        const cFer = parseFloat(document.getElementById('custo_ferragens').value) || 0;
-        const cCom = parseFloat(document.getElementById('custo_comissao').value) || 0;
-        const cOut = parseFloat(document.getElementById('custo_outros').value) || 0;
-        
-        const totalCustos = cMdf + cFer + cCom + cOut;
-        const lucro = valorVenda - totalCustos;
-        let margem = valorVenda > 0 ? (lucro / valorVenda) * 100 : 0;
-
-        document.getElementById('calc_total_custos').innerText = totalCustos.toLocaleString('pt-BR', {minimumFractionDigits: 2});
-        document.getElementById('calc_lucro').innerText = lucro.toLocaleString('pt-BR', {minimumFractionDigits: 2});
-        document.getElementById('calc_margem').innerText = margem.toFixed(1).replace('.', ',');
-    }
-
-    function gerarPreviaParcelas() {
-        parcelasConfirmadas = [];
-        const lista = document.getElementById('lista_previa_parcelas');
-        lista.innerHTML = '';
-        lista.classList.remove('hidden');
-
-        const vEntrada = parseFloat(document.getElementById('parc_entrada_valor').value) || 0;
-        const dEntrada = document.getElementById('parc_entrada_data').value;
-        const qtd = parseInt(document.getElementById('parc_qtd').value) || 0;
-        const vParcela = parseFloat(document.getElementById('parc_valor').value) || 0;
-        const dIni = document.getElementById('parc_data_ini').value;
-
-        if (vEntrada > 0 && dEntrada) {
-            parcelasConfirmadas.push({ num: 0, desc: 'Entrada', valor: vEntrada, data: dEntrada });
-        }
-
-        if (qtd > 0 && vParcela > 0 && dIni) {
-            let dataAtual = new Date(dIni + 'T12:00:00'); 
-            for (let i = 1; i <= qtd; i++) {
-                const dataFormatada = dataAtual.toISOString().split('T')[0];
-                parcelasConfirmadas.push({ num: i, desc: `Parcela ${i}/${qtd}`, valor: vParcela, data: dataFormatada });
-                dataAtual.setMonth(dataAtual.getMonth() + 1); 
-            }
-        }
-
-        if (parcelasConfirmadas.length === 0) {
-            lista.innerHTML = '<p class="text-red-500 italic">Preencha os dados da entrada e/ou parcelas.</p>';
-            return;
-        }
-
-        let totalSoma = 0;
-        parcelasConfirmadas.forEach(p => {
-            totalSoma += p.valor;
-            const dForm = p.data.split('-').reverse().join('/');
-            lista.innerHTML += `
-                <div class="flex justify-between items-center bg-white dark:bg-gray-800 p-2 border border-blue-100 dark:border-blue-900 rounded">
-                    <span class="font-bold text-gray-700 dark:text-gray-300 uppercase">${p.desc}</span>
-                    <div class="text-right">
-                        <span class="block font-black text-blue-600 dark:text-blue-400">R$ ${p.valor.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
-                        <span class="text-[10px] text-gray-500 dark:text-gray-400">Venc: ${dForm}</span>
-                    </div>
-                </div>`;
-        });
-        
-        lista.innerHTML += `<div class="text-right mt-2 font-bold text-gray-700 dark:text-gray-300">Total Lançado: <span class="text-emerald-600">R$ ${totalSoma.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span></div>`;
-    }
-
-    async function salvarGerenciar(event) {
-        event.preventDefault();
-        
-        const payload = {
-            id: document.getElementById('gerenciar_id').value,
-            cliente_nome: document.getElementById('gerenciar_nome_cliente').innerText,
-            status_contrato: document.getElementById('gerenciar_status_contrato').value,
-            status_financeiro: document.getElementById('gerenciar_status_financeiro').value,
-            numero_nf: document.getElementById('gerenciar_nf').value,
-            custos: {
-                mdf: document.getElementById('custo_mdf').value || 0,
-                ferragens: document.getElementById('custo_ferragens').value || 0,
-                comissao: document.getElementById('custo_comissao').value || 0,
-                outros: document.getElementById('custo_outros').value || 0
-            },
-            parcelas: document.getElementById('gerenciar_status_financeiro').value === 'FATURADO' ? parcelasConfirmadas : []
-        };
-
-        try {
-            const response = await fetch('api/save_administrativo.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            const result = await response.json();
-            
-            if(result.success) {
-                fecharModalGerenciar();
-                window.location.reload();
-            } else {
-                alert('Erro ao salvar: ' + result.error);
-            }
-        } catch(e) {
-            alert('Falha na conexão com o servidor.');
-        }
-    }
+    // Variáveis que vão alimentar o script.js
+    window.chartAdminStatusData = <?= json_encode([$a_faturar, $faturado, $pagos]) ?>;
+    window.chartAdminCustosData = <?= json_encode([$total_mdf, $total_ferragens, $total_comissoes, $total_outros, $total_lucro]) ?>;
 </script>
+
+<script src="assets/js/administrativo.js?v=<?= time() ?>"></script>
 
 <?php require_once 'includes/footer.php'; ?>
