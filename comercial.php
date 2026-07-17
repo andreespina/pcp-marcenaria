@@ -15,14 +15,15 @@ try {
                          ORDER BY cl.data_entrada DESC");
     $leads = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+    // NOVA ORDEM DO FUNIL: Contato -> 3D -> Orçamento -> Reunião -> Fechado -> Pausado -> Perdido
     $funil = [
         'CONTATO'    => ['titulo' => 'Novo Contato', 'cor' => 'border-gray-500', 'bg' => 'bg-gray-100 dark:bg-gray-800/50', 'leads' => []],
-        'BRIEFING'   => ['titulo' => 'Reunião / Briefing', 'cor' => 'border-blue-500', 'bg' => 'bg-blue-50 dark:bg-[#1c2333]/50', 'leads' => []],
-        'PROJETO_3D' => ['titulo' => 'Desenvolvimento 3D', 'cor' => 'border-indigo-500', 'bg' => 'bg-indigo-50 dark:bg-[#1c2333]/50', 'leads' => []],
-        'ORCAMENTO'  => ['titulo' => 'Em Orçamento', 'cor' => 'border-amber-500', 'bg' => 'bg-amber-50 dark:bg-[#1c2333]/50', 'leads' => []],
-        'PAUSADO'    => ['titulo' => 'Pausados', 'cor' => 'border-purple-500', 'bg' => 'bg-purple-50 dark:bg-[#2e1f3d]/40', 'leads' => []],
+        'PROJETO_3D' => ['titulo' => 'Projeto 3D', 'cor' => 'border-indigo-500', 'bg' => 'bg-indigo-50 dark:bg-[#1c2333]/50', 'leads' => []],
+        'ORCAMENTO'  => ['titulo' => 'Orçamento', 'cor' => 'border-amber-500', 'bg' => 'bg-amber-50 dark:bg-[#1c2333]/50', 'leads' => []],
+        'REUNIAO'    => ['titulo' => 'Reunião', 'cor' => 'border-blue-500', 'bg' => 'bg-blue-50 dark:bg-[#1c2333]/50', 'leads' => []],
         'FECHADO'    => ['titulo' => 'Venda Fechada', 'cor' => 'border-emerald-500', 'bg' => 'bg-emerald-50 dark:bg-[#15231d]/50', 'leads' => []],
-        'PERDIDO'    => ['titulo' => 'Perdido', 'cor' => 'border-red-500', 'bg' => 'bg-red-50 dark:bg-red-900/20', 'leads' => []]
+        'PAUSADO'    => ['titulo' => 'Pausados', 'cor' => 'border-purple-500', 'bg' => 'bg-purple-50 dark:bg-[#2e1f3d]/40', 'leads' => []],
+        'PERDIDO'    => ['titulo' => 'Perdidos', 'cor' => 'border-red-500', 'bg' => 'bg-red-50 dark:bg-red-900/20', 'leads' => []]
     ];
 
     $total_projetos = count($leads);
@@ -44,7 +45,7 @@ try {
                 if (!empty($l['data_fechamento']) && date('Y', strtotime($l['data_fechamento'])) == $ano_atual) $fechados_ano++;
             } elseif ($fase === 'PERDIDO') { $cancelados++;
             } elseif ($fase === 'CONTATO') { $para_inicio++;
-            } elseif (in_array($fase, ['BRIEFING', 'PROJETO_3D'])) { $em_andamento++;
+            } elseif (in_array($fase, ['REUNIAO', 'PROJETO_3D'])) { $em_andamento++;
             } elseif ($fase === 'ORCAMENTO') { $para_orcamento++; }
 
             if ($fase !== 'PERDIDO' && $fase !== 'PAUSADO' && in_array($l['memorial_descritivo'], ['PRA FAZER', 'PROJETANDO'])) {
@@ -81,7 +82,6 @@ function corMemorial($status) {
 $page_title = 'COMERCIAL & CRM';
 $page_subtitle = 'SBG Móveis & Design';
 $main_class = 'flex-1'; 
-// $main_class = 'flex-1 w-full max-w-full px-2 lg:px-6'; 
 $menu_button_text = 'MENU';
 
 // GERA O MENU DE FILTROS BASEADO NO FUNIL DINÂMICO
@@ -121,10 +121,7 @@ $head_extras = '
     .app-container { display: flex; flex-direction: column; gap: 1.5rem; width: 100%; }
     .kanban-wrapper { display: flex; flex-direction: column; gap: 1.5rem; width: 100%; }
     
-    /* Configuração de Altura Mínima EXCLUSIVA para os containers do Kanban */
     .kanban-column-container { width: 100%; display: flex; flex-direction: column; min-height: 500px; }
-    
-    /* AQUI ESTÁ A CORREÇÃO: Aplica min-height APENAS se a coluna estiver dentro do funil, protegendo a sidebar */
     .kanban-column-container .kanban-col { min-height: 500px; overflow-y: auto; padding-bottom: 2rem; }
 
     @media (min-width: 1280px) {
@@ -195,10 +192,10 @@ require_once 'includes/header.php';
             </div>
 
             <div class="bg-white dark:bg-[#222736] border border-red-200 dark:border-red-900/50 rounded-lg shadow-sm p-4 flex-1 transition-colors duration-300">
-                <span class="bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 text-xs font-bold px-3 py-1 inline-block mb-3 rounded-sm shadow-sm border border-red-200 dark:border-red-800">Apresentações em Atraso</span>
+                <span class="bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 text-xs font-bold px-3 py-1 inline-block mb-3 rounded-sm shadow-sm border border-red-200 dark:border-red-800">Projetos em Atraso</span>
                 <div class="space-y-3 overflow-y-auto max-h-[140px] pr-2 kanban-col">
                     <?php if(empty($projetos_atraso)): ?>
-                        <p class="text-xs text-gray-500 italic">Nenhum atraso pendente.</p>
+                        <p class="text-xs text-gray-500 italic">Nenhum projeto em atraso no momento. Ufa!.</p>
                     <?php endif; ?>
                     <?php foreach($projetos_atraso as $pa): ?>
                         <div class="flex justify-between items-center border-b border-gray-100 dark:border-gray-700 pb-2">
@@ -473,7 +470,7 @@ require_once 'includes/header.php';
         <h3 class="text-lg font-bold text-orange-600 dark:text-orange-400 mb-4 uppercase flex items-center">
             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg> Solicitar Reprojeto
         </h3>
-        <p class="text-xs text-gray-600 dark:text-gray-400 mb-4">O projeto retornará para a fase de Desenvolvimento 3D.</p>
+        <p class="text-xs text-gray-600 dark:text-gray-400 mb-4">O projeto retornará para a fase de Projeto 3D.</p>
         <form id="formReprojeto" onsubmit="salvarReprojeto(event)">
             <input type="hidden" id="reprojeto_lead_id">
             <div class="mb-5">
