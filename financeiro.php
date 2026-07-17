@@ -14,25 +14,26 @@ try {
     $stmt->execute();
     $lancamentos = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // 2. Busca Clientes
+    // 2. Busca Clientes e Fornecedores para Mapeamento
     $stmt_cli = $pdo->query("SELECT id, nome_contrato as nome FROM clientes_cadastro ORDER BY nome_contrato ASC");
     $clientes = $stmt_cli->fetchAll(PDO::FETCH_ASSOC);
 
-    // 3. Busca Fornecedores
     $stmt_forn = $pdo->query("SELECT id, nome_fantasia as nome FROM fornecedores ORDER BY nome_fantasia ASC");
     $fornecedores = $stmt_forn->fetchAll(PDO::FETCH_ASSOC);
 
-    // Mapeamento para exibir os nomes corretos na tabela
     $map_clientes = []; foreach($clientes as $c) $map_clientes[$c['id']] = $c['nome'];
     $map_fornecedores = []; foreach($fornecedores as $f) $map_fornecedores[$f['id']] = $f['nome'];
 
-    // 4. Cálculos para o Dashboard
+    // 3. Cálculos do Dashboard e Agrupamento por Entidade
     $receitas_pagas = 0; $receitas_pendentes = 0;
     $despesas_pagas = 0; $despesas_pendentes = 0;
     $total_atrasado = 0;
+    $agrupado = []; // Matriz que vai guardar os lançamentos agrupados
 
     foreach ($lancamentos as $l) {
         $valor = (float) $l['valor'];
+        
+        // Dashboard
         if ($l['tipo'] === 'RECEITA') {
             if ($l['status'] === 'PAGO') $receitas_pagas += $valor;
             else $receitas_pendentes += $valor;
@@ -44,14 +45,63 @@ try {
         if ($l['status'] === 'PENDENTE' && $l['data_vencimento'] < $hoje && $l['tipo'] === 'DESPESA') {
             $total_atrasado += $valor;
         }
+
+        // Lógica de Agrupamento
+        $nome_entidade = 'DIVERSOS / NÃO INFORMADO';
+        if ($l['entidade_tipo'] === 'CLIENTE' && isset($map_clientes[$l['entidade_id']])) {
+            $nome_entidade = $map_clientes[$l['entidade_id']];
+        } elseif ($l['entidade_tipo'] === 'FORNECEDOR' && isset($map_fornecedores[$l['entidade_id']])) {
+            $nome_entidade = $map_fornecedores[$l['entidade_id']];
+        } elseif (!empty($l['cliente_fornecedor'])) {
+            $nome_entidade = $l['cliente_fornecedor']; 
+        }
+
+        // Cria a pasta da entidade se não existir
+        if (!isset($agrupado[$nome_entidade])) {
+            $agrupado[$nome_entidade] = [
+                'nome' => $nome_entidade,
+                'receitas' => 0,
+                'despesas' => 0,
+                'lancamentos' => []
+            ];
+        }
+        
+        // Soma os valores dentro do grupo e guarda o lançamento
+        if ($l['tipo'] === 'RECEITA') $agrupado[$nome_entidade]['receitas'] += $valor;
+        else $agrupado[$nome_entidade]['despesas'] += $valor;
+        
+        $agrupado[$nome_entidade]['lancamentos'][] = $l;
     }
+
+    // Ordena os grupos em ordem alfabética
+    ksort($agrupado);
 
     $saldo_atual = $receitas_pagas - $despesas_pagas;
     $saldo_previsto = ($receitas_pagas + $receitas_pendentes) - ($despesas_pagas + $despesas_pendentes);
 
-} catch (\PDOException $e) {
-    die("Erro na consulta: " . $e->getMessage());
-}
+    // --- LÓGICA DE DADOS PARA OS GRÁFICOS ---
+    $chart_rosca_labels = ['Receitas Pagas', 'A Receber', 'Despesas Pagas', 'A Pagar'];
+    $chart_rosca_data = [$receitas_pagas, $receitas_pendentes, $despesas_pagas, $despesas_pendentes];
+
+    $meses_nomes = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    $chart_bar_labels = []; $chart_bar_receitas = []; $chart_bar_despesas = [];
+
+    for ($i = 5; $i >= 0; $i--) {
+        $data_alvo = strtotime("-$i months");
+        $mes_num = date('m', $data_alvo);
+        $ano_num = date('Y', $data_alvo);
+        $chart_bar_labels[] = $meses_nomes[(int)$mes_num - 1] . '/' . substr($ano_num, 2);
+        
+        $stmt_rec = $pdo->prepare("SELECT SUM(valor) FROM financeiro WHERE tipo = 'RECEITA' AND MONTH(data_vencimento) = ? AND YEAR(data_vencimento) = ?");
+        $stmt_rec->execute([$mes_num, $ano_num]);
+        $chart_bar_receitas[] = (float)$stmt_rec->fetchColumn();
+
+        $stmt_des = $pdo->prepare("SELECT SUM(valor) FROM financeiro WHERE tipo = 'DESPESA' AND MONTH(data_vencimento) = ? AND YEAR(data_vencimento) = ?");
+        $stmt_des->execute([$mes_num, $ano_num]);
+        $chart_bar_despesas[] = (float)$stmt_des->fetchColumn();
+    }
+
+} catch (\PDOException $e) { die("Erro na consulta: " . $e->getMessage()); }
 
 function formatarData($data) { if (!$data) return '-'; return date('d/m/Y', strtotime($data)); }
 function jsSafe($val) { return htmlspecialchars(json_encode($val), ENT_QUOTES, 'UTF-8'); }
@@ -67,11 +117,18 @@ $page_actions = '
     NOVO LANÇAMENTO
 </button>';
 
+$head_extras = '
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+    .dark body { background-color: #1a1e2b !important; }
+</style>';
+
 require_once 'includes/header.php';
 ?>
 
 <div class="flex flex-col gap-6">
 
+    <!-- DASHBOARD MÉTRICAS -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div class="bg-white dark:bg-[#222736] p-4 rounded-lg shadow-sm border border-gray-200 dark:border-[#2a3142] flex items-center">
             <div class="p-3 rounded-full <?= $saldo_atual >= 0 ? 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400' : 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400' ?> mr-4">
@@ -114,126 +171,132 @@ require_once 'includes/header.php';
                 <p class="text-2xl font-black text-red-700 dark:text-red-400 mt-0.5 flex flex-col">
                     <span>R$ <?= number_format($despesas_pendentes, 2, ',', '.') ?></span>
                     <?php if($total_atrasado > 0): ?>
-                        <span class="text-[10px] text-red-500 font-bold tracking-wider mt-0.5">R$ <?= number_format($total_atrasado, 2, ',', '.') ?> EM ATRASO</span>
+                        <span class="text-[10px] text-red-500 font-bold tracking-wider mt-0.5">R$ <?= number_format($total_atrasado, 2, ',', '.') ?> ATRASADO</span>
                     <?php endif; ?>
                 </p>
             </div>
         </div>
     </div>
 
-    <details class="group bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 rounded-lg shadow-sm transition-colors duration-300">
-        <summary class="cursor-pointer p-4 font-bold text-sm text-[#1e3a8a] dark:text-blue-400 flex items-center justify-between select-none uppercase tracking-wide">
-            <div class="flex items-center">
-                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                Guia Rápido: Gestão Financeira
+    <!-- DASHBOARD GRÁFICOS -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <!-- Gráfico Rosca -->
+        <div class="bg-white dark:bg-[#222736] p-4 rounded-lg shadow-sm border border-gray-200 dark:border-[#2a3142] flex flex-col items-center justify-center h-[280px]">
+            <h3 class="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest w-full text-center mb-2">Status Geral Financeiro</h3>
+            <div class="relative w-full h-56 flex justify-center">
+                <canvas id="chartRoscaFin"></canvas>
             </div>
-            <svg class="w-5 h-5 transition-transform duration-200 group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-        </summary>
-        <div class="p-4 pt-0 mt-2 border-t border-blue-200 dark:border-blue-800">
-            <ul class="text-sm text-gray-700 dark:text-gray-300 space-y-2 ml-1 mt-3">
-                <li class="flex items-start">
-                    <span class="mr-2">💵</span>
-                    <span><strong>Lançamentos:</strong> Clique em <em>"NOVO LANÇAMENTO"</em> para registrar Receitas (Entradas) ou Despesas (Saídas). Você pode atrelar a um Cliente ou Fornecedor específico.</span>
-                </li>
-                <li class="flex items-start">
-                    <span class="mr-2">✅</span>
-                    <span><strong>Liquidação (Baixa):</strong> Quando uma conta for paga ou recebida, clique no ícone de "visto" verde (<svg class="w-3 h-3 inline text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>) na linha correspondente para confirmar a data de pagamento.</span>
-                </li>
-                <li class="flex items-start">
-                    <span class="mr-2">🔍</span>
-                    <span><strong>Filtros:</strong> Utilize a barra de busca no topo da tabela para pesquisar rapidamente qualquer lançamento pela descrição, entidade ou valor.</span>
-                </li>
-            </ul>
         </div>
-    </details>
+        <!-- Gráfico Barras -->
+        <div class="bg-white dark:bg-[#222736] p-4 rounded-lg shadow-sm border border-gray-200 dark:border-[#2a3142] flex flex-col items-center justify-center h-[280px]">
+            <h3 class="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest w-full text-center mb-2">Fluxo de Caixa (Últimos 6 Meses)</h3>
+            <div class="relative w-full h-56 flex justify-center">
+                <canvas id="chartBarFin"></canvas>
+            </div>
+        </div>
+    </div>
 
+    <!-- LISTAGEM (ACORDEÃO AGRUPADO) -->
     <div class="bg-white dark:bg-[#222736] rounded-lg border border-gray-200 dark:border-[#2a3142] shadow-sm overflow-hidden flex flex-col">
         <div class="p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 flex flex-col sm:flex-row justify-between items-center gap-3">
-            <h3 class="font-bold text-gray-700 dark:text-gray-200 text-sm uppercase tracking-wider">Extrato e Lançamentos</h3>
+            <h3 class="font-bold text-gray-700 dark:text-gray-200 text-sm uppercase tracking-wider">Carteira de Contratos e Lançamentos</h3>
             <div class="relative w-full sm:w-1/3">
-                <input type="text" id="filtro_financeiro" onkeyup="filtrarTabela()" placeholder="Buscar lançamento..." class="w-full px-4 py-1.5 pl-9 border border-gray-300 dark:border-gray-600 dark:bg-gray-700/50 dark:text-white rounded text-sm focus:ring-2 focus:ring-blue-500 transition-colors">
+                <input type="text" id="filtro_financeiro" onkeyup="filtrarTabela()" placeholder="Buscar cliente ou fornecedor..." class="w-full px-4 py-1.5 pl-9 border border-gray-300 dark:border-gray-600 dark:bg-gray-700/50 dark:text-white rounded text-sm focus:ring-2 focus:ring-blue-500 transition-colors">
                 <svg class="w-4 h-4 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
             </div>
         </div>
         
-        <div class="overflow-x-auto table-container" style="max-height: calc(100vh - 350px); overflow-y: auto;">
-            <table class="w-full text-left text-sm whitespace-nowrap" id="tabela_financeira">
-                <thead class="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10 font-bold">
-                    <tr>
-                        <th class="px-6 py-3">Vencimento</th>
-                        <th class="px-6 py-3">Descrição / Ref.</th>
-                        <th class="px-6 py-3">Entidade</th>
-                        <th class="px-6 py-3 text-right">Valor Total</th>
-                        <th class="px-6 py-3 text-center">Status</th>
-                        <th class="px-6 py-3 text-center">Ações</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
-                    <?php if (empty($lancamentos)): ?>
-                        <tr><td colspan="6" class="px-6 py-8 text-center text-gray-500 dark:text-gray-400 italic">Nenhum lançamento encontrado.</td></tr>
-                    <?php endif; ?>
-                    
-                    <?php foreach ($lancamentos as $l): 
-                        $is_atrasado = ($l['status'] === 'PENDENTE' && $l['data_vencimento'] < $hoje && $l['tipo'] === 'DESPESA');
-                        $cor_valor = $l['tipo'] === 'RECEITA' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400';
-                        $sinal = $l['tipo'] === 'RECEITA' ? '+' : '-';
-                        
-                        // Definir o Nome da Entidade
-                        $nome_entidade = '-';
-                        if ($l['entidade_tipo'] === 'CLIENTE' && isset($map_clientes[$l['entidade_id']])) {
-                            $nome_entidade = $map_clientes[$l['entidade_id']];
-                        } elseif ($l['entidade_tipo'] === 'FORNECEDOR' && isset($map_fornecedores[$l['entidade_id']])) {
-                            $nome_entidade = $map_fornecedores[$l['entidade_id']];
-                        } elseif (!empty($l['cliente_fornecedor'])) {
-                            $nome_entidade = $l['cliente_fornecedor']; 
-                        }
-                    ?>
-                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors text-gray-700 dark:text-gray-200 tr-busca">
-                            <td class="px-6 py-4 font-medium <?= $is_atrasado ? 'text-red-500 font-bold' : '' ?>">
-                                <?= formatarData($l['data_vencimento']) ?>
-                            </td>
-                            <td class="px-6 py-4 font-bold uppercase td-busca text-gray-900 dark:text-white">
-                                <?= htmlspecialchars($l['descricao']) ?>
-                                <?php if($l['num_parcelas'] > 1): ?>
-                                    <span class="text-[10px] text-gray-500 dark:text-gray-400 ml-1">(<?= $l['num_parcelas'] ?>x)</span>
-                                <?php endif; ?>
-                            </td>
-                            <td class="px-6 py-4 text-xs td-busca uppercase text-gray-600 dark:text-gray-400 font-semibold truncate max-w-[150px]" title="<?= htmlspecialchars($nome_entidade) ?>">
-                                <?= htmlspecialchars($nome_entidade) ?>
-                            </td>
-                            <td class="px-6 py-4 font-black text-right <?= $cor_valor ?>">
-                                <?= $sinal ?> R$ <?= number_format($l['valor'], 2, ',', '.') ?>
-                            </td>
-                            <td class="px-6 py-4 text-center">
-                                <?php if ($l['status'] === 'PAGO'): ?>
-                                    <span class="bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-400 px-2 py-1 rounded text-[10px] font-bold uppercase border border-green-200 dark:border-green-800/50">BAIXADO</span>
-                                <?php elseif ($is_atrasado): ?>
-                                    <span class="bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-400 px-2 py-1 rounded text-[10px] font-bold uppercase border border-red-200 dark:border-red-800/50 animate-pulse">ATRASADO</span>
-                                <?php else: ?>
-                                    <span class="bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-400 px-2 py-1 rounded text-[10px] font-bold uppercase border border-yellow-200 dark:border-yellow-800/50">PENDENTE</span>
-                                <?php endif; ?>
-                            </td>
-                            <td class="px-6 py-4 text-center space-x-2">
-                                <?php if ($l['status'] === 'PENDENTE'): ?>
-                                    <button onclick='abrirModalBaixa(<?= $l['id'] ?>, <?= jsSafe($l['descricao']) ?>, <?= jsSafe($l['tipo']) ?>)' class="text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-300 font-bold text-sm bg-green-50 dark:bg-green-900/20 p-1.5 rounded transition-colors" title="Dar Baixa / Pagar">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                                    </button>
-                                <?php endif; ?>
-                                <button onclick='abrirModalEdicao(<?= jsSafe($l) ?>)' class="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-bold bg-blue-50 dark:bg-blue-900/20 p-1.5 rounded transition-colors" title="Editar">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
-                                </button>
-                                <button onclick="deletarLancamento(<?= $l['id'] ?>)" class="text-red-400 hover:text-red-600 dark:hover:text-red-400 font-bold bg-red-50 dark:bg-red-900/20 p-1.5 rounded transition-colors" title="Apagar">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                                </button>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
+        <div class="p-4 space-y-3 bg-gray-50 dark:bg-[#1a1e2b]" style="max-height: calc(100vh - 400px); overflow-y: auto;">
+            <?php if (empty($agrupado)): ?>
+                <p class="text-center text-gray-500 dark:text-gray-400 italic py-8">Nenhum lançamento encontrado no sistema.</p>
+            <?php endif; ?>
+
+            <?php foreach($agrupado as $g): 
+                $id_grupo = md5($g['nome']);
+            ?>
+                <div class="grupo-financeiro bg-white dark:bg-[#222736] rounded-lg border border-gray-200 dark:border-[#2a3142] shadow-sm overflow-hidden transition-colors duration-300">
+                    <!-- CABEÇALHO DO ACORDEÃO -->
+                    <div class="flex justify-between items-center p-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors select-none" onclick="toggleGrupo('<?= $id_grupo ?>', this)">
+                        <div class="flex items-center space-x-3 w-1/2">
+                            <svg class="w-5 h-5 text-gray-400 transform transition-transform duration-200 icon-seta" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                            <h3 class="font-bold text-gray-800 dark:text-gray-100 uppercase text-sm truncate texto-pesquisa" title="<?= htmlspecialchars($g['nome']) ?>"><?= htmlspecialchars($g['nome']) ?></h3>
+                            <span class="text-[10px] font-bold bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-0.5 rounded-full whitespace-nowrap"><?= count($g['lancamentos']) ?> Lanç.</span>
+                        </div>
+                        <div class="flex space-x-4 text-xs font-bold text-right">
+                            <?php if($g['receitas'] > 0): ?><span class="text-emerald-600 dark:text-emerald-400 hidden sm:inline">Entradas: R$ <?= number_format($g['receitas'], 2, ',', '.') ?></span><?php endif; ?>
+                            <?php if($g['despesas'] > 0): ?><span class="text-red-600 dark:text-red-400 hidden sm:inline">Saídas: R$ <?= number_format($g['despesas'], 2, ',', '.') ?></span><?php endif; ?>
+                        </div>
+                    </div>
+
+                    <!-- CORPO (TABELA DE PARCELAS) -->
+                    <div id="body-<?= $id_grupo ?>" class="hidden border-t border-gray-200 dark:border-gray-700">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-sm whitespace-nowrap">
+                                <thead class="bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 font-semibold text-[10px] uppercase tracking-wider border-b border-gray-200 dark:border-gray-700">
+                                    <tr>
+                                        <th class="px-4 py-2">Vencimento</th>
+                                        <th class="px-4 py-2">Descrição / Ref.</th>
+                                        <th class="px-4 py-2 text-right">Valor</th>
+                                        <th class="px-4 py-2 text-center">Status</th>
+                                        <th class="px-4 py-2 text-center">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-100 dark:divide-gray-700/50">
+                                    <?php foreach($g['lancamentos'] as $l): 
+                                        $is_atrasado = ($l['status'] === 'PENDENTE' && $l['data_vencimento'] < $hoje && $l['tipo'] === 'DESPESA');
+                                        $cor_valor = $l['tipo'] === 'RECEITA' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400';
+                                        $sinal = $l['tipo'] === 'RECEITA' ? '+' : '-';
+                                    ?>
+                                    <tr class="hover:bg-blue-50/50 dark:hover:bg-gray-700/30 transition-colors">
+                                        <td class="px-4 py-2.5 font-medium text-xs <?= $is_atrasado ? 'text-red-500 font-bold' : 'text-gray-700 dark:text-gray-300' ?>">
+                                            <?= formatarData($l['data_vencimento']) ?>
+                                        </td>
+                                        <td class="px-4 py-2.5 text-xs font-bold text-gray-800 dark:text-gray-200 uppercase">
+                                            <?= htmlspecialchars($l['descricao']) ?>
+                                            <?php if($l['num_parcelas'] > 1): ?>
+                                                <span class="text-[9px] text-blue-500 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30 px-1 ml-1 rounded">PARCELADO</span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td class="px-4 py-2.5 font-black text-xs text-right <?= $cor_valor ?>">
+                                            <?= $sinal ?> R$ <?= number_format($l['valor'], 2, ',', '.') ?>
+                                        </td>
+                                        <td class="px-4 py-2.5 text-center">
+                                            <?php if ($l['status'] === 'PAGO'): ?>
+                                                <span class="text-[9px] font-bold text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900/30 px-1.5 py-0.5 rounded border border-green-200 dark:border-green-800/50">BAIXADO</span>
+                                            <?php elseif ($is_atrasado): ?>
+                                                <span class="text-[9px] font-bold text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/30 px-1.5 py-0.5 rounded border border-red-200 dark:border-red-800/50 animate-pulse">ATRASADO</span>
+                                            <?php else: ?>
+                                                <span class="text-[9px] font-bold text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/30 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-800/50">PENDENTE</span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td class="px-4 py-2.5 text-center space-x-1">
+                                            <?php if ($l['status'] === 'PENDENTE'): ?>
+                                                <button onclick='abrirModalBaixa(<?= $l['id'] ?>, <?= jsSafe($l['descricao']) ?>, <?= jsSafe($l['tipo']) ?>)' class="text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-300 font-bold bg-green-50 dark:bg-green-900/20 p-1 rounded transition-colors" title="Dar Baixa / Pagar">
+                                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                                </button>
+                                            <?php endif; ?>
+                                            <button onclick='abrirModalEdicao(<?= jsSafe($l) ?>)' class="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-bold bg-blue-50 dark:bg-blue-900/20 p-1 rounded transition-colors" title="Editar">
+                                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                                            </button>
+                                            <button onclick="deletarLancamento(<?= $l['id'] ?>)" class="text-red-400 hover:text-red-600 dark:text-red-400 font-bold bg-red-50 dark:bg-red-900/20 p-1 rounded transition-colors" title="Apagar">
+                                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            <?php endforeach; ?>
         </div>
     </div>
 </div>
 
+<!-- ========================================== -->
+<!-- MODAIS                                     -->
+<!-- ========================================== -->
 <div id="modalLancamento" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 hidden opacity-0 transition-opacity duration-300">
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-4xl p-6 border border-gray-200 dark:border-gray-700 transform scale-95 transition-all duration-300 max-h-[95vh] overflow-y-auto" id="modalLancamentoConteudo">
         
@@ -372,5 +435,62 @@ require_once 'includes/header.php';
 </script>
 
 <script src="assets/js/financeiro.js?v=<?= time() ?>"></script>
+
+<!-- Script para a Geração dos Gráficos Interativos Chart.js -->
+<script>
+    const corTexto = document.documentElement.classList.contains('dark') ? '#9ca3af' : '#475569';
+    const corGrade = document.documentElement.classList.contains('dark') ? '#374151' : '#e2e8f0';
+
+    // Gráfico de Rosca - Status Financeiro
+    const ctxRosca = document.getElementById('chartRoscaFin');
+    if (ctxRosca) {
+        new Chart(ctxRosca.getContext('2d'), {
+            type: 'doughnut',
+            data: {
+                labels: <?= json_encode($chart_rosca_labels) ?>,
+                datasets: [{
+                    data: <?= json_encode($chart_rosca_data) ?>,
+                    backgroundColor: ['#10b981', '#34d399', '#f59e0b', '#ef4444'], // Verde Forte, Verde Claro, Laranja, Vermelho
+                    borderWidth: 0,
+                    hoverOffset: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '70%',
+                plugins: {
+                    legend: { position: 'right', labels: { color: corTexto, font: { size: 10, weight: 'bold' }, boxWidth: 12 } }
+                }
+            }
+        });
+    }
+
+    // Gráfico de Barras - Fluxo de 6 Meses
+    const ctxBar = document.getElementById('chartBarFin');
+    if (ctxBar) {
+        new Chart(ctxBar.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: <?= json_encode($chart_bar_labels) ?>,
+                datasets: [
+                    { label: 'Receitas', data: <?= json_encode($chart_bar_receitas) ?>, backgroundColor: '#10b981', borderRadius: 3 },
+                    { label: 'Despesas', data: <?= json_encode($chart_bar_despesas) ?>, backgroundColor: '#ef4444', borderRadius: 3 }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'top', labels: { color: corTexto, font: { size: 10, weight: 'bold' }, boxWidth: 12 } }
+                },
+                scales: {
+                    y: { beginAtZero: true, ticks: { stepSize: 1000, color: corTexto, font: { size: 10 } }, grid: { color: corGrade } },
+                    x: { ticks: { color: corTexto, font: { size: 10 } }, grid: { display: false } }
+                }
+            }
+        });
+    }
+</script>
 
 <?php require_once 'includes/footer.php'; ?>

@@ -204,13 +204,44 @@ async function deletarLancamento(id) {
     }
 }
 
-// 7. Filtro Rápido da Tabela
+// 7. Listagem Agrupada (Acordeão e Filtro)
+function toggleGrupo(id, element) {
+    const body = document.getElementById('body-' + id);
+    const icon = element.querySelector('.icon-seta');
+    if (body.classList.contains('hidden')) {
+        body.classList.remove('hidden');
+        icon.classList.add('rotate-180');
+    } else {
+        body.classList.add('hidden');
+        icon.classList.remove('rotate-180');
+    }
+}
+
 function filtrarTabela() {
     const filtro = document.getElementById('filtro_financeiro').value.toLowerCase();
-    const linhas = document.querySelectorAll('.tr-busca');
-    linhas.forEach(linha => {
-        const texto = linha.innerText.toLowerCase();
-        linha.style.display = texto.includes(filtro) ? '' : 'none';
+    const grupos = document.querySelectorAll('.grupo-financeiro');
+    
+    grupos.forEach(grupo => {
+        const textoGrupo = grupo.innerText.toLowerCase();
+        
+        if (textoGrupo.includes(filtro)) {
+            grupo.style.display = '';
+            
+            // Inteligência: Se estiver pesquisando mais de 2 letras, expande o acordeão sozinho
+            const body = grupo.querySelector('[id^="body-"]');
+            const icon = grupo.querySelector('.icon-seta');
+            
+            if (filtro.length > 2) {
+                body.classList.remove('hidden');
+                icon.classList.add('rotate-180');
+            } else if (filtro.length === 0) {
+                // Fecha de novo se apagar a pesquisa
+                body.classList.add('hidden');
+                icon.classList.remove('rotate-180');
+            }
+        } else {
+            grupo.style.display = 'none';
+        }
     });
 }
 
