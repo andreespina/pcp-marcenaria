@@ -124,7 +124,7 @@ function jsSafe($val) {
     if ($val === null) $val = ''; return htmlspecialchars(json_encode($val), ENT_QUOTES, 'UTF-8');
 }
 
-$page_title = 'PCP';
+$page_title = 'PAINEL DE CONTROLE';
 $page_subtitle = 'SBG Móveis & Design';
 $main_class = 'flex-1';
 $menu_button_text = 'MENU';
