@@ -1,12 +1,15 @@
 <?php
 // includes/logger.php
 
-function registrarLog($pdo, $acao, $tabela, $registro_id, $detalhes, $dados_antigos = null, $dados_novos = null) {
+// PHP 8: Tipagem super forte, incluindo parâmetros flexíveis para arrays (mixed) 
+// que serão convertidos para JSON em seguida
+function registrarLog(PDO $pdo, string $acao, string $tabela, int|string $registro_id, string $detalhes, mixed $dados_antigos = null, mixed $dados_novos = null): void {
     // Garante que a sessão existe para pegar quem fez a ação
     if (session_status() === PHP_SESSION_NONE) { session_start(); }
     
-    $usuario_id = isset($_SESSION['usuario_id']) ? $_SESSION['usuario_id'] : 0;
-    $usuario_nome = isset($_SESSION['usuario_nome']) ? $_SESSION['usuario_nome'] : 'Sistema';
+    // Coalescência com Casting para evitar bugs de injeção em log
+    $usuario_id = (int)($_SESSION['usuario_id'] ?? 0);
+    $usuario_nome = (string)($_SESSION['usuario_nome'] ?? 'Sistema');
 
     try {
         $stmt = $pdo->prepare("INSERT INTO logs_auditoria 

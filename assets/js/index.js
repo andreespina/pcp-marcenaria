@@ -44,11 +44,14 @@ async function atualizarStatusNoServidor(id, status) {
             headers: { 'Content-Type': 'application/json' }, 
             body: JSON.stringify({ id: id, status: status }) 
         }); 
-        const result = await response.json();
-        if(result.success) {
+        
+        const result = await response.json().catch(() => null);
+        
+        if (response.ok && result && result.success) {
             window.location.reload();
         } else {
-            console.error('Erro na atualização:', result.error);
+            console.error('Erro na atualização:', (result && result.error) ? result.error : `HTTP ${response.status}`);
+            window.location.reload(); // Recarrega para voltar o card pro lugar certo
         }
     } catch (error) { 
         window.location.reload();
@@ -60,17 +63,28 @@ async function deletarCliente(event, id) {
     if (!confirm(`Deseja apagar o registo ID #${id}?`)) return;
     const cardElement = document.querySelector(`[data-id="${id}"]`);
     try {
-        const response = await fetch('api/delete_client.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: id }) });
-        const result = await response.json();
-        if (result.success) { 
+        const response = await fetch('api/delete_client.php', { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' }, 
+            body: JSON.stringify({ id: id }) 
+        });
+        
+        const result = await response.json().catch(() => null);
+        
+        if (response.ok && result && result.success) { 
             cardElement.style.opacity = '0'; 
             cardElement.style.transform = 'scale(0.9)'; 
             setTimeout(() => {
                 cardElement.remove();
                 window.location.reload();
             }, 200); 
-        } 
-    } catch (error) { alert('Erro de rede.'); }
+        } else {
+            const erroMsg = (result && result.error) ? result.error : `Erro HTTP ${response.status}`;
+            alert('Erro: ' + erroMsg);
+        }
+    } catch (error) { 
+        alert('Erro de rede.'); 
+    }
 }
 
 function imprimirFicha(id, cliente, statusAtual, dataLimite, observacao, promob, corte, compras, ferragens, chkResp, medAgen, medData, equipe, dtIni, dtFim, diasUteis, projExec) {
@@ -98,7 +112,10 @@ function carregarHistoricoProjeto(projetoId) {
     timelineContainer.innerHTML = '<p class="italic text-gray-400 animate-pulse">A carregar histórico...</p>';
 
     fetch(`api/get_project_logs.php?id=${projetoId}`)
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            return response.json();
+        })
         .then(data => {
             if (data.success && data.logs.length > 0) {
                 timelineContainer.innerHTML = '';
@@ -154,9 +171,17 @@ async function salvarNovoServidor(event) {
     };
     try {
         const response = await fetch('api/add_client.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-        const result = await response.json();
-        if (result.success) { fecharModalNovo(); window.location.reload(); } else { alert('Erro: ' + result.error); }
-    } catch (error) { alert('Erro de rede.'); }
+        const result = await response.json().catch(() => null);
+        
+        if (response.ok && result && result.success) { 
+            fecharModalNovo(); window.location.reload(); 
+        } else { 
+            const erroMsg = (result && result.error) ? result.error : `Erro HTTP ${response.status}`;
+            alert('Erro: ' + erroMsg); 
+        }
+    } catch (error) { 
+        alert('Erro de rede.'); 
+    }
 }
 
 const modalEdicao = document.getElementById('modalEdicao'); const modalConteudo = document.getElementById('modalConteudo');
@@ -218,9 +243,17 @@ async function salvarEdicaoServidor(event) {
     };
     try {
         const response = await fetch('api/edit_client.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-        const result = await response.json();
-        if (result.success) { fecharModalEdicao(); window.location.reload(); } else { alert('Erro: ' + result.error); }
-    } catch (error) { alert('Erro de rede.'); }
+        const result = await response.json().catch(() => null);
+        
+        if (response.ok && result && result.success) { 
+            fecharModalEdicao(); window.location.reload(); 
+        } else { 
+            const erroMsg = (result && result.error) ? result.error : `Erro HTTP ${response.status}`;
+            alert('Erro: ' + erroMsg); 
+        }
+    } catch (error) { 
+        alert('Erro de rede.'); 
+    }
 }
 
 const modalUsuario = document.getElementById('modalUsuario'); function abrirModalUsuario() { modalUsuario.classList.remove('hidden'); setTimeout(() => { modalUsuario.classList.remove('opacity-0'); document.getElementById('modalUsuarioConteudo').classList.remove('scale-95'); }, 10); }
@@ -234,18 +267,58 @@ async function salvarUsuarioServidor(event) {
     const payload = { usuario: document.getElementById('novo_login').value, senha: document.getElementById('novo_senha').value, role: roleSelecionado, permissoes: permissoesSelecionadas }; 
     try { 
         const response = await fetch('api/add_user.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); 
-        const result = await response.json(); 
-        if (result.success) { alert('Utilizador registado com sucesso!'); fecharModalUsuario(); } else { alert('Erro: ' + result.error); } 
-    } catch (error) { alert('Erro de rede.'); } 
+        const result = await response.json().catch(() => null); 
+        
+        if (response.ok && result && result.success) { 
+            alert('Utilizador registado com sucesso!'); fecharModalUsuario(); 
+        } else { 
+            const erroMsg = (result && result.error) ? result.error : `Erro HTTP ${response.status}`;
+            alert('Erro: ' + erroMsg); 
+        } 
+    } catch (error) { 
+        alert('Erro de rede.'); 
+    } 
 }
 
 const modalSenha = document.getElementById('modalSenha'); function abrirModalSenha() { modalSenha.classList.remove('hidden'); setTimeout(() => { modalSenha.classList.remove('opacity-0'); document.getElementById('modalSenhaConteudo').classList.remove('scale-95'); }, 10); }
 function fecharModalSenha() { modalSenha.classList.add('opacity-0'); document.getElementById('modalSenhaConteudo').classList.add('scale-95'); setTimeout(() => { modalSenha.classList.add('hidden'); document.getElementById('formSenha').reset(); }, 300); }
-async function salvarSenhaServidor(event) { event.preventDefault(); const payload = { nova_senha: document.getElementById('nova_senha_input').value }; try { const response = await fetch('api/change_password.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); const result = await response.json(); if (result.success) { alert('Senha alterada!'); fecharModalSenha(); } else { alert('Erro: ' + result.error); } } catch (error) { alert('Erro de rede.'); } }
+async function salvarSenhaServidor(event) { 
+    event.preventDefault(); 
+    const payload = { nova_senha: document.getElementById('nova_senha_input').value }; 
+    try { 
+        const response = await fetch('api/change_password.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); 
+        const result = await response.json().catch(() => null); 
+        
+        if (response.ok && result && result.success) { 
+            alert('Senha alterada!'); fecharModalSenha(); 
+        } else { 
+            const erroMsg = (result && result.error) ? result.error : `Erro HTTP ${response.status}`;
+            alert('Erro: ' + erroMsg); 
+        } 
+    } catch (error) { 
+        alert('Erro de rede.'); 
+    } 
+}
 
 const modalNA = document.getElementById('modalNovaAssistencia'); function abrirModalNovaAssistencia(event, projeto_id, cliente) { event.stopPropagation(); document.getElementById('na_projeto_id').value = projeto_id; document.getElementById('na_cliente_nome').value = cliente; document.getElementById('label_na_cliente').innerText = cliente + ` (Projeto #${projeto_id})`; modalNA.classList.remove('hidden'); setTimeout(() => { modalNA.classList.remove('opacity-0'); document.getElementById('modalNovaAssistenciaConteudo').classList.remove('scale-95'); }, 10); }
 function fecharModalNovaAssistencia() { modalNA.classList.add('opacity-0'); document.getElementById('modalNovaAssistenciaConteudo').classList.add('scale-95'); setTimeout(() => { modalNA.classList.add('hidden'); document.getElementById('formNovaAssistencia').reset(); }, 300); }
-async function salvarNovaAssistencia(event) { event.preventDefault(); const payload = { projeto_id: document.getElementById('na_projeto_id').value, cliente: document.getElementById('na_cliente_nome').value, observacao: document.getElementById('na_observacao').value }; try { const response = await fetch('api/nova_assistencia.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); const result = await response.json(); if (result.success) { alert('Assistência registada!'); fecharModalNovaAssistencia(); window.location.reload(); } else { alert('Erro: ' + result.error); } } catch (error) { alert('Erro de rede.'); } }
+async function salvarNovaAssistencia(event) { 
+    event.preventDefault(); 
+    const payload = { projeto_id: document.getElementById('na_projeto_id').value, cliente: document.getElementById('na_cliente_nome').value, observacao: document.getElementById('na_observacao').value }; 
+    try { 
+        const response = await fetch('api/nova_assistencia.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); 
+        const result = await response.json().catch(() => null); 
+        
+        if (response.ok && result && result.success) { 
+            alert('Assistência registada!'); fecharModalNovaAssistencia(); window.location.reload(); 
+        } else { 
+            const erroMsg = (result && result.error) ? result.error : `Erro HTTP ${response.status}`;
+            alert('Erro: ' + erroMsg); 
+        } 
+    } catch (error) { 
+        alert('Erro de rede.'); 
+    } 
+}
 
 // LISTENERS FECHAR CLICK FORA
 if(modalNovo) modalNovo.addEventListener('click', (e) => { if (e.target === modalNovo) fecharModalNovo(); });

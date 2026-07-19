@@ -6,16 +6,18 @@ require_once '../config/conexao.php';
 
 header('Content-Type: application/json');
 
-// Validação extra: Apenas ADMIN deve poder excluir no Backend
-if (!isset($_SESSION['usuario_role']) || $_SESSION['usuario_role'] !== 'ADMIN') {
+// Validação extra e segura para o PHP 8
+if (($_SESSION['usuario_role'] ?? '') !== 'ADMIN') {
+    http_response_code(403);
     echo json_encode(['success' => false, 'error' => 'Permissão negada. Apenas administradores podem excluir.']);
     exit;
 }
 
-$data = json_decode(file_get_contents("php://input"), true);
-$id = isset($data['id']) ? intval($data['id']) : 0;
+$data = json_decode((string)file_get_contents("php://input"), true) ?? [];
+$id = (int)($data['id'] ?? 0);
 
 if ($id <= 0) {
+    http_response_code(400);
     echo json_encode(['success' => false, 'error' => 'ID inválido.']);
     exit;
 }
@@ -37,10 +39,12 @@ try {
         echo json_encode(['success' => true]);
     } else {
         $pdo->rollBack();
+        http_response_code(404);
         echo json_encode(['success' => false, 'error' => 'Assistência não encontrada.']);
     }
-} catch (PDOException $e) {
+} catch (\Throwable $e) {
     if ($pdo->inTransaction()) { $pdo->rollBack(); }
+    http_response_code(500);
     echo json_encode(['success' => false, 'error' => 'Erro no banco de dados: ' . $e->getMessage()]);
 }
 ?>

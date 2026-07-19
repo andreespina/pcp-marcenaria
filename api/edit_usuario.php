@@ -5,20 +5,24 @@ protegerAPI();
 require_once '../config/conexao.php';
 
 header('Content-Type: application/json');
-$data = json_decode(file_get_contents('php://input'), true);
+$data = json_decode((string)file_get_contents('php://input'), true);
 
-if ($data && isset($data['id'])) {
+$id = (int)($data['id'] ?? 0);
+
+if ($id > 0) {
     try {
-        $id = $data['id'];
-        $nome = mb_strtoupper($data['nome_completo'], 'UTF-8');
-        $setor = mb_strtoupper($data['setor'], 'UTF-8');
-        $login = $data['usuario'];
-        $role = $data['role'];
-        $json_permissoes = json_encode($data['permissoes']);
+        $nome = mb_strtoupper((string)($data['nome_completo'] ?? ''), 'UTF-8');
+        $setor = mb_strtoupper((string)($data['setor'] ?? ''), 'UTF-8');
+        $login = (string)($data['usuario'] ?? '');
+        $role = (string)($data['role'] ?? 'USER');
+        
+        $permissoes = $data['permissoes'] ?? [];
+        $json_permissoes = json_encode($permissoes, JSON_UNESCAPED_UNICODE);
+        
+        $senha = (string)($data['senha'] ?? '');
 
-        // Se preencheu a nova senha, atualiza o hash. Caso contrário, não mexe na senha atual.
-        if (!empty($data['senha'])) {
-            $senha_hash = password_hash($data['senha'], PASSWORD_DEFAULT);
+        if ($senha !== '') {
+            $senha_hash = password_hash($senha, PASSWORD_DEFAULT);
             $stmt = $pdo->prepare("UPDATE usuarios SET nome_completo = ?, setor = ?, usuario = ?, senha = ?, role = ?, permissoes = ? WHERE id = ?");
             $stmt->execute([$nome, $setor, $login, $senha_hash, $role, $json_permissoes, $id]);
         } else {
@@ -27,8 +31,12 @@ if ($data && isset($data['id'])) {
         }
 
         echo json_encode(['success' => true]);
-    } catch (PDOException $e) {
+    } catch (\PDOException $e) {
+        http_response_code(500);
         echo json_encode(['success' => false, 'error' => $e->getMessage()]);
     }
+} else {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'error' => 'ID inválido.']);
 }
 ?>

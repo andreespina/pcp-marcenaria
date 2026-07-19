@@ -5,27 +5,36 @@ protegerAPI();
 require_once '../config/conexao.php';
 
 header('Content-Type: application/json');
-$data = json_decode(file_get_contents('php://input'), true);
+$data = json_decode((string)file_get_contents('php://input'), true);
 
-if ($data && isset($data['id']) && isset($data['nova_data']) && isset($data['motivo'])) {
+$id = (int)($data['id'] ?? 0);
+$nova_data = (string)($data['nova_data'] ?? '');
+$motivo = (string)($data['motivo'] ?? '');
+
+if ($id > 0 && $nova_data !== '' && $motivo !== '') {
     try {
         // 1. Busca os dados atuais para não sobrescrever nada
         $stmtSel = $pdo->prepare("SELECT historico_reprojetos, revisao, data_apresentacao FROM comercial_leads WHERE id = ?");
-        $stmtSel->execute([$data['id']]);
+        $stmtSel->execute([$id]);
         $lead = $stmtSel->fetch(PDO::FETCH_ASSOC);
+
+        if (!$lead) {
+            echo json_encode(['success' => false, 'error' => 'Lead não encontrado.']);
+            exit;
+        }
 
         $historico = [];
         if (!empty($lead['historico_reprojetos'])) {
-            $historico = json_decode($lead['historico_reprojetos'], true) ?: [];
+            $historico = json_decode((string)$lead['historico_reprojetos'], true) ?: [];
         }
 
-        $nova_revisao = (int)$lead['revisao'] + 1;
+        $nova_revisao = (int)($lead['revisao'] ?? 0) + 1;
 
         // 2. Adiciona o novo evento de reprojeto ao histórico
         $historico[] = [
             'revisao' => $nova_revisao,
-            'data' => $data['nova_data'],
-            'motivo' => mb_strtoupper($data['motivo'], 'UTF-8'),
+            'data' => $nova_data,
+            'motivo' => mb_strtoupper($motivo, 'UTF-8'),
             'data_registro' => date('Y-m-d H:i:s')
         ];
 
@@ -41,13 +50,13 @@ if ($data && isset($data['id']) && isset($data['nova_data']) && isset($data['mot
                                WHERE id = :id");
         $stmt->execute([
             'rev' => $nova_revisao,
-            'dt' => $data['nova_data'],
+            'dt' => $nova_data,
             'hist' => $historico_json,
-            'id' => $data['id']
+            'id' => $id
         ]);
         
         echo json_encode(['success' => true]);
-    } catch (PDOException $e) {
+    } catch (\PDOException $e) {
         echo json_encode(['success' => false, 'error' => $e->getMessage()]);
     }
 } else {

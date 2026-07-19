@@ -5,14 +5,14 @@ protegerAPI();
 require_once '../config/conexao.php';
 
 header('Content-Type: application/json');
+$data = json_decode((string)file_get_contents('php://input'));
 
-$json = file_get_contents('php://input');
-$data = json_decode($json);
+$id = (int)($data->id ?? 0);
 
-if (isset($data->id)) {
+if ($id > 0) {
     try {
         $stmt = $pdo->prepare("DELETE FROM financeiro WHERE id = :id");
-        $stmt->execute(['id' => (int) $data->id]);
+        $stmt->execute(['id' => $id]);
 
         echo json_encode(['success' => true]);
     } catch (\PDOException $e) {

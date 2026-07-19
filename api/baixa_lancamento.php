@@ -6,15 +6,17 @@ require_once '../config/conexao.php';
 
 header('Content-Type: application/json');
 
-$json = file_get_contents('php://input');
-$data = json_decode($json);
+$data = json_decode((string)file_get_contents('php://input'));
 
-if (isset($data->id) && isset($data->data_pagamento)) {
+$id = (int)($data->id ?? 0);
+$data_pagamento = (string)($data->data_pagamento ?? '');
+
+if ($id > 0 && $data_pagamento !== '') {
     try {
         $stmt = $pdo->prepare("UPDATE financeiro SET status = 'PAGO', data_pagamento = :data_pagamento WHERE id = :id");
         $stmt->execute([
-            'id' => (int) $data->id,
-            'data_pagamento' => $data->data_pagamento
+            'id' => $id,
+            'data_pagamento' => $data_pagamento
         ]);
 
         echo json_encode(['success' => true]);

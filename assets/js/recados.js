@@ -74,12 +74,14 @@ async function salvarRecado(event) {
             headers: { 'Content-Type': 'application/json' }, 
             body: JSON.stringify(payload) 
         });
-        const result = await response.json();
         
-        if (result.success) { 
+        const result = await response.json().catch(() => null);
+        
+        if (response.ok && result && result.success) { 
             window.location.reload(); 
         } else { 
-            alert('Erro: ' + (result.error || 'Erro desconhecido ao salvar o recado.')); 
+            const erroMsg = (result && result.error) ? result.error : `Erro HTTP ${response.status}`;
+            alert('Erro: ' + erroMsg); 
         }
     } catch (error) { 
         alert('Erro de rede ao salvar recado.'); 
@@ -94,12 +96,14 @@ async function deletarRecado(id) {
             headers: { 'Content-Type': 'application/json' }, 
             body: JSON.stringify({ id: id }) 
         });
-        const result = await response.json();
         
-        if (result.success) { 
+        const result = await response.json().catch(() => null);
+        
+        if (response.ok && result && result.success) { 
             window.location.reload(); 
         } else { 
-            alert('Erro ao apagar: ' + result.error); 
+            const erroMsg = (result && result.error) ? result.error : `Erro HTTP ${response.status}`;
+            alert('Erro ao apagar: ' + erroMsg); 
         }
     } catch (error) { 
         alert('Erro de rede ao apagar o recado.'); 
@@ -174,12 +178,14 @@ async function salvarMensagem(event) {
             headers: { 'Content-Type': 'application/json' }, 
             body: JSON.stringify(payload) 
         });
-        const result = await response.json();
         
-        if (result.success) { 
+        const result = await response.json().catch(() => null);
+        
+        if (response.ok && result && result.success) { 
             window.location.reload(); 
         } else { 
-            alert('Erro: ' + (result.error || 'Erro desconhecido ao salvar mensagem.')); 
+            const erroMsg = (result && result.error) ? result.error : `Erro HTTP ${response.status}`;
+            alert('Erro: ' + erroMsg); 
         }
     } catch (error) { 
         alert('Erro de rede ao salvar mensagem.'); 
@@ -194,12 +200,14 @@ async function deletarMensagem(id) {
             headers: { 'Content-Type': 'application/json' }, 
             body: JSON.stringify({ id: id }) 
         });
-        const result = await response.json();
         
-        if (result.success) { 
+        const result = await response.json().catch(() => null);
+        
+        if (response.ok && result && result.success) { 
             window.location.reload(); 
         } else { 
-            alert('Erro ao apagar: ' + result.error); 
+            const erroMsg = (result && result.error) ? result.error : `Erro HTTP ${response.status}`;
+            alert('Erro ao apagar: ' + erroMsg); 
         }
     } catch (error) { 
         alert('Erro de rede ao apagar mensagem.'); 

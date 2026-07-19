@@ -33,58 +33,61 @@ try {
     $formas_pagamento = [];
     
     foreach($cadastros_base as $cad) {
-        if($cad['tipo'] == 'PLANO_CONTA') $planos_conta[] = $cad['nome'];
-        if($cad['tipo'] == 'FORMA_PAGAMENTO') $formas_pagamento[] = $cad['nome'];
+        if($cad['tipo'] === 'PLANO_CONTA') $planos_conta[] = $cad['nome'];
+        if($cad['tipo'] === 'FORMA_PAGAMENTO') $formas_pagamento[] = $cad['nome'];
     }
     // -------------------------------------------------------
 
     // 3. Cálculos do Dashboard e Agrupamento por Entidade
-    $receitas_pagas = 0; $receitas_pendentes = 0;
-    $despesas_pagas = 0; $despesas_pendentes = 0;
-    $total_atrasado = 0;
+    $receitas_pagas = 0.0; $receitas_pendentes = 0.0;
+    $despesas_pagas = 0.0; $despesas_pendentes = 0.0;
+    $total_atrasado = 0.0;
 
     $agrupado = []; // Matriz que vai guardar os lançamentos agrupados
 
     foreach ($lancamentos as $l) {
-        $valor = (float) $l['valor'];
+        $valor = (float) ($l['valor'] ?? 0);
         
         // Dashboard
-        if ($l['tipo'] === 'RECEITA') {
-            if ($l['status'] === 'PAGO') $receitas_pagas += $valor;
+        if (($l['tipo'] ?? '') === 'RECEITA') {
+            if (($l['status'] ?? '') === 'PAGO') $receitas_pagas += $valor;
             else $receitas_pendentes += $valor;
         } else {
-            if ($l['status'] === 'PAGO') $despesas_pagas += $valor;
+            if (($l['status'] ?? '') === 'PAGO') $despesas_pagas += $valor;
             else $despesas_pendentes += $valor;
         }
 
-        if ($l['status'] === 'PENDENTE' && $l['data_vencimento'] < $hoje && $l['tipo'] === 'DESPESA') {
+        if (($l['status'] ?? '') === 'PENDENTE' && ($l['data_vencimento'] ?? '') < $hoje && ($l['tipo'] ?? '') === 'DESPESA') {
             $total_atrasado += $valor;
         }
 
-        // Lógica de Agrupamento
-        $nome_entidade = 'DIVERSOS / NÃO INFORMADO';
-        
-        if ($l['entidade_tipo'] === 'CLIENTE' && isset($map_clientes[$l['entidade_id']])) {
-            $nome_entidade = $map_clientes[$l['entidade_id']];
-        } elseif ($l['entidade_tipo'] === 'FORNECEDOR' && isset($map_fornecedores[$l['entidade_id']])) {
-            $nome_entidade = $map_fornecedores[$l['entidade_id']];
-        } elseif (!empty($l['cliente_fornecedor'])) {
-            $nome_entidade = $l['cliente_fornecedor']; 
-        }
+        // Nova Lógica de Agrupamento usando Match do PHP 8
+        $entidade_tipo = $l['entidade_tipo'] ?? '';
+        $entidade_id = $l['entidade_id'] ?? 0;
+        $fallback_nome = !empty($l['cliente_fornecedor']) ? $l['cliente_fornecedor'] : 'DIVERSOS / NÃO INFORMADO';
+
+        $nome_entidade = match ($entidade_tipo) {
+            'CLIENTE' => $map_clientes[$entidade_id] ?? $fallback_nome,
+            'FORNECEDOR' => $map_fornecedores[$entidade_id] ?? $fallback_nome,
+            default => $fallback_nome,
+        };
 
         // Cria a pasta da entidade se não existir
         if (!isset($agrupado[$nome_entidade])) {
             $agrupado[$nome_entidade] = [
                 'nome' => $nome_entidade,
-                'receitas' => 0,
-                'despesas' => 0,
+                'receitas' => 0.0,
+                'despesas' => 0.0,
                 'lancamentos' => []
             ];
         }
         
         // Soma os valores dentro do grupo e guarda o lançamento
-        if ($l['tipo'] === 'RECEITA') $agrupado[$nome_entidade]['receitas'] += $valor;
-        else $agrupado[$nome_entidade]['despesas'] += $valor;
+        if (($l['tipo'] ?? '') === 'RECEITA') {
+            $agrupado[$nome_entidade]['receitas'] += $valor;
+        } else {
+            $agrupado[$nome_entidade]['despesas'] += $valor;
+        }
         
         $agrupado[$nome_entidade]['lancamentos'][] = $l;
     }
@@ -118,10 +121,18 @@ try {
         $chart_bar_despesas[] = (float)$stmt_des->fetchColumn();
     }
 
-} catch (\PDOException $e) { die("Erro na consulta: " . $e->getMessage()); }
+} catch (\PDOException $e) { 
+    die("Erro na consulta: " . $e->getMessage()); 
+}
 
-function formatarData($data) { if (!$data) return '-'; return date('d/m/Y', strtotime($data)); }
-function jsSafe($val) { return htmlspecialchars(json_encode($val), ENT_QUOTES, 'UTF-8'); }
+// Funções Auxiliares Tipadas para PHP 8
+function formatarData(?string $data): string { 
+    return $data ? date('d/m/Y', strtotime($data)) : '-'; 
+}
+
+function jsSafe(mixed $val): string { 
+    return htmlspecialchars(json_encode($val ?? ''), ENT_QUOTES, 'UTF-8'); 
+}
 
 $page_title = 'GESTÃO FINANCEIRA';
 $page_subtitle = 'Controle de Caixa, Contas a Pagar e Receber';
@@ -256,25 +267,27 @@ require_once 'includes/header.php';
                                 </thead>
                                 <tbody class="divide-y divide-gray-100 dark:divide-gray-700/50">
                                     <?php foreach($g['lancamentos'] as $l): 
-                                        $is_atrasado = ($l['status'] === 'PENDENTE' && $l['data_vencimento'] < $hoje && $l['tipo'] === 'DESPESA');
-                                        $cor_valor = $l['tipo'] === 'RECEITA' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400';
-                                        $sinal = $l['tipo'] === 'RECEITA' ? '+' : '-';
+                                        $tipo = $l['tipo'] ?? '';
+                                        $status = $l['status'] ?? '';
+                                        $is_atrasado = ($status === 'PENDENTE' && ($l['data_vencimento'] ?? '') < $hoje && $tipo === 'DESPESA');
+                                        $cor_valor = $tipo === 'RECEITA' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400';
+                                        $sinal = $tipo === 'RECEITA' ? '+' : '-';
                                     ?>
                                     <tr class="hover:bg-blue-50/50 dark:hover:bg-gray-700/30 transition-colors">
                                         <td class="px-4 py-2.5 font-medium text-xs <?= $is_atrasado ? 'text-red-500 font-bold' : 'text-gray-700 dark:text-gray-300' ?>">
-                                            <?= formatarData($l['data_vencimento']) ?>
+                                            <?= formatarData($l['data_vencimento'] ?? null) ?>
                                         </td>
                                         <td class="px-4 py-2.5 text-xs font-bold text-gray-800 dark:text-gray-200 uppercase">
-                                            <?= htmlspecialchars($l['descricao']) ?>
-                                            <?php if($l['num_parcelas'] > 1): ?>
+                                            <?= htmlspecialchars($l['descricao'] ?? '') ?>
+                                            <?php if(($l['num_parcelas'] ?? 1) > 1): ?>
                                                 <span class="text-[9px] text-blue-500 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30 px-1 ml-1 rounded">PARCELADO</span>
                                             <?php endif; ?>
                                         </td>
                                         <td class="px-4 py-2.5 font-black text-xs text-right <?= $cor_valor ?>">
-                                            <?= $sinal ?> R$ <?= number_format($l['valor'], 2, ',', '.') ?>
+                                            <?= $sinal ?> R$ <?= number_format((float)($l['valor'] ?? 0), 2, ',', '.') ?>
                                         </td>
                                         <td class="px-4 py-2.5 text-center">
-                                            <?php if ($l['status'] === 'PAGO'): ?>
+                                            <?php if ($status === 'PAGO'): ?>
                                                 <span class="text-[9px] font-bold text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900/30 px-1.5 py-0.5 rounded border border-green-200 dark:border-green-800/50">BAIXADO</span>
                                             <?php elseif ($is_atrasado): ?>
                                                 <span class="text-[9px] font-bold text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/30 px-1.5 py-0.5 rounded border border-red-200 dark:border-red-800/50 animate-pulse">ATRASADO</span>
@@ -283,8 +296,8 @@ require_once 'includes/header.php';
                                             <?php endif; ?>
                                         </td>
                                         <td class="px-4 py-2.5 text-center space-x-1">
-                                            <?php if ($l['status'] === 'PENDENTE'): ?>
-                                                <button onclick='abrirModalBaixa(<?= $l['id'] ?>, <?= jsSafe($l['descricao']) ?>, <?= jsSafe($l['tipo']) ?>)' class="text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-300 font-bold bg-green-50 dark:bg-green-900/20 p-1 rounded transition-colors" title="Dar Baixa / Pagar">
+                                            <?php if ($status === 'PENDENTE'): ?>
+                                                <button onclick='abrirModalBaixa(<?= $l['id'] ?>, <?= jsSafe($l['descricao']) ?>, <?= jsSafe($tipo) ?>)' class="text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-300 font-bold bg-green-50 dark:bg-green-900/20 p-1 rounded transition-colors" title="Dar Baixa / Pagar">
                                                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
                                                 </button>
                                             <?php endif; ?>

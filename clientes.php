@@ -12,9 +12,9 @@ try {
     die("Erro na consulta: " . $e->getMessage());
 }
 
-function jsSafe($val) {
-    if ($val === null) $val = '';
-    return htmlspecialchars(json_encode($val), ENT_QUOTES, 'UTF-8');
+// PHP 8: Tipagem e coalescência para maior segurança no JSON Encode
+function jsSafe(mixed $val): string {
+    return htmlspecialchars(json_encode($val ?? ''), ENT_QUOTES, 'UTF-8');
 }
 
 // ---- VARIÁVEIS PARA O HEADER.PHP ----
@@ -93,13 +93,14 @@ require_once 'includes/header.php';
             <?php endif; ?>
             
             <?php foreach ($clientes as $c): 
-                $codigo_exibicao = !empty($c['codigo_cliente']) ? htmlspecialchars($c['codigo_cliente']) : "CLI-" . str_pad($c['id'], 2, "0", STR_PAD_LEFT);
+                $codigo_exibicao = !empty($c['codigo_cliente']) ? htmlspecialchars($c['codigo_cliente']) : "CLI-" . str_pad((string)$c['id'], 2, "0", STR_PAD_LEFT);
 
+                // PHP 8: Usando Null Coalescing e checagem !empty para concatenação de Strings de Endereço
                 $end_parts = [];
-                if($c['endereco']) $end_parts[] = $c['endereco'];
-                if($c['numero_lote']) $end_parts[] = $c['numero_lote'];
-                if($c['condominio']) $end_parts[] = $c['condominio'];
-                if($c['cidade']) $end_parts[] = $c['cidade'];
+                if(!empty($c['endereco'])) $end_parts[] = $c['endereco'];
+                if(!empty($c['numero_lote'])) $end_parts[] = $c['numero_lote'];
+                if(!empty($c['condominio'])) $end_parts[] = $c['condominio'];
+                if(!empty($c['cidade'])) $end_parts[] = $c['cidade'];
                 $endereco_resumido = implode(", ", $end_parts);
 
                 $cardData = htmlspecialchars(json_encode([
@@ -123,7 +124,7 @@ require_once 'includes/header.php';
                                 [<?= $codigo_exibicao ?>]
                             </span>
                             
-                            <span class="font-bold text-gray-800 dark:text-gray-100 uppercase truncate text-sm nome-busca"><?= htmlspecialchars($c['nome_contrato']) ?></span>
+                            <span class="font-bold text-gray-800 dark:text-gray-100 uppercase truncate text-sm nome-busca"><?= htmlspecialchars($c['nome_contrato'] ?? '') ?></span>
                         </div>
                         
                         <div class="flex items-center space-x-2 pl-2" onclick="event.stopPropagation();">
@@ -149,32 +150,32 @@ require_once 'includes/header.php';
                             
                             <div class="space-y-2">
                                 <h4 class="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-2">Contatos Gerais</h4>
-                                <p class="text-gray-700 dark:text-gray-300"><strong class="text-gray-500 dark:text-gray-400">E-mail:</strong> <?= htmlspecialchars($c['email']) ?: '-' ?></p>
-                                <?php if($c['telefone']): ?>
+                                <p class="text-gray-700 dark:text-gray-300"><strong class="text-gray-500 dark:text-gray-400">E-mail:</strong> <?= ($c['email'] ?? '') ?: '-' ?></p>
+                                <?php if(!empty($c['telefone'])): ?>
                                     <p class="text-gray-700 dark:text-gray-300"><strong class="text-gray-500 dark:text-gray-400">Telefone:</strong> <?= htmlspecialchars($c['telefone']) ?></p>
                                 <?php endif; ?>
-                                <?php if($c['whatsapp']): ?>
+                                <?php if(!empty($c['whatsapp'])): ?>
                                     <p class="text-green-600 dark:text-green-400 font-bold">
                                         <a href="https://wa.me/55<?= preg_replace('/[^0-9]/', '', $c['whatsapp']) ?>" target="_blank" class="hover:underline flex items-center">
                                             <span class="mr-1">💬 WhatsApp:</span> <?= htmlspecialchars($c['whatsapp']) ?>
                                         </a>
                                     </p>
                                 <?php endif; ?>
-                                <p class="text-gray-700 dark:text-gray-300"><strong class="text-gray-500 dark:text-gray-400">CPF/CNPJ:</strong> <?= htmlspecialchars($c['cpf_cnpj']) ?: '-' ?></p>
+                                <p class="text-gray-700 dark:text-gray-300"><strong class="text-gray-500 dark:text-gray-400">CPF/CNPJ:</strong> <?= ($c['cpf_cnpj'] ?? '') ?: '-' ?></p>
                             </div>
 
                             <div class="bg-indigo-50/60 dark:bg-indigo-900/20 p-3 rounded border border-indigo-100 dark:border-indigo-800">
                                 <h4 class="text-[10px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 mb-2">Arquiteto(a) Vinculado</h4>
-                                <?php if($c['arquiteto_nome']): ?>
+                                <?php if(!empty($c['arquiteto_nome'])): ?>
                                     <p class="text-gray-800 dark:text-gray-200 font-bold uppercase mb-1"><?= htmlspecialchars($c['arquiteto_nome']) ?></p>
-                                    <?php if($c['arquiteto_whatsapp']): ?>
+                                    <?php if(!empty($c['arquiteto_whatsapp'])): ?>
                                         <p class="text-green-600 dark:text-green-400 font-bold mb-1">
                                             <a href="https://wa.me/55<?= preg_replace('/[^0-9]/', '', $c['arquiteto_whatsapp']) ?>" target="_blank" class="hover:underline">
                                                 💬 <?= htmlspecialchars($c['arquiteto_whatsapp']) ?>
                                             </a>
                                         </p>
                                     <?php endif; ?>
-                                    <?php if($c['arquiteto_email']): ?>
+                                    <?php if(!empty($c['arquiteto_email'])): ?>
                                         <p class="text-gray-600 dark:text-gray-400"><?= htmlspecialchars($c['arquiteto_email']) ?></p>
                                     <?php endif; ?>
                                 <?php else: ?>
@@ -185,15 +186,15 @@ require_once 'includes/header.php';
                             <div class="space-y-1.5">
                                 <h4 class="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-2">Local da Obra</h4>
                                 <?php if($endereco_resumido): ?>
-                                    <p class="text-gray-800 dark:text-gray-200 font-bold uppercase"><?= htmlspecialchars($c['endereco']) ?><?= $c['numero_lote'] ? ', Nº ' . htmlspecialchars($c['numero_lote']) : '' ?></p>
-                                    <?php if($c['quadra'] || $c['bairro']): ?>
-                                        <p class="text-gray-600 dark:text-gray-400"><?= $c['quadra'] ? 'Quadra/Lote: ' . htmlspecialchars($c['quadra']) : '' ?><?= $c['bairro'] ? ' - Bairro: ' . htmlspecialchars($c['bairro']) : '' ?></p>
+                                    <p class="text-gray-800 dark:text-gray-200 font-bold uppercase"><?= htmlspecialchars($c['endereco'] ?? '') ?><?= !empty($c['numero_lote']) ? ', Nº ' . htmlspecialchars($c['numero_lote']) : '' ?></p>
+                                    <?php if(!empty($c['quadra']) || !empty($c['bairro'])): ?>
+                                        <p class="text-gray-600 dark:text-gray-400"><?= !empty($c['quadra']) ? 'Quadra/Lote: ' . htmlspecialchars($c['quadra']) : '' ?><?= !empty($c['bairro']) ? ' - Bairro: ' . htmlspecialchars($c['bairro']) : '' ?></p>
                                     <?php endif; ?>
-                                    <?php if($c['condominio']): ?>
+                                    <?php if(!empty($c['condominio'])): ?>
                                         <p class="text-amber-600 dark:text-amber-400 font-bold mt-1">🏢 Condomínio: <?= htmlspecialchars($c['condominio']) ?></p>
                                     <?php endif; ?>
-                                    <?php if($c['complemento'] || $c['cidade']): ?>
-                                        <p class="text-gray-500 dark:text-gray-400 italic mt-1"><?= $c['complemento'] ? htmlspecialchars($c['complemento']) . ' ' : '' ?><?= $c['cidade'] ? ' (' . htmlspecialchars($c['cidade']) . ')' : '' ?></p>
+                                    <?php if(!empty($c['complemento']) || !empty($c['cidade'])): ?>
+                                        <p class="text-gray-500 dark:text-gray-400 italic mt-1"><?= !empty($c['complemento']) ? htmlspecialchars($c['complemento']) . ' ' : '' ?><?= !empty($c['cidade']) ? ' (' . htmlspecialchars($c['cidade']) . ')' : '' ?></p>
                                     <?php endif; ?>
                                 <?php else: ?>
                                     <p class="italic text-gray-500 dark:text-gray-400">Endereço não cadastrado.</p>
@@ -201,7 +202,7 @@ require_once 'includes/header.php';
                             </div>
                         </div>
 
-                        <?php if($c['observacao']): ?>
+                        <?php if(!empty($c['observacao'])): ?>
                             <div class="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
                                 <h4 class="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-2">Observações do Cliente</h4>
                                 <p class="bg-yellow-50 dark:bg-yellow-900/10 p-3 rounded border border-yellow-200 dark:border-yellow-800/50 text-yellow-800 dark:text-yellow-400 italic font-medium whitespace-pre-wrap">"<?= htmlspecialchars($c['observacao']) ?>"</p>

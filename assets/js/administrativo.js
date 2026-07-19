@@ -60,13 +60,14 @@ async function salvarNovoContrato(event) {
         const response = await fetch('api/add_administrativo_manual.php', {
             method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
         });
-        const result = await response.json();
+        const result = await response.json().catch(() => null);
         
-        if(result.success) {
+        if(response.ok && result && result.success) {
             fecharModalNovoContrato();
             window.location.reload();
         } else {
-            alert('Erro: ' + result.error);
+            const erroMsg = (result && result.error) ? result.error : `Erro HTTP ${response.status}`;
+            alert('Erro: ' + erroMsg);
         }
     } catch(e) {
         alert('Falha na conexão com a API.');
@@ -213,13 +214,14 @@ async function salvarGerenciar(event) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
-        const result = await response.json();
+        const result = await response.json().catch(() => null);
         
-        if(result.success) {
+        if(response.ok && result && result.success) {
             fecharModalGerenciar();
             window.location.reload();
         } else {
-            alert('Erro ao salvar: ' + result.error);
+            const erroMsg = (result && result.error) ? result.error : `Erro HTTP ${response.status}`;
+            alert('Erro ao salvar: ' + erroMsg);
         }
     } catch(e) {
         alert('Falha na conexão com o servidor.');

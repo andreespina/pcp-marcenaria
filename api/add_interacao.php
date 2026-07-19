@@ -5,10 +5,12 @@ protegerAPI();
 require_once '../config/conexao.php';
 
 header('Content-Type: application/json');
-$json = file_get_contents('php://input');
-$data = json_decode($json, true);
+$data = json_decode((string)file_get_contents('php://input'), true) ?? [];
 
-if ($data && !empty($data['cliente_id']) && !empty($data['observacao'])) {
+$cliente_id = (int)($data['cliente_id'] ?? 0);
+$observacao = trim((string)($data['observacao'] ?? ''));
+
+if ($cliente_id > 0 && $observacao !== '') {
     try {
         // Armadura Definitiva: Garante que a tabela existe antes de tentar inserir
         $pdo->exec("CREATE TABLE IF NOT EXISTS clientes_interacoes (
@@ -20,20 +22,21 @@ if ($data && !empty($data['cliente_id']) && !empty($data['observacao'])) {
             data_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )");
 
-        // Busca o nome do usuário logado na sessão
-        $usuario = isset($_SESSION['usuario_nome']) ? $_SESSION['usuario_nome'] : 'Sistema';
+        // Busca o nome do usuário logado na sessão com fallback limpo
+        $usuario = (string)($_SESSION['usuario_nome'] ?? 'Sistema');
+        $tipo = strtoupper((string)($data['tipo'] ?? 'ANOTAÇÃO'));
 
         $stmt = $pdo->prepare("INSERT INTO clientes_interacoes (cliente_id, usuario_nome, tipo_interacao, observacao) VALUES (?, ?, ?, ?)");
         $stmt->execute([
-            $data['cliente_id'],
+            $cliente_id,
             $usuario,
-            strtoupper($data['tipo']),
-            trim($data['observacao'])
+            $tipo,
+            $observacao
         ]);
 
         echo json_encode(['success' => true]);
 
-    } catch (PDOException $e) {
+    } catch (\PDOException $e) {
         http_response_code(500);
         echo json_encode(['success' => false, 'error' => $e->getMessage()]);
     }

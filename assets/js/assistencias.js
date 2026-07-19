@@ -156,13 +156,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function atualizarStatusAsst(id, status) { 
     try { 
-        await fetch('api/update_assistencia_status.php', { 
+        const response = await fetch('api/update_assistencia_status.php', { 
             method: 'POST', 
             headers: { 'Content-Type': 'application/json' }, 
             body: JSON.stringify({ id: id, status: status }) 
         }); 
+        
+        const result = await response.json().catch(() => null);
+        if (!response.ok || !result || !result.success) {
+            console.error("Falha ao atualizar o status do card.");
+            window.location.reload(); 
+        }
     } catch (error) {
-        console.error("Falha ao atualizar o status do card.");
+        console.error("Erro de rede ao atualizar o status do card.");
+        window.location.reload(); 
     } 
 }
 
@@ -202,9 +209,10 @@ async function deletarAssistencia(event, id) {
             headers: { 'Content-Type': 'application/json' }, 
             body: JSON.stringify({ id: id }) 
         });
-        const result = await response.json();
         
-        if (result.success) { 
+        const result = await response.json().catch(() => null);
+        
+        if (response.ok && result && result.success) { 
             if(cardElement) {
                 cardElement.style.opacity = '0'; 
                 cardElement.style.transform = 'scale(0.9)'; 
@@ -213,7 +221,8 @@ async function deletarAssistencia(event, id) {
                 window.location.reload();
             }
         } else {
-            alert('Erro ao excluir: ' + (result.error || 'Erro desconhecido'));
+            const erroMsg = (result && result.error) ? result.error : `Erro HTTP ${response.status}`;
+            alert('Erro ao excluir: ' + erroMsg);
         }
     } catch (error) { 
         alert('Erro de rede ao tentar excluir.'); 
@@ -366,12 +375,13 @@ async function salvarNovaAssistencia(event) {
     
     try { 
         const response = await fetch('api/nova_assistencia.php', { method: 'POST', body: formData }); 
-        const result = await response.json(); 
+        const result = await response.json().catch(() => null); 
         
-        if (result.success) { 
+        if (response.ok && result && result.success) { 
             window.location.reload(); 
         } else { 
-            alert('Erro: ' + (result.error || 'Erro desconhecido')); 
+            const erroMsg = (result && result.error) ? result.error : `Erro HTTP ${response.status}`;
+            alert('Erro: ' + erroMsg); 
         } 
     } catch (error) { 
         alert('Erro de comunicação. Verifique a sua conexão.'); 
@@ -444,12 +454,13 @@ async function salvarEdicaoAssistencia(event) {
 
     try { 
         const response = await fetch('api/edit_assistencia.php', { method: 'POST', body: formData }); 
-        const result = await response.json(); 
+        const result = await response.json().catch(() => null); 
         
-        if (result.success) { 
+        if (response.ok && result && result.success) { 
             window.location.reload(); 
         } else { 
-            alert('Erro: ' + (result.error || 'Erro desconhecido')); 
+            const erroMsg = (result && result.error) ? result.error : `Erro HTTP ${response.status}`;
+            alert('Erro: ' + erroMsg); 
         } 
     } catch (error) { 
         alert('Erro de comunicação. Verifique a sua conexão.'); 
@@ -503,12 +514,13 @@ async function salvarBaixaServidor(event) {
             headers: { 'Content-Type': 'application/json' }, 
             body: JSON.stringify(payload) 
         }); 
-        const result = await response.json(); 
+        const result = await response.json().catch(() => null); 
         
-        if (result.success) { 
+        if (response.ok && result && result.success) { 
             window.location.reload(); 
         } else { 
-            alert('Erro: ' + (result.error || 'Erro desconhecido')); 
+            const erroMsg = (result && result.error) ? result.error : `Erro HTTP ${response.status}`;
+            alert('Erro: ' + erroMsg); 
         } 
     } catch (error) { 
         alert('Erro de rede.'); 

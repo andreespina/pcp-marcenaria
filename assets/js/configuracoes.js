@@ -46,13 +46,14 @@ async function salvarEmpresa(event) {
 
     try {
         const response = await fetch('api/save_empresa.php', { method: 'POST', body: formData });
-        const result = await response.json();
+        const result = await response.json().catch(() => null);
         
-        if (result.success) {
+        if (response.ok && result && result.success) {
             alert("Dados da empresa atualizados com sucesso!");
             window.location.reload();
         } else {
-            alert("Erro: " + result.error);
+            const erroMsg = (result && result.error) ? result.error : `Erro HTTP ${response.status}`;
+            alert("Erro: " + erroMsg);
             btn.innerHTML = txtOriginal;
             btn.disabled = false;
         }
@@ -102,12 +103,14 @@ async function salvarCadastroBase(event) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
-        const result = await response.json();
         
-        if (result.success) {
+        const result = await response.json().catch(() => null);
+        
+        if (response.ok && result && result.success) {
             window.location.reload();
         } else {
-            alert("Erro: " + result.error);
+            const erroMsg = (result && result.error) ? result.error : `Erro HTTP ${response.status}`;
+            alert("Erro: " + erroMsg);
         }
     } catch (error) {
         alert("Erro de comunicação com o servidor.");
@@ -123,12 +126,14 @@ async function deletarCadastro(id) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ id: id })
         });
-        const result = await response.json();
         
-        if (result.success) {
+        const result = await response.json().catch(() => null);
+        
+        if (response.ok && result && result.success) {
             window.location.reload();
         } else {
-            alert("Erro: " + result.error);
+            const erroMsg = (result && result.error) ? result.error : `Erro HTTP ${response.status}`;
+            alert("Erro: " + erroMsg);
         }
     } catch (error) {
         alert("Erro de comunicação com o servidor.");

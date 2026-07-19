@@ -14,7 +14,8 @@ try {
     $estoque_ok = 0;
 
     foreach ($itens as $i) {
-        if ($i['quantidade'] <= $i['quantidade_minima']) {
+        // PHP 8: Proteção contra valores nulos antes da comparação matemática
+        if (($i['quantidade'] ?? 0) <= ($i['quantidade_minima'] ?? 0)) {
             $itens_criticos++;
         } else {
             $estoque_ok++;
@@ -29,8 +30,9 @@ try {
     $unidades_medida = [];
     
     foreach($cadastros_almox as $cad) {
-        if($cad['tipo'] == 'CATEGORIA_ALMOX') $categorias_almox[] = $cad['nome'];
-        if($cad['tipo'] == 'UNIDADE_MEDIDA') $unidades_medida[] = $cad['nome'];
+        $tipo = $cad['tipo'] ?? '';
+        if($tipo === 'CATEGORIA_ALMOX') $categorias_almox[] = $cad['nome'];
+        if($tipo === 'UNIDADE_MEDIDA') $unidades_medida[] = $cad['nome'];
     }
     // ---------------------------------------------------------
 
@@ -38,9 +40,9 @@ try {
     die("Erro na consulta: " . $e->getMessage());
 }
 
-function jsSafe($val) {
-    if ($val === null) $val = '';
-    return htmlspecialchars(json_encode($val), ENT_QUOTES, 'UTF-8');
+// Tipagem Estrita
+function jsSafe(mixed $val): string {
+    return htmlspecialchars(json_encode($val ?? ''), ENT_QUOTES, 'UTF-8');
 }
 
 // Variáveis para o header
@@ -130,19 +132,19 @@ require_once 'includes/header.php';
                     <?php endif; ?>
                     
                     <?php foreach ($itens as $i): 
-                        $is_critical = ($i['quantidade'] <= $i['quantidade_minima']);
+                        $is_critical = (($i['quantidade'] ?? 0) <= ($i['quantidade_minima'] ?? 0));
                     ?>
                         <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors row-almox">
                             <td class="px-6 py-4">
-                                <p class="font-bold text-gray-900 dark:text-white uppercase"><?= htmlspecialchars($i['nome_item']) ?></p>
-                                <?php if($i['observacao']): ?>
+                                <p class="font-bold text-gray-900 dark:text-white uppercase"><?= htmlspecialchars($i['nome_item'] ?? '') ?></p>
+                                <?php if(!empty($i['observacao'])): ?>
                                     <p class="text-[10px] text-gray-500 dark:text-gray-400 truncate max-w-xs" title="<?= htmlspecialchars($i['observacao']) ?>"><?= htmlspecialchars($i['observacao']) ?></p>
                                 <?php endif; ?>
                             </td>
                             
                             <td class="px-6 py-4">
                                 <span class="bg-gray-100 dark:bg-gray-700/60 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600 px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider">
-                                    <?= htmlspecialchars($i['categoria']) ?>
+                                    <?= htmlspecialchars($i['categoria'] ?? '') ?>
                                 </span>
                             </td>
                             
@@ -156,19 +158,19 @@ require_once 'includes/header.php';
                             
                             <td class="px-6 py-4 text-center">
                                 <div class="flex items-center justify-center space-x-3">
-                                    <button onclick="ajustarEstoque(<?= $i['id'] ?>, -1, <?= $i['quantidade'] ?>)" class="w-6 h-6 rounded bg-red-50 text-red-600 hover:bg-red-200 dark:bg-red-900/30 border border-red-200 dark:border-red-800 dark:text-red-400 flex items-center justify-center font-bold transition-colors" title="Retirar 1 unidade">-</button>
+                                    <button onclick="ajustarEstoque(<?= $i['id'] ?>, -1, <?= $i['quantidade'] ?? 0 ?>)" class="w-6 h-6 rounded bg-red-50 text-red-600 hover:bg-red-200 dark:bg-red-900/30 border border-red-200 dark:border-red-800 dark:text-red-400 flex items-center justify-center font-bold transition-colors" title="Retirar 1 unidade">-</button>
                                     
                                     <span class="font-black text-lg w-16 text-center <?= $is_critical ? 'text-red-600 dark:text-red-400' : 'text-gray-800 dark:text-gray-200' ?>">
-                                        <?= (float)$i['quantidade'] ?>
-                                        <span class="text-[10px] font-normal text-gray-500 uppercase"><?= htmlspecialchars($i['unidade_medida']) ?></span>
+                                        <?= (float)($i['quantidade'] ?? 0) ?>
+                                        <span class="text-[10px] font-normal text-gray-500 uppercase"><?= htmlspecialchars($i['unidade_medida'] ?? '') ?></span>
                                     </span>
                                     
-                                    <button onclick="ajustarEstoque(<?= $i['id'] ?>, 1, <?= $i['quantidade'] ?>)" class="w-6 h-6 rounded bg-green-50 text-green-600 hover:bg-green-200 dark:bg-green-900/30 border border-green-200 dark:border-green-800 dark:text-green-400 flex items-center justify-center font-bold transition-colors" title="Adicionar 1 unidade">+</button>
+                                    <button onclick="ajustarEstoque(<?= $i['id'] ?>, 1, <?= $i['quantidade'] ?? 0 ?>)" class="w-6 h-6 rounded bg-green-50 text-green-600 hover:bg-green-200 dark:bg-green-900/30 border border-green-200 dark:border-green-800 dark:text-green-400 flex items-center justify-center font-bold transition-colors" title="Adicionar 1 unidade">+</button>
                                 </div>
                             </td>
                             
                             <td class="px-6 py-4 text-center font-semibold text-gray-500 dark:text-gray-400">
-                                <?= (float)$i['quantidade_minima'] ?>
+                                <?= (float)($i['quantidade_minima'] ?? 0) ?>
                             </td>
                             
                             <td class="px-6 py-4 text-center space-x-2">

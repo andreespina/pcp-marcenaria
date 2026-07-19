@@ -23,14 +23,13 @@ try {
     die("Erro na consulta: " . $e->getMessage());
 }
 
-function formatarData($data) {
-    if (!$data) return '';
-    return date('d/m/Y', strtotime($data));
+// Funções atualizadas com tipagem estrita para PHP 8
+function formatarData(?string $data): string {
+    return $data ? date('d/m/Y', strtotime($data)) : '';
 }
 
-function jsSafe($val) {
-    if ($val === null) $val = '';
-    return htmlspecialchars(json_encode($val), ENT_QUOTES, 'UTF-8');
+function jsSafe(mixed $val): string {
+    return htmlspecialchars(json_encode($val ?? ''), ENT_QUOTES, 'UTF-8');
 }
 
 // Configurações do Header
@@ -101,12 +100,12 @@ require_once 'includes/header.php';
                         </button>
                     </div>
                     
-                    <span class="text-[9px] font-black uppercase tracking-wider text-green-600 dark:text-green-400 mb-1 border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 self-start px-2 py-0.5 rounded"><?= htmlspecialchars($msg['etapa']) ?></span>
-                    <h3 class="font-bold text-gray-800 dark:text-gray-100 mb-2 truncate pr-14 text-sm uppercase"><?= htmlspecialchars($msg['titulo']) ?></h3>
+                    <span class="text-[9px] font-black uppercase tracking-wider text-green-600 dark:text-green-400 mb-1 border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 self-start px-2 py-0.5 rounded"><?= htmlspecialchars($msg['etapa'] ?? '') ?></span>
+                    <h3 class="font-bold text-gray-800 dark:text-gray-100 mb-2 truncate pr-14 text-sm uppercase"><?= htmlspecialchars($msg['titulo'] ?? '') ?></h3>
                     
-                    <div class="bg-gray-50 dark:bg-gray-800/80 p-3 rounded text-xs text-gray-600 dark:text-gray-300 italic mb-4 flex-1 whitespace-pre-wrap overflow-y-auto max-h-32 scrollbar-thin border border-gray-100 dark:border-gray-700"><?= htmlspecialchars($msg['mensagem']) ?></div>
+                    <div class="bg-gray-50 dark:bg-gray-800/80 p-3 rounded text-xs text-gray-600 dark:text-gray-300 italic mb-4 flex-1 whitespace-pre-wrap overflow-y-auto max-h-32 scrollbar-thin border border-gray-100 dark:border-gray-700"><?= htmlspecialchars($msg['mensagem'] ?? '') ?></div>
                     
-                    <button onclick="copiarMensagem(this)" data-texto="<?= htmlspecialchars($msg['mensagem']) ?>" class="w-full bg-green-50 hover:bg-green-100 dark:bg-green-900/20 dark:hover:bg-green-900/40 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800/50 py-2 rounded text-[11px] font-bold uppercase transition-colors flex items-center justify-center btn-copiar">
+                    <button onclick="copiarMensagem(this)" data-texto="<?= htmlspecialchars($msg['mensagem'] ?? '') ?>" class="w-full bg-green-50 hover:bg-green-100 dark:bg-green-900/20 dark:hover:bg-green-900/40 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800/50 py-2 rounded text-[11px] font-bold uppercase transition-colors flex items-center justify-center btn-copiar">
                         <svg class="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
                         <span>Copiar Texto</span>
                     </button>
@@ -130,21 +129,14 @@ require_once 'includes/header.php';
             <?php endif; ?>
 
             <?php foreach ($recados as $r): 
-                $cor_borda = 'border-blue-300 dark:border-blue-600';
-                $cor_bg = 'bg-blue-50 dark:bg-[#1c2333]/50';
-                $cor_texto_pri = 'text-blue-600 dark:text-blue-400';
-                
-                if ($r['prioridade'] == 'ALTA') {
-                    $cor_borda = 'border-red-400 dark:border-red-600';
-                    $cor_bg = 'bg-red-50 dark:bg-red-900/10';
-                    $cor_texto_pri = 'text-red-600 dark:text-red-400';
-                } elseif ($r['prioridade'] == 'MEDIA') {
-                    $cor_borda = 'border-yellow-400 dark:border-yellow-600';
-                    $cor_bg = 'bg-yellow-50 dark:bg-yellow-900/10';
-                    $cor_texto_pri = 'text-yellow-600 dark:text-yellow-400';
-                }
+                // Nova estrutura de Match para definir cores baseado na prioridade (PHP 8)
+                $estilo = match ($r['prioridade'] ?? '') {
+                    'ALTA' => ['borda' => 'border-red-400 dark:border-red-600', 'bg' => 'bg-red-50 dark:bg-red-900/10', 'texto' => 'text-red-600 dark:text-red-400'],
+                    'MEDIA' => ['borda' => 'border-yellow-400 dark:border-yellow-600', 'bg' => 'bg-yellow-50 dark:bg-yellow-900/10', 'texto' => 'text-yellow-600 dark:text-yellow-400'],
+                    default => ['borda' => 'border-blue-300 dark:border-blue-600', 'bg' => 'bg-blue-50 dark:bg-[#1c2333]/50', 'texto' => 'text-blue-600 dark:text-blue-400'],
+                };
             ?>
-                <div class="<?= $cor_bg ?> border-t-4 <?= $cor_borda ?> border border-gray-200 dark:border-[#2a3142] rounded-b-lg shadow-sm p-4 flex flex-col relative group transition-all hover:-translate-y-1 hover:shadow-md">
+                <div class="<?= $estilo['bg'] ?> border-t-4 <?= $estilo['borda'] ?> border border-gray-200 dark:border-[#2a3142] rounded-b-lg shadow-sm p-4 flex flex-col relative group transition-all hover:-translate-y-1 hover:shadow-md">
                     <div class="absolute top-2 right-2 flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button onclick='abrirModalEdicao(<?= $r['id'] ?>, <?= jsSafe($r['data_recado']) ?>, <?= jsSafe($r['de_quem']) ?>, <?= jsSafe($r['para_quem']) ?>, <?= jsSafe($r['setor']) ?>, <?= jsSafe($r['prioridade']) ?>, <?= jsSafe($r['mensagem']) ?>)' class="text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 bg-white/50 dark:bg-gray-800/80 p-1.5 rounded transition-colors" title="Editar">
                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
@@ -155,18 +147,18 @@ require_once 'includes/header.php';
                     </div>
 
                     <div class="flex justify-between items-center mb-2.5 pr-14">
-                        <span class="text-[10px] font-bold text-gray-500 dark:text-gray-400"><?= formatarData($r['data_recado']) ?></span>
-                        <span class="text-[9px] font-black uppercase px-2 py-0.5 rounded border <?= $cor_borda ?> bg-white/50 dark:bg-gray-800/50 <?= $cor_texto_pri ?> tracking-wider"><?= $r['prioridade'] ?></span>
+                        <span class="text-[10px] font-bold text-gray-500 dark:text-gray-400"><?= formatarData($r['data_recado'] ?? null) ?></span>
+                        <span class="text-[9px] font-black uppercase px-2 py-0.5 rounded border <?= $estilo['borda'] ?> bg-white/50 dark:bg-gray-800/50 <?= $estilo['texto'] ?> tracking-wider"><?= $r['prioridade'] ?? 'BAIXA' ?></span>
                     </div>
                     
                     <div class="mb-3 space-y-0.5">
-                        <p class="text-xs font-semibold text-gray-800 dark:text-gray-200">De: <span class="font-normal"><?= htmlspecialchars($r['de_quem']) ?></span></p>
-                        <p class="text-xs font-semibold text-gray-800 dark:text-gray-200">Para: <span class="font-normal"><?= htmlspecialchars($r['para_quem']) ?></span></p>
-                        <p class="text-[10px] font-bold text-gray-500 dark:text-gray-400 mt-1 uppercase bg-white/40 dark:bg-gray-800/40 inline-block px-1.5 rounded">Setor: <?= htmlspecialchars($r['setor']) ?></p>
+                        <p class="text-xs font-semibold text-gray-800 dark:text-gray-200">De: <span class="font-normal"><?= htmlspecialchars($r['de_quem'] ?? '') ?></span></p>
+                        <p class="text-xs font-semibold text-gray-800 dark:text-gray-200">Para: <span class="font-normal"><?= htmlspecialchars($r['para_quem'] ?? '') ?></span></p>
+                        <p class="text-[10px] font-bold text-gray-500 dark:text-gray-400 mt-1 uppercase bg-white/40 dark:bg-gray-800/40 inline-block px-1.5 rounded">Setor: <?= htmlspecialchars($r['setor'] ?? '') ?></p>
                     </div>
 
                     <div class="bg-white/60 dark:bg-gray-800/60 p-3 rounded border border-white dark:border-gray-700/50 flex-1 overflow-y-auto scrollbar-thin shadow-inner" style="min-height: 90px; max-height: 150px;">
-                        <p class="text-xs text-gray-800 dark:text-gray-300 whitespace-pre-wrap italic font-medium leading-relaxed">"<?= htmlspecialchars($r['mensagem']) ?>"</p>
+                        <p class="text-xs text-gray-800 dark:text-gray-300 whitespace-pre-wrap italic font-medium leading-relaxed">"<?= htmlspecialchars($r['mensagem'] ?? '') ?>"</p>
                     </div>
                 </div>
             <?php endforeach; ?>

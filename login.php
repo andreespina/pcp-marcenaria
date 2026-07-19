@@ -3,7 +3,8 @@
 require_once 'includes/auth.php';
 require_once 'config/conexao.php';
 
-if (isset($_SESSION['logado']) && $_SESSION['logado'] === true) {
+// PHP 8: Uso de coalescência nula para evitar warnings caso a chave 'logado' não exista
+if (($_SESSION['logado'] ?? false) === true) {
     header("Location: index.php");
     exit;
 }
@@ -18,26 +19,27 @@ try {
         $pdo->query("INSERT INTO usuarios (usuario, senha) VALUES ('admin', '$senha_hash')");
         $sucesso = "Usuário inicial criado! Login: <b>admin</b> | Senha: <b>admin123</b>";
     }
-} catch (\PDOException $e) {
+} catch (\PDOException) {
+    // PHP 8: A variável $e pode ser omitida no catch se não for utilizada
     $erro = "Erro: Tabela 'usuarios' não existe no banco de dados.";
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $usuario = isset($_POST['usuario']) ? trim($_POST['usuario']) : '';
-    $senha   = isset($_POST['senha']) ? $_POST['senha'] : '';
+    // PHP 8.1+: trim() não aceita nulo. O ?? '' previne erro fatal de Deprecation
+    $usuario = trim($_POST['usuario'] ?? '');
+    $senha   = $_POST['senha'] ?? '';
 
-   if (!empty($usuario) && !empty($senha)) {
-    // Adicionamos 'role' e 'permissoes' no SELECT
-    $stmt = $pdo->prepare("SELECT id, usuario, senha, role, permissoes FROM usuarios WHERE usuario = :usuario");
-    $stmt->execute(['usuario' => $usuario]);
-    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!empty($usuario) && !empty($senha)) {
+        $stmt = $pdo->prepare("SELECT id, usuario, senha, role, permissoes FROM usuarios WHERE usuario = :usuario");
+        $stmt->execute(['usuario' => $usuario]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    if ($user && password_verify($senha, $user['senha'])) {
+        if ($user && password_verify($senha, $user['senha'])) {
             $_SESSION['logado'] = true;
             $_SESSION['usuario_id'] = $user['id'];
             $_SESSION['usuario_nome'] = $user['usuario'];
             
-            // Salvamos as permissões na sessão usando a sintaxe tradicional compatível
+            // Simplificação com operador Elvis (?:)
             $_SESSION['usuario_role'] = !empty($user['role']) ? $user['role'] : 'USER';
             $_SESSION['usuario_permissoes'] = !empty($user['permissoes']) ? json_decode($user['permissoes'], true) : [];
                          

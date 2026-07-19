@@ -4,12 +4,14 @@ require_once 'includes/auth.php';
 protegerPagina();
 require_once 'config/conexao.php';
 
-if (!isset($_GET['id']) || empty($_GET['id'])) {
+// PHP 8: empty já verifica implicitamente o isset, então a checagem fica mais limpa
+if (empty($_GET['id'])) {
     header("Location: clientes.php");
     exit;
 }
 
-$cliente_id = (int) $_GET['id'];
+// Cast de inteiro para segurança total na query
+$cliente_id = (int)($_GET['id'] ?? 0);
 
 try {
     // 1. DADOS DO CLIENTE
@@ -21,20 +23,24 @@ try {
         die("Cliente não encontrado.");
     }
 
-    $codigo = !empty($cliente['codigo_cliente']) ? $cliente['codigo_cliente'] : "CLI-" . str_pad($cliente['id'], 2, "0", STR_PAD_LEFT);
-    $nome_base = $cliente['nome_contrato'];
+    $codigo = !empty($cliente['codigo_cliente']) ? $cliente['codigo_cliente'] : "CLI-" . str_pad((string)$cliente['id'], 2, "0", STR_PAD_LEFT);
+    $nome_base = $cliente['nome_contrato'] ?? '';
 
     // 2. DADOS FINANCEIROS (LTV)
     $stmtFin = $pdo->prepare("SELECT * FROM financeiro WHERE entidade_tipo = 'CLIENTE' AND entidade_id = ? ORDER BY data_vencimento DESC");
     $stmtFin->execute([$cliente_id]);
     $financeiro = $stmtFin->fetchAll(PDO::FETCH_ASSOC);
 
-    $ltv_total = 0; $total_pago = 0; $total_pendente = 0;
+    $ltv_total = 0.0; $total_pago = 0.0; $total_pendente = 0.0;
     foreach ($financeiro as $f) {
-        if ($f['tipo'] === 'RECEITA') {
-            $ltv_total += $f['valor'];
-            if ($f['status'] === 'PAGO') $total_pago += $f['valor'];
-            else $total_pendente += $f['valor'];
+        if (($f['tipo'] ?? '') === 'RECEITA') {
+            $valor = (float)($f['valor'] ?? 0);
+            $ltv_total += $valor;
+            if (($f['status'] ?? '') === 'PAGO') {
+                $total_pago += $valor;
+            } else {
+                $total_pendente += $valor;
+            }
         }
     }
 
@@ -62,17 +68,17 @@ try {
     die("Erro ao carregar dossiê: " . $e->getMessage());
 }
 
-// Funções para exibição
-function nomeStatus($status) {
-    $nomes = [
+// Funções para exibição otimizadas com Match do PHP 8
+function nomeStatus(?string $status): string {
+    return match($status) {
         'instalacao'      => 'Instalação',
         'expedicao'       => 'Expedição',
         'producao'        => 'Produção',
         'desenvolvimento' => 'PCP',
         'atrasou'         => 'Atrasou',
-        'assistencia'     => 'Concluído'
-    ];
-    return isset($nomes[$status]) ? $nomes[$status] : strtoupper($status);
+        'assistencia'     => 'Concluído',
+        default           => strtoupper((string)$status)
+    };
 }
 
 $page_title = 'DOSSIÊ DO CLIENTE';
@@ -109,21 +115,21 @@ require_once 'includes/header.php';
 
             <div class="space-y-3 text-sm">
                 <div class="flex items-center text-gray-700 dark:text-gray-300">
-                    <span class="w-6 text-center mr-2">📱</span> <strong><?= htmlspecialchars($cliente['telefone'] ?: $cliente['whatsapp']) ?: 'Sem telefone' ?></strong>
+                    <span class="w-6 text-center mr-2">📱</span> <strong><?= htmlspecialchars($cliente['telefone'] ?? ($cliente['whatsapp'] ?? '')) ?: 'Sem telefone' ?></strong>
                 </div>
                 <div class="flex items-center text-gray-700 dark:text-gray-300">
-                    <span class="w-6 text-center mr-2">📧</span> <span class="truncate"><?= htmlspecialchars($cliente['email']) ?: 'Sem e-mail' ?></span>
+                    <span class="w-6 text-center mr-2">📧</span> <span class="truncate"><?= htmlspecialchars($cliente['email'] ?? '') ?: 'Sem e-mail' ?></span>
                 </div>
                 <div class="flex items-start text-gray-700 dark:text-gray-300">
                     <span class="w-6 text-center mr-2 mt-0.5">📍</span> 
                     <span class="flex-1 text-xs">
-                        <?= htmlspecialchars($cliente['endereco']) ?><?= $cliente['numero_lote'] ? ', Nº ' . htmlspecialchars($cliente['numero_lote']) : '' ?><br>
-                        <span class="text-gray-500 dark:text-gray-400 italic"><?= htmlspecialchars($cliente['cidade']) ?></span>
+                        <?= htmlspecialchars($cliente['endereco'] ?? '') ?><?= !empty($cliente['numero_lote']) ? ', Nº ' . htmlspecialchars($cliente['numero_lote']) : '' ?><br>
+                        <span class="text-gray-500 dark:text-gray-400 italic"><?= htmlspecialchars($cliente['cidade'] ?? '') ?></span>
                     </span>
                 </div>
             </div>
             
-            <?php if($cliente['arquiteto_nome']): ?>
+            <?php if(!empty($cliente['arquiteto_nome'])): ?>
             <div class="mt-4 pt-3 border-t border-gray-100 dark:border-gray-700">
                 <p class="text-[10px] font-bold text-indigo-500 uppercase mb-1">Arquiteto(a) Parceiro(a)</p>
                 <p class="font-bold text-gray-800 dark:text-gray-200 text-sm uppercase"><?= htmlspecialchars($cliente['arquiteto_nome']) ?></p>
@@ -173,12 +179,12 @@ require_once 'includes/header.php';
                 <?php foreach($contratos as $cont): ?>
                     <div class="border border-gray-100 dark:border-gray-700 p-2.5 rounded hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                         <div class="flex justify-between items-start mb-1">
-                            <p class="text-xs font-black text-gray-800 dark:text-gray-200">#<?= $cont['id'] ?> - R$ <?= number_format($cont['valor'], 2, ',', '.') ?></p>
-                            <span class="text-[9px] font-bold uppercase <?= $cont['status_contrato'] === 'ASSINADO' ? 'text-green-600' : 'text-red-500' ?>"><?= $cont['status_contrato'] ?></span>
+                            <p class="text-xs font-black text-gray-800 dark:text-gray-200">#<?= $cont['id'] ?? '' ?> - R$ <?= number_format((float)($cont['valor'] ?? 0), 2, ',', '.') ?></p>
+                            <span class="text-[9px] font-bold uppercase <?= ($cont['status_contrato'] ?? '') === 'ASSINADO' ? 'text-green-600' : 'text-red-500' ?>"><?= $cont['status_contrato'] ?? '' ?></span>
                         </div>
                         <p class="text-[10px] text-gray-500 dark:text-gray-400 mt-1 flex justify-between">
-                            <span>Fin: <strong><?= $cont['status_financeiro'] ?></strong></span>
-                            <span><?= isset($cont['data_criacao']) ? date('d/m/Y', strtotime($cont['data_criacao'])) : 'Registado' ?></span>
+                            <span>Fin: <strong><?= $cont['status_financeiro'] ?? '' ?></strong></span>
+                            <span><?= !empty($cont['data_criacao']) ? date('d/m/Y', strtotime($cont['data_criacao'])) : 'Registado' ?></span>
                         </p>
                     </div>
                 <?php endforeach; ?>
@@ -200,12 +206,12 @@ require_once 'includes/header.php';
                 <?php foreach($projetos_pcp as $pcp): ?>
                     <div class="border border-gray-100 dark:border-gray-700 p-2.5 rounded hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                         <div class="flex justify-between items-start mb-1">
-                            <p class="text-[11px] font-black text-gray-800 dark:text-gray-200 uppercase">PROJ #<?= $pcp['id'] ?></p>
-                            <span class="text-[9px] font-bold uppercase text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 px-1 rounded"><?= nomeStatus($pcp['status']) ?></span>
+                            <p class="text-[11px] font-black text-gray-800 dark:text-gray-200 uppercase">PROJ #<?= $pcp['id'] ?? '' ?></p>
+                            <span class="text-[9px] font-bold uppercase text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 px-1 rounded"><?= nomeStatus($pcp['status'] ?? '') ?></span>
                         </div>
                         <p class="text-[10px] text-gray-500 dark:text-gray-400 mt-1 flex justify-between">
-                            <span>Equipa: <strong><?= htmlspecialchars($pcp['equipe_instalacao']) ?: '-' ?></strong></span>
-                            <span>Prev: <?= date('d/m/Y', strtotime($pcp['data_limite'])) ?></span>
+                            <span>Equipa: <strong><?= htmlspecialchars($pcp['equipe_instalacao'] ?? '') ?: '-' ?></strong></span>
+                            <span>Prev: <?= !empty($pcp['data_limite']) ? date('d/m/Y', strtotime($pcp['data_limite'])) : '-' ?></span>
                         </p>
                     </div>
                 <?php endforeach; ?>
@@ -227,11 +233,11 @@ require_once 'includes/header.php';
                 <?php foreach($assistencias as $ast): ?>
                     <div class="border border-gray-100 dark:border-gray-700 p-2.5 rounded hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                         <div class="flex justify-between items-start mb-1">
-                            <p class="text-[11px] font-black text-gray-800 dark:text-gray-200 uppercase">AST #<?= $ast['id'] ?> - <?= $ast['status'] ?></p>
-                            <span class="text-[9px] font-bold uppercase <?= ($ast['tipo_cobranca'] === 'FATURADA') ? 'text-purple-500' : 'text-emerald-500' ?>"><?= $ast['tipo_cobranca'] ?: 'GARANTIA' ?></span>
+                            <p class="text-[11px] font-black text-gray-800 dark:text-gray-200 uppercase">AST #<?= $ast['id'] ?? '' ?> - <?= $ast['status'] ?? '' ?></p>
+                            <span class="text-[9px] font-bold uppercase <?= (($ast['tipo_cobranca'] ?? '') === 'FATURADA') ? 'text-purple-500' : 'text-emerald-500' ?>"><?= $ast['tipo_cobranca'] ?? 'GARANTIA' ?></span>
                         </div>
-                        <p class="text-[10px] text-gray-500 dark:text-gray-400 mt-1 truncate" title="<?= htmlspecialchars($ast['obs_assistencia']) ?>">
-                            <?= htmlspecialchars($ast['obs_assistencia']) ?>
+                        <p class="text-[10px] text-gray-500 dark:text-gray-400 mt-1 truncate" title="<?= htmlspecialchars($ast['obs_assistencia'] ?? '') ?>">
+                            <?= htmlspecialchars($ast['obs_assistencia'] ?? '') ?>
                         </p>
                     </div>
                 <?php endforeach; ?>
@@ -271,24 +277,27 @@ require_once 'includes/header.php';
             <?php else: ?>
                 <div class="relative border-l-2 border-blue-100 dark:border-blue-900/50 ml-3 space-y-6 pb-4">
                     <?php foreach($interacoes as $int): 
-                        $bg_icon = 'bg-blue-500'; $icon = '📌';
-                        if($int['tipo_interacao'] == 'WHATSAPP') { $bg_icon = 'bg-green-500'; $icon = '💬'; }
-                        if($int['tipo_interacao'] == 'LIGACAO') { $bg_icon = 'bg-indigo-500'; $icon = '📞'; }
-                        if($int['tipo_interacao'] == 'REUNIAO') { $bg_icon = 'bg-purple-500'; $icon = '🤝'; }
-                        if($int['tipo_interacao'] == 'ORCAMENTO') { $bg_icon = 'bg-yellow-500'; $icon = '💰'; }
+                        // Expressão Match para simplificar a UI (PHP 8)
+                        $estilo_interacao = match($int['tipo_interacao'] ?? '') {
+                            'WHATSAPP'  => ['bg' => 'bg-green-500', 'icon' => '💬'],
+                            'LIGACAO'   => ['bg' => 'bg-indigo-500', 'icon' => '📞'],
+                            'REUNIAO'   => ['bg' => 'bg-purple-500', 'icon' => '🤝'],
+                            'ORCAMENTO' => ['bg' => 'bg-yellow-500', 'icon' => '💰'],
+                            default     => ['bg' => 'bg-blue-500', 'icon' => '📌']
+                        };
                     ?>
                         <div class="relative pl-6">
-                            <div class="absolute -left-[17px] top-1 w-8 h-8 rounded-full <?= $bg_icon ?> flex items-center justify-center text-white text-xs shadow-sm ring-4 ring-white dark:ring-[#222736]">
-                                <?= $icon ?>
+                            <div class="absolute -left-[17px] top-1 w-8 h-8 rounded-full <?= $estilo_interacao['bg'] ?> flex items-center justify-center text-white text-xs shadow-sm ring-4 ring-white dark:ring-[#222736]">
+                                <?= $estilo_interacao['icon'] ?>
                             </div>
                             
                             <div class="bg-gray-50 dark:bg-gray-800/80 p-3 rounded-lg border border-gray-100 dark:border-gray-700 shadow-sm">
                                 <div class="flex justify-between items-start mb-1.5">
-                                    <span class="text-[10px] font-black uppercase text-gray-500 dark:text-gray-400"><?= htmlspecialchars($int['tipo_interacao']) ?></span>
-                                    <span class="text-[9px] font-semibold text-gray-400 bg-white dark:bg-gray-700 px-1.5 py-0.5 rounded"><?= date('d/m/y H:i', strtotime($int['data_registro'])) ?></span>
+                                    <span class="text-[10px] font-black uppercase text-gray-500 dark:text-gray-400"><?= htmlspecialchars($int['tipo_interacao'] ?? '') ?></span>
+                                    <span class="text-[9px] font-semibold text-gray-400 bg-white dark:bg-gray-700 px-1.5 py-0.5 rounded"><?= !empty($int['data_registro']) ? date('d/m/y H:i', strtotime($int['data_registro'])) : '' ?></span>
                                 </div>
-                                <p class="text-xs text-gray-700 dark:text-gray-300 leading-relaxed"><?= nl2br(htmlspecialchars($int['observacao'])) ?></p>
-                                <p class="text-[9px] text-gray-400 mt-2 font-semibold">Por: <?= htmlspecialchars($int['usuario_nome']) ?></p>
+                                <p class="text-xs text-gray-700 dark:text-gray-300 leading-relaxed"><?= nl2br(htmlspecialchars($int['observacao'] ?? '')) ?></p>
+                                <p class="text-[9px] text-gray-400 mt-2 font-semibold">Por: <?= htmlspecialchars($int['usuario_nome'] ?? '') ?></p>
                             </div>
                         </div>
                     <?php endforeach; ?>

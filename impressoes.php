@@ -347,7 +347,7 @@ require_once 'includes/header.php';
             <tbody>
                 <?php for($i=1; $i<=22; $i++): ?>
                 <tr>
-                    <td contenteditable="true" style="text-align: center; font-weight: bold; color: #64748b !important;"><?= str_pad($i, 2, '0', STR_PAD_LEFT) ?></td>
+                    <td contenteditable="true" style="text-align: center; font-weight: bold; color: #64748b !important;"><?= str_pad((string)$i, 2, '0', STR_PAD_LEFT) ?></td>
                     <td contenteditable="true">&nbsp;</td>
                     <td contenteditable="true" style="text-align: center;"></td>
                     <td contenteditable="true" style="text-align: center;"></td>

@@ -3,8 +3,8 @@
 require_once 'includes/auth.php';
 protegerPagina();
 
-// Bloqueio de segurança: Apenas utilizadores com perfil ADMIN podem ver esta tela
-if (!isset($_SESSION['usuario_role']) || $_SESSION['usuario_role'] !== 'ADMIN') {
+// Bloqueio de segurança: Uso do operador de coalescência nula (??) para evitar warnings
+if (($_SESSION['usuario_role'] ?? '') !== 'ADMIN') {
     header("Location: index.php?erro=acesso_negado");
     exit;
 }
@@ -68,22 +68,23 @@ require_once 'includes/header.php';
                 </thead>
                 <tbody class="divide-y divide-gray-200 dark:divide-gray-700 text-gray-700 dark:text-gray-200">
                     <?php foreach ($lista_usuarios as $usr): 
-                        // Decodifica as permissões salvas no banco
-                        $perms_arr = !empty($usr['permissoes']) ? json_decode($usr['permissoes'], true) : [];
+                        // Decodifica as permissões com segurança para PHP 8
+                        $perms_arr = json_decode((string)($usr['permissoes'] ?? ''), true);
                         if (!is_array($perms_arr)) $perms_arr = [];
                     ?>
                         <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
                             <td class="px-6 py-4 font-bold uppercase tracking-wide text-gray-900 dark:text-white">
-                                <?= htmlspecialchars($usr['nome_completo'] ? $usr['nome_completo'] : 'NÃO INFORMADO') ?>
+                                <!-- Operador Elvis (?:) para compactar os fallbacks -->
+                                <?= htmlspecialchars($usr['nome_completo'] ?: 'NÃO INFORMADO') ?>
                             </td>
-                            <td class="px-6 py-4 font-medium text-blue-600 dark:text-blue-400 font-mono"><?= htmlspecialchars($usr['usuario']) ?></td>
+                            <td class="px-6 py-4 font-medium text-blue-600 dark:text-blue-400 font-mono"><?= htmlspecialchars($usr['usuario'] ?? '') ?></td>
                             <td class="px-6 py-4">
                                 <span class="px-2.5 py-1 text-xs font-bold rounded-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 uppercase">
-                                    <?= htmlspecialchars($usr['setor'] ? $usr['setor'] : 'NÃO DEFINIDO') ?>
+                                    <?= htmlspecialchars($usr['setor'] ?: 'NÃO DEFINIDO') ?>
                                 </span>
                             </td>
                             <td class="px-6 py-4">
-                                <?php if($usr['role'] === 'ADMIN'): ?>
+                                <?php if(($usr['role'] ?? '') === 'ADMIN'): ?>
                                     <span class="text-xs bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 px-2 py-0.5 rounded font-black border border-red-200 dark:border-red-800">ADMINISTRADOR</span>
                                 <?php else: ?>
                                     <span class="text-xs bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 px-2 py-0.5 rounded font-bold border border-blue-200 dark:border-blue-800">OPERADOR (USER)</span>
@@ -91,7 +92,7 @@ require_once 'includes/header.php';
                             </td>
                             <td class="px-6 py-4 text-xs font-mono max-w-xs truncate">
                                 <?php 
-                                if($usr['role'] === 'ADMIN') {
+                                if(($usr['role'] ?? '') === 'ADMIN') {
                                     echo '<span class="text-red-500 font-bold uppercase">ACESSO TOTAL MASTER</span>';
                                 } else {
                                     echo !empty($perms_arr) ? implode(', ', array_map('strtoupper', $perms_arr)) : '<span class="text-gray-400 italic">NENHUM</span>';
@@ -102,7 +103,7 @@ require_once 'includes/header.php';
                                 <button onclick='editarUsuario(<?= json_encode($usr, JSON_UNESCAPED_UNICODE) ?>)' class="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-bold transition-colors" title="Editar Informações e Permissões">
                                     &#9998; EDITAR
                                 </button>
-                                <?php if($usr['id'] != $_SESSION['usuario_id']): ?>
+                                <?php if(($usr['id'] ?? 0) != ($_SESSION['usuario_id'] ?? 0)): ?>
                                     <button onclick="excluirUsuario(<?= $usr['id'] ?>)" class="text-red-500 hover:text-red-700 font-bold transition-colors" title="Remover Usuário">&times; APAGAR</button>
                                 <?php endif; ?>
                             </td>

@@ -5,7 +5,8 @@ protegerPagina();
 
 require_once 'config/conexao.php';
 
-if (!isset($_SESSION['usuario_role']) || $_SESSION['usuario_role'] !== 'ADMIN') {
+// PHP 8: Validação direta da role na Sessão
+if (($_SESSION['usuario_role'] ?? '') !== 'ADMIN') {
     header("Location: index.php?erro=acesso_negado");
     exit;
 }
@@ -21,9 +22,9 @@ try {
         ];
     }
 
-    // 2. Total Usuários
+    // 2. Total Usuários (Cast de int no PHP 8 para blindagem de tipo)
     $stmtUserCount = $pdo->query("SELECT COUNT(*) FROM usuarios");
-    $total_usuarios = $stmtUserCount->fetchColumn();
+    $total_usuarios = (int) $stmtUserCount->fetchColumn();
 
     // 3. Cadastros Base
     $stmtCad = $pdo->query("SELECT * FROM cadastros_base ORDER BY tipo ASC, nome ASC");
@@ -42,8 +43,9 @@ try {
     ];
 
     foreach($todos_cadastros as $cad) {
-        if(isset($listas[$cad['tipo']])) {
-            $listas[$cad['tipo']][] = $cad;
+        $tipo = $cad['tipo'] ?? '';
+        if(isset($listas[$tipo])) {
+            $listas[$tipo][] = $cad;
         }
     }
 
@@ -106,27 +108,27 @@ require_once 'includes/header.php';
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Nome Fantasia</label>
-                            <input type="text" name="nome_fantasia" value="<?= htmlspecialchars($empresa['nome_fantasia']) ?>" required class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-2 focus:ring-blue-500 uppercase font-bold text-sm">
+                            <input type="text" name="nome_fantasia" value="<?= htmlspecialchars($empresa['nome_fantasia'] ?? '') ?>" required class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-2 focus:ring-blue-500 uppercase font-bold text-sm">
                         </div>
                         <div>
                             <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Razão Social</label>
-                            <input type="text" name="razao_social" value="<?= htmlspecialchars($empresa['razao_social']) ?>" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-2 focus:ring-blue-500 uppercase text-sm">
+                            <input type="text" name="razao_social" value="<?= htmlspecialchars($empresa['razao_social'] ?? '') ?>" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-2 focus:ring-blue-500 uppercase text-sm">
                         </div>
                         <div>
                             <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">CNPJ</label>
-                            <input type="text" name="cnpj" value="<?= htmlspecialchars($empresa['cnpj']) ?>" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-2 focus:ring-blue-500 uppercase text-sm">
+                            <input type="text" name="cnpj" value="<?= htmlspecialchars($empresa['cnpj'] ?? '') ?>" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-2 focus:ring-blue-500 uppercase text-sm">
                         </div>
                         <div>
                             <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Telefone Principal (WhatsApp)</label>
-                            <input type="text" name="telefone" value="<?= htmlspecialchars($empresa['telefone']) ?>" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-2 focus:ring-blue-500 uppercase text-sm">
+                            <input type="text" name="telefone" value="<?= htmlspecialchars($empresa['telefone'] ?? '') ?>" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-2 focus:ring-blue-500 uppercase text-sm">
                         </div>
                         <div class="md:col-span-2">
                             <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">E-mail Oficial</label>
-                            <input type="email" name="email" value="<?= htmlspecialchars($empresa['email']) ?>" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-2 focus:ring-blue-500 text-sm">
+                            <input type="email" name="email" value="<?= htmlspecialchars($empresa['email'] ?? '') ?>" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-2 focus:ring-blue-500 text-sm">
                         </div>
                         <div class="md:col-span-2">
                             <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Endereço Completo</label>
-                            <textarea name="endereco" rows="3" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-2 focus:ring-blue-500 text-sm"><?= htmlspecialchars($empresa['endereco']) ?></textarea>
+                            <textarea name="endereco" rows="3" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-2 focus:ring-blue-500 text-sm"><?= htmlspecialchars($empresa['endereco'] ?? '') ?></textarea>
                         </div>
                     </div>
 
@@ -178,7 +180,7 @@ require_once 'includes/header.php';
                     <ul class="divide-y divide-gray-100 dark:divide-gray-700/50">
                         <?php foreach($listas['CATEGORIA_ALMOX'] as $item): ?>
                             <li class="py-2 px-2 flex justify-between items-center hover:bg-gray-50 dark:hover:bg-gray-800/50 rounded group">
-                                <span class="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase"><?= htmlspecialchars($item['nome']) ?></span>
+                                <span class="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase"><?= htmlspecialchars($item['nome'] ?? '') ?></span>
                                 <button onclick="deletarCadastro(<?= $item['id'] ?>)" class="text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity" title="Apagar">&times;</button>
                             </li>
                         <?php endforeach; ?>
@@ -201,7 +203,7 @@ require_once 'includes/header.php';
                     <ul class="divide-y divide-gray-100 dark:divide-gray-700/50">
                         <?php foreach($listas['UNIDADE_MEDIDA'] as $item): ?>
                             <li class="py-2 px-2 flex justify-between items-center hover:bg-gray-50 dark:hover:bg-gray-800/50 rounded group">
-                                <span class="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase"><?= htmlspecialchars($item['nome']) ?></span>
+                                <span class="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase"><?= htmlspecialchars($item['nome'] ?? '') ?></span>
                                 <button onclick="deletarCadastro(<?= $item['id'] ?>)" class="text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity" title="Apagar">&times;</button>
                             </li>
                         <?php endforeach; ?>
@@ -224,7 +226,7 @@ require_once 'includes/header.php';
                     <ul class="divide-y divide-gray-100 dark:divide-gray-700/50">
                         <?php foreach($listas['PLANO_CONTA'] as $item): ?>
                             <li class="py-2 px-2 flex justify-between items-center hover:bg-gray-50 dark:hover:bg-gray-800/50 rounded group">
-                                <span class="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase"><?= htmlspecialchars($item['nome']) ?></span>
+                                <span class="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase"><?= htmlspecialchars($item['nome'] ?? '') ?></span>
                                 <button onclick="deletarCadastro(<?= $item['id'] ?>)" class="text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity" title="Apagar">&times;</button>
                             </li>
                         <?php endforeach; ?>
@@ -247,7 +249,7 @@ require_once 'includes/header.php';
                     <ul class="divide-y divide-gray-100 dark:divide-gray-700/50">
                         <?php foreach($listas['FORMA_PAGAMENTO'] as $item): ?>
                             <li class="py-2 px-2 flex justify-between items-center hover:bg-gray-50 dark:hover:bg-gray-800/50 rounded group">
-                                <span class="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase"><?= htmlspecialchars($item['nome']) ?></span>
+                                <span class="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase"><?= htmlspecialchars($item['nome'] ?? '') ?></span>
                                 <button onclick="deletarCadastro(<?= $item['id'] ?>)" class="text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity" title="Apagar">&times;</button>
                             </li>
                         <?php endforeach; ?>
@@ -270,7 +272,7 @@ require_once 'includes/header.php';
                     <ul class="divide-y divide-gray-100 dark:divide-gray-700/50">
                         <?php foreach($listas['SETOR'] as $item): ?>
                             <li class="py-2 px-2 flex justify-between items-center hover:bg-gray-50 dark:hover:bg-gray-800/50 rounded group">
-                                <span class="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase"><?= htmlspecialchars($item['nome']) ?></span>
+                                <span class="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase"><?= htmlspecialchars($item['nome'] ?? '') ?></span>
                                 <button onclick="deletarCadastro(<?= $item['id'] ?>)" class="text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity" title="Apagar">&times;</button>
                             </li>
                         <?php endforeach; ?>
@@ -293,7 +295,7 @@ require_once 'includes/header.php';
                     <ul class="divide-y divide-gray-100 dark:divide-gray-700/50">
                         <?php foreach($listas['PROJETISTA'] as $item): ?>
                             <li class="py-2 px-2 flex justify-between items-center hover:bg-gray-50 dark:hover:bg-gray-800/50 rounded group">
-                                <span class="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase"><?= htmlspecialchars($item['nome']) ?></span>
+                                <span class="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase"><?= htmlspecialchars($item['nome'] ?? '') ?></span>
                                 <button onclick="deletarCadastro(<?= $item['id'] ?>)" class="text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity" title="Apagar">&times;</button>
                             </li>
                         <?php endforeach; ?>
@@ -316,7 +318,7 @@ require_once 'includes/header.php';
                     <ul class="divide-y divide-gray-100 dark:divide-gray-700/50">
                         <?php foreach($listas['ORIGEM_LEAD'] as $item): ?>
                             <li class="py-2 px-2 flex justify-between items-center hover:bg-gray-50 dark:hover:bg-gray-800/50 rounded group">
-                                <span class="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase"><?= htmlspecialchars($item['nome']) ?></span>
+                                <span class="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase"><?= htmlspecialchars($item['nome'] ?? '') ?></span>
                                 <button onclick="deletarCadastro(<?= $item['id'] ?>)" class="text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity" title="Apagar">&times;</button>
                             </li>
                         <?php endforeach; ?>
@@ -339,7 +341,7 @@ require_once 'includes/header.php';
                     <ul class="divide-y divide-gray-100 dark:divide-gray-700/50">
                         <?php foreach($listas['EQUIPE_MONTAGEM'] as $item): ?>
                             <li class="py-2 px-2 flex justify-between items-center hover:bg-gray-50 dark:hover:bg-gray-800/50 rounded group">
-                                <span class="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase"><?= htmlspecialchars($item['nome']) ?></span>
+                                <span class="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase"><?= htmlspecialchars($item['nome'] ?? '') ?></span>
                                 <button onclick="deletarCadastro(<?= $item['id'] ?>)" class="text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity" title="Apagar">&times;</button>
                             </li>
                         <?php endforeach; ?>

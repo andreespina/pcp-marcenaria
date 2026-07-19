@@ -5,16 +5,22 @@ protegerAPI();
 require_once '../config/conexao.php';
 
 header('Content-Type: application/json');
-$json = file_get_contents('php://input');
-$data = json_decode($json);
 
-if (isset($data->id) && isset($data->status)) {
+$json = file_get_contents('php://input');
+$data = json_decode((string)$json);
+
+// Extração segura de dados
+$id = (int) ($data->id ?? 0);
+$status = (string) ($data->status ?? '');
+
+if ($id > 0 && $status !== '') {
     try {
         $stmt = $pdo->prepare("UPDATE assistencias_tecnicas SET status = :status WHERE id = :id");
         $stmt->execute([
-            'status' => $data->status,
-            'id' => (int)$data->id
+            'status' => $status,
+            'id' => $id
         ]);
+        
         echo json_encode(['success' => true]);
     } catch (\PDOException $e) {
         http_response_code(500);

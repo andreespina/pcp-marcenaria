@@ -5,8 +5,8 @@ protegerPagina();
 
 require_once 'config/conexao.php';
 
-// --- FUNÇÃO PARA CALCULAR DIAS ÚTEIS ---
-function calcularDiasUteis($data_inicial, $data_final) {
+// --- FUNÇÃO PARA CALCULAR DIAS ÚTEIS COM TIPAGEM (PHP 8) ---
+function calcularDiasUteis(?string $data_inicial, ?string $data_final): ?int {
     if (!$data_inicial || !$data_final) return null;
     
     $inicio = new DateTime($data_inicial);
@@ -49,14 +49,14 @@ try {
     $total_assistencias_abertas = 0;
     try {
         $stmt_ast = $pdo->query("SELECT COUNT(*) FROM assistencias_tecnicas WHERE resolvido_assistencia != 'SIM'");
-        $total_assistencias_abertas = $stmt_ast->fetchColumn();
-    } catch (\PDOException $e) {}
+        $total_assistencias_abertas = (int)$stmt_ast->fetchColumn();
+    } catch (\PDOException) {} // Removido o $e inativo
 
     $total_clientes = 0;
     try {
         $stmt_cli = $pdo->query("SELECT COUNT(*) FROM clientes_cadastro");
-        $total_clientes = $stmt_cli->fetchColumn();
-    } catch (\PDOException $e) {}
+        $total_clientes = (int)$stmt_cli->fetchColumn();
+    } catch (\PDOException) {} // Removido o $e inativo
 
     $estoque_critico = [];
     $total_critico = 0;
@@ -65,8 +65,8 @@ try {
         $estoque_critico = $stmt_almox->fetchAll(PDO::FETCH_ASSOC);
         
         $stmt_almox_count = $pdo->query("SELECT COUNT(*) FROM almoxarifado WHERE quantidade <= quantidade_minima");
-        $total_critico = $stmt_almox_count->fetchColumn();
-    } catch (\PDOException $e) {}
+        $total_critico = (int)$stmt_almox_count->fetchColumn();
+    } catch (\PDOException) {} // Removido o $e inativo
 
     $colunas = [
         'desenvolvimento' => [], 'producao' => [], 'expedicao' => [], 'instalacao' => [], 'entregue' => []
@@ -75,15 +75,16 @@ try {
     $proximas_entregas = [];
 
     foreach ($projetos as $p) {
-        if ($p['status'] === 'assistencia') continue; 
+        $status_banco = $p['status'] ?? '';
+        if ($status_banco === 'assistencia') continue; 
         
         // Proteção e atribuição de status
-        $status_atual = array_key_exists($p['status'], $colunas) ? $p['status'] : 'instalacao';
+        $status_atual = array_key_exists($status_banco, $colunas) ? $status_banco : 'instalacao';
         
         // Lógica: Se for entregue, verifica se está dentro dos últimos 6 meses
         if ($status_atual === 'entregue') {
-            // Pega a data da instalação final ou a data limite como base
-            $data_ref = !empty($p['data_fim_instalacao']) ? $p['data_fim_instalacao'] : (!empty($p['data_limite']) ? $p['data_limite'] : date('Y-m-d'));
+            // Refatorado com encadeamento de coalescência nula (PHP 8)
+            $data_ref = $p['data_fim_instalacao'] ?? ($p['data_limite'] ?? date('Y-m-d'));
             $seis_meses_atras = date('Y-m-d', strtotime('-6 months'));
             
             if ($data_ref >= $seis_meses_atras) {
@@ -123,33 +124,34 @@ try {
         
         $stmt_proj_mes = $pdo->prepare("SELECT COUNT(*) FROM projetos_pcp WHERE status = 'assistencia' AND MONTH(data_limite) = ? AND YEAR(data_limite) = ?");
         $stmt_proj_mes->execute([$mes_num, $ano_num]);
-        $chart_bar_projetos[] = $stmt_proj_mes->fetchColumn();
+        $chart_bar_projetos[] = (int)$stmt_proj_mes->fetchColumn();
 
         $stmt_ast_mes = $pdo->prepare("SELECT COUNT(*) FROM assistencias_tecnicas WHERE MONTH(data_solicitacao) = ? AND YEAR(data_solicitacao) = ?");
         $stmt_ast_mes->execute([$mes_num, $ano_num]);
-        $chart_bar_assistencias[] = $stmt_ast_mes->fetchColumn();
+        $chart_bar_assistencias[] = (int)$stmt_ast_mes->fetchColumn();
     }
     
-    $entregues_este_mes = end($chart_bar_projetos);
+    // Fallback caso a array de projetos estivesse vazia
+    $entregues_este_mes = end($chart_bar_projetos) ?: 0;
 
 } catch (\PDOException $e) {
     die("Erro na consulta: " . $e->getMessage());
 }
 
-function formatarData($data) {
-    if (!$data) return '';
-    return date('d/m/Y', strtotime($data));
+function formatarData(?string $data): string {
+    return $data ? date('d/m/Y', strtotime($data)) : '';
 }
 
-function corChecklist($valor) {
-    if ($valor === 'SIM') return 'text-green-600 dark:text-green-400 font-bold';
-    if ($valor === 'PROJETANDO' || $valor === 'FAZENDO') return 'text-yellow-600 dark:text-yellow-400 font-bold';
-    return 'text-gray-500 dark:text-gray-400 font-medium';
+function corChecklist(?string $valor): string {
+    return match($valor) {
+        'SIM' => 'text-green-600 dark:text-green-400 font-bold',
+        'PROJETANDO', 'FAZENDO' => 'text-yellow-600 dark:text-yellow-400 font-bold',
+        default => 'text-gray-500 dark:text-gray-400 font-medium'
+    };
 }
 
-function jsSafe($val) {
-    if ($val === null) $val = '';
-    return htmlspecialchars(json_encode($val), ENT_QUOTES, 'UTF-8');
+function jsSafe(mixed $val): string {
+    return htmlspecialchars(json_encode($val ?? ''), ENT_QUOTES, 'UTF-8');
 }
 
 $page_title = 'PAINEL DE CONTROLE';
@@ -169,8 +171,8 @@ $head_extras = '
     .dark .sortable-ghost { background-color: #334155; border-color: #64748b; }
 </style>';
 
-$role = isset($_SESSION['usuario_role']) ? $_SESSION['usuario_role'] : 'USER';
-$permissoes = isset($_SESSION['usuario_permissoes']) ? $_SESSION['usuario_permissoes'] : [];
+$role = $_SESSION['usuario_role'] ?? 'USER';
+$permissoes = $_SESSION['usuario_permissoes'] ?? [];
 
 require_once 'includes/header.php';
 ?>
@@ -345,17 +347,18 @@ require_once 'includes/header.php';
                 
                 <?php foreach ($lista_projetos as $p): ?>
                     <?php 
-                        $chk_resp = isset($p['checklist_respondido']) ? $p['checklist_respondido'] : 'NAO';
-                        $chk_link = isset($p['checklist_link']) ? $p['checklist_link'] : '';
-                        $med_agen = isset($p['medicao_agendada']) ? $p['medicao_agendada'] : 'NAO';
-                        $med_data = isset($p['medicao_data']) ? $p['medicao_data'] : '';
+                        // PHP 8: Troca do isset e operador ternário pela coalescência nula ??
+                        $chk_resp = $p['checklist_respondido'] ?? 'NAO';
+                        $chk_link = $p['checklist_link'] ?? '';
+                        $med_agen = $p['medicao_agendada'] ?? 'NAO';
+                        $med_data = $p['medicao_data'] ?? '';
                         
-                        $equipe_inst = isset($p['equipe_instalacao']) ? $p['equipe_instalacao'] : '';
-                        $dt_ini_inst = isset($p['data_inicio_instalacao']) ? $p['data_inicio_instalacao'] : '';
-                        $dt_fim_inst = isset($p['data_fim_instalacao']) ? $p['data_fim_instalacao'] : '';
+                        $equipe_inst = $p['equipe_instalacao'] ?? '';
+                        $dt_ini_inst = $p['data_inicio_instalacao'] ?? '';
+                        $dt_fim_inst = $p['data_fim_instalacao'] ?? '';
                         $dias_uteis = calcularDiasUteis($dt_ini_inst, $dt_fim_inst);
-                        $proj_exec = isset($p['projeto_executivo']) ? $p['projeto_executivo'] : 'PARA FAZER';
-                        $situacao_obra = isset($p['situacao_obra']) ? $p['situacao_obra'] : 'NORMAL';
+                        $proj_exec = $p['projeto_executivo'] ?? 'PARA FAZER';
+                        $situacao_obra = $p['situacao_obra'] ?? 'NORMAL';
                         
                         // Lógica de Atraso
                         $is_atrasado = false;
@@ -401,12 +404,12 @@ require_once 'includes/header.php';
                                 <?php endif; ?>
                             </div>
                         </div>
-                        <?php if($conf['data_label'] && $p['data_limite']): ?>
+                        <?php if($conf['data_label'] && !empty($p['data_limite'])): ?>
                             <span class="text-[10px] font-semibold text-gray-500 dark:text-gray-400"><?= $conf['data_label'] ?> <?= formatarData($p['data_limite']) ?></span>
                         <?php endif; ?>
                         
                         <p class="font-bold text-gray-800 dark:text-gray-100 uppercase text-xs mt-1 flex items-center">
-                            <?= preg_replace('/^(\[.*?\])/', '<span class="text-blue-600 dark:text-blue-400 font-black mr-1.5">$1</span>', htmlspecialchars($p['cliente'])) ?>
+                            <?= preg_replace('/^(\[.*?\])/', '<span class="text-blue-600 dark:text-blue-400 font-black mr-1.5">$1</span>', htmlspecialchars($p['cliente'] ?? '')) ?>
                         </p>
 
                         <?php if ($status_chave === 'entregue'): ?>
@@ -425,7 +428,7 @@ require_once 'includes/header.php';
                             </div>
                         <?php endif; ?>
 
-                        <?php if ($p['observacao']): ?>
+                        <?php if (!empty($p['observacao'])): ?>
                             <p class="text-[10px] mt-1 italic text-amber-600 dark:text-amber-400">
                                 Obs: <?= htmlspecialchars($p['observacao']) ?>
                             </p>
@@ -471,11 +474,11 @@ require_once 'includes/header.php';
                                         <?php endif; ?>
                                     </span>
                                 </div>
-                                <div class="flex justify-between items-center"><span class="text-gray-500 dark:text-gray-400">Projeto Promob:</span> <span class="<?= corChecklist($p['promob']) ?>"><?= $p['promob'] ?></span></div>
+                                <div class="flex justify-between items-center"><span class="text-gray-500 dark:text-gray-400">Projeto Promob:</span> <span class="<?= corChecklist($p['promob'] ?? '') ?>"><?= $p['promob'] ?? '' ?></span></div>
                                 <div class="flex justify-between items-center"><span class="text-gray-500 dark:text-gray-400">Proj. Executivo:</span> <span class="<?= corChecklist($proj_exec) ?>"><?= $proj_exec ?></span></div>
-                                <div class="flex justify-between items-center"><span class="text-gray-500 dark:text-gray-400">Corte:</span> <span class="<?= corChecklist($p['corte_furacao']) ?>"><?= $p['corte_furacao'] ?></span></div>
-                                <div class="flex justify-between items-center"><span class="text-gray-500 dark:text-gray-400">Compras:</span> <span class="<?= corChecklist($p['lista_compras']) ?>"><?= $p['lista_compras'] ?></span></div>
-                                <div class="flex justify-between items-center"><span class="text-gray-500 dark:text-gray-400">Ferragens:</span> <span class="<?= corChecklist($p['lista_ferragens']) ?>"><?= $p['lista_ferragens'] ?></span></div>
+                                <div class="flex justify-between items-center"><span class="text-gray-500 dark:text-gray-400">Corte:</span> <span class="<?= corChecklist($p['corte_furacao'] ?? '') ?>"><?= $p['corte_furacao'] ?? '' ?></span></div>
+                                <div class="flex justify-between items-center"><span class="text-gray-500 dark:text-gray-400">Compras:</span> <span class="<?= corChecklist($p['lista_compras'] ?? '') ?>"><?= $p['lista_compras'] ?? '' ?></span></div>
+                                <div class="flex justify-between items-center"><span class="text-gray-500 dark:text-gray-400">Ferragens:</span> <span class="<?= corChecklist($p['lista_ferragens'] ?? '') ?>"><?= $p['lista_ferragens'] ?? '' ?></span></div>
                             </div>
                         <?php endif; ?>
 
@@ -504,7 +507,7 @@ require_once 'includes/header.php';
                     <input type="text" id="search_novo_cliente" onkeyup="filtrarSelect('search_novo_cliente', 'novo_cliente')" placeholder="Pesquisar cliente..." autocomplete="off" class="w-full px-3 py-1.5 mb-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-2 focus:ring-blue-500">
                     <select id="novo_cliente" required size="4" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-2 focus:ring-blue-500 uppercase scrollbar-thin">
                         <?php foreach ($lista_clientes_oficial as $cli): 
-                            $codigo_cli = !empty($cli['codigo_cliente']) ? $cli['codigo_cliente'] : "CLI-" . str_pad($cli['id'], 2, "0", STR_PAD_LEFT);
+                            $codigo_cli = !empty($cli['codigo_cliente']) ? $cli['codigo_cliente'] : "CLI-" . str_pad((string)$cli['id'], 2, "0", STR_PAD_LEFT);
                         ?>
                         <option value="<?= htmlspecialchars($cli['nome_contrato']) ?>" class="p-1 border-b border-gray-100 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-gray-600">
                             [<?= htmlspecialchars($codigo_cli) ?>] - <?= htmlspecialchars($cli['nome_contrato']) ?>
@@ -655,7 +658,7 @@ require_once 'includes/header.php';
                 <input type="text" id="search_edit_cliente" onkeyup="filtrarSelect('search_edit_cliente', 'edit_cliente')" placeholder="Pesquisar cliente..." autocomplete="off" class="w-full px-3 py-1.5 mb-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-2 focus:ring-blue-500">
                 <select id="edit_cliente" required size="4" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-2 focus:ring-blue-500 uppercase scrollbar-thin">
                     <?php foreach ($lista_clientes_oficial as $cli): 
-                        $codigo_cli = !empty($cli['codigo_cliente']) ? $cli['codigo_cliente'] : "CLI-" . str_pad($cli['id'], 2, "0", STR_PAD_LEFT);
+                        $codigo_cli = !empty($cli['codigo_cliente']) ? $cli['codigo_cliente'] : "CLI-" . str_pad((string)$cli['id'], 2, "0", STR_PAD_LEFT);
                     ?>
                     <option value="<?= htmlspecialchars($cli['nome_contrato']) ?>" class="p-1 border-b border-gray-100 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-gray-600">
                         [<?= htmlspecialchars($codigo_cli) ?>] - <?= htmlspecialchars($cli['nome_contrato']) ?>

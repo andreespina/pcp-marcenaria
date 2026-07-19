@@ -114,21 +114,15 @@ async function salvarLancamento(event) {
             body: JSON.stringify(payload) 
         });
         
-        const text = await response.text(); 
+        const result = await response.json().catch(() => null);
         
-        try {
-            const result = JSON.parse(text);
-            if (result.success) { 
-                window.location.reload(); 
-            } else { 
-                alert('Erro no banco de dados: ' + (result.error || 'Desconhecido')); 
-            }
-        } catch(e) {
-            console.error("ERRO FATAL NO SERVIDOR:", text);
-            alert("Ocorreu um erro no servidor. Aperte a tecla F12 (Console) para ver o motivo da quebra.");
+        if (response.ok && result && result.success) { 
+            window.location.reload(); 
+        } else { 
+            const erroMsg = (result && result.error) ? result.error : `Erro HTTP ${response.status}`;
+            alert('Erro no banco de dados: ' + erroMsg); 
         }
     } catch (error) { 
-        console.error(error);
         alert('Erro de comunicação. O arquivo ' + endpoint + ' foi criado corretamente?'); 
     }
 }
@@ -170,12 +164,14 @@ async function salvarBaixa(event) {
             headers: { 'Content-Type': 'application/json' }, 
             body: JSON.stringify(payload) 
         });
-        const result = await response.json();
         
-        if (result.success) { 
+        const result = await response.json().catch(() => null);
+        
+        if (response.ok && result && result.success) { 
             window.location.reload(); 
         } else { 
-            alert('Erro: ' + result.error); 
+            const erroMsg = (result && result.error) ? result.error : `Erro HTTP ${response.status}`;
+            alert('Erro: ' + erroMsg); 
         }
     } catch (error) { 
         alert('Erro de rede ao salvar baixa.'); 
@@ -192,12 +188,14 @@ async function deletarLancamento(id) {
             headers: { 'Content-Type': 'application/json' }, 
             body: JSON.stringify({ id: id }) 
         });
-        const result = await response.json();
         
-        if (result.success) { 
+        const result = await response.json().catch(() => null);
+        
+        if (response.ok && result && result.success) { 
             window.location.reload(); 
         } else { 
-            alert('Erro ao apagar: ' + result.error); 
+            const erroMsg = (result && result.error) ? result.error : `Erro HTTP ${response.status}`;
+            alert('Erro ao apagar: ' + erroMsg); 
         }
     } catch (error) { 
         alert('Erro de rede.'); 

@@ -7,9 +7,10 @@ require_once '../config/conexao.php';
 
 header('Content-Type: application/json');
 
-if (isset($_GET['id'])) {
-    $projeto_id = (int) $_GET['id'];
+// Extração limpa via GET
+$projeto_id = (int)($_GET['id'] ?? 0);
 
+if ($projeto_id > 0) {
     try {
         $stmt = $pdo->prepare("SELECT status_anterior, status_novo, usuario, data_mudanca 
                                FROM historico_projetos 

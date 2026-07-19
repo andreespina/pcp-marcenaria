@@ -76,12 +76,14 @@ async function salvarFornecedor(event) {
             headers: {'Content-Type': 'application/json'}, 
             body: JSON.stringify(data) 
         });
-        const result = await response.json();
         
-        if(result.success) {
+        const result = await response.json().catch(() => null);
+        
+        if (response.ok && result && result.success) {
             window.location.reload();
         } else {
-            alert('Erro: ' + result.error);
+            const erroMsg = (result && result.error) ? result.error : `Erro HTTP ${response.status}`;
+            alert('Erro: ' + erroMsg);
         }
     } catch (e) {
         alert('Erro de conexão ao salvar fornecedor.');
@@ -93,17 +95,19 @@ async function deletarFornecedor(id) {
     if(!confirm('Tem a certeza que deseja apagar este fornecedor? Esta ação não pode ser desfeita.')) return;
     
     try {
-        const res = await fetch('api/delete_fornecedor.php', { 
+        const response = await fetch('api/delete_fornecedor.php', { 
             method: 'POST', 
             headers: {'Content-Type': 'application/json'}, 
             body: JSON.stringify({id}) 
         });
-        const result = await res.json();
         
-        if(result.success) {
+        const result = await response.json().catch(() => null);
+        
+        if (response.ok && result && result.success) {
             window.location.reload();
         } else {
-            alert('Erro: ' + result.error);
+            const erroMsg = (result && result.error) ? result.error : `Erro HTTP ${response.status}`;
+            alert('Erro: ' + erroMsg);
         }
     } catch (e) {
         alert('Erro de rede ao tentar apagar fornecedor.');

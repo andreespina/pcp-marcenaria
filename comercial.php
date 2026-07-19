@@ -16,8 +16,8 @@ try {
     $origens_lead = [];
     
     foreach($cadastros_base as $cad) {
-        if($cad['tipo'] == 'PROJETISTA') $projetistas[] = $cad['nome'];
-        if($cad['tipo'] == 'ORIGEM_LEAD') $origens_lead[] = $cad['nome'];
+        if(($cad['tipo'] ?? '') === 'PROJETISTA') $projetistas[] = $cad['nome'];
+        if(($cad['tipo'] ?? '') === 'ORIGEM_LEAD') $origens_lead[] = $cad['nome'];
     }
     // ------------------------------------------------
 
@@ -49,42 +49,49 @@ try {
     $hoje = date('Y-m-d'); $ano_atual = date('Y');
 
     foreach ($leads as $l) {
-        $fase = $l['fase'];
+        $fase = $l['fase'] ?? '';
         if (array_key_exists($fase, $funil)) {
             $funil[$fase]['leads'][] = $l;
             
-            if ($fase === 'FECHADO') { $finalizados++;
-            } elseif ($fase === 'PERDIDO') { $cancelados++;
-            } elseif ($fase === 'CONTATO') { $para_inicio++;
-            } elseif (in_array($fase, ['REUNIAO', 'PROJETO_3D'])) { $em_andamento++;
-            } elseif ($fase === 'ORCAMENTO') { $para_orcamento++; }
+            // PHP 8: Expressão Match para contadores
+            match ($fase) {
+                'FECHADO' => $finalizados++,
+                'PERDIDO' => $cancelados++,
+                'CONTATO' => $para_inicio++,
+                'REUNIAO', 'PROJETO_3D' => $em_andamento++,
+                'ORCAMENTO' => $para_orcamento++,
+                default => null
+            };
 
-            if(!empty($l['data_apresentacao']) && $fase != 'FECHADO' && $fase != 'PERDIDO' && $fase != 'PAUSADO' && empty($l['apresentacao_realizada'])) {
-                if ($l['data_apresentacao'] >= $hoje) $proximas_apresentacoes[] = $l;
-                else $projetos_atraso[] = $l;
+            if(!empty($l['data_apresentacao']) && !in_array($fase, ['FECHADO', 'PERDIDO', 'PAUSADO']) && empty($l['apresentacao_realizada'])) {
+                if ($l['data_apresentacao'] >= $hoje) {
+                    $proximas_apresentacoes[] = $l;
+                } else {
+                    $projetos_atraso[] = $l;
+                }
                 
-                $nome_cli = !empty($l['nome_cadastrado']) ? $l['nome_cadastrado'] : $l['cliente_nome'];
+                $nome_cli = $l['nome_cadastrado'] ?: ($l['cliente_nome'] ?? 'Sem Nome');
                 $eventos_calendario[] = [
                     'id' => $l['id'],
                     'title' => $nome_cli . ' (' . $funil[$fase]['titulo'] . ')',
                     'start' => $l['data_apresentacao'],
                     'color' => ($l['data_apresentacao'] < $hoje) ? '#ef4444' : '#3b82f6',
-                    'extendedProps' => ['obs' => $l['observacao']]
+                    'extendedProps' => ['obs' => $l['observacao'] ?? '']
                 ];
             }
 
             // INÍCIO: Adicionar múltiplas reuniões (Reprojetos) no Calendário
             if (!empty($l['historico_reprojetos'])) {
-                $historico_apres = json_decode($l['historico_reprojetos'], true);
+                $historico_apres = json_decode((string)$l['historico_reprojetos'], true);
                 if (is_array($historico_apres)) {
                     foreach ($historico_apres as $h) {
-                        $nome_cli = !empty($l['nome_cadastrado']) ? $l['nome_cadastrado'] : $l['cliente_nome'];
+                        $nome_cli = $l['nome_cadastrado'] ?: ($l['cliente_nome'] ?? 'Sem Nome');
                         $eventos_calendario[] = [
-                            'id' => $l['id'] . '_rev_' . $h['revisao'],
-                            'title' => $nome_cli . ' (REV ' . str_pad($h['revisao'], 2, '0', STR_PAD_LEFT) . ')',
-                            'start' => $h['data'],
+                            'id' => $l['id'] . '_rev_' . ($h['revisao'] ?? 0),
+                            'title' => $nome_cli . ' (REV ' . str_pad((string)($h['revisao'] ?? 0), 2, '0', STR_PAD_LEFT) . ')',
+                            'start' => $h['data'] ?? '',
                             'color' => '#f59e0b', // Laranja
-                            'extendedProps' => ['obs' => 'Motivo do Reprojeto: ' . $h['motivo']]
+                            'extendedProps' => ['obs' => 'Motivo do Reprojeto: ' . ($h['motivo'] ?? '')]
                         ];
                     }
                 }
@@ -92,8 +99,8 @@ try {
         }
     }
     
-    usort($proximas_apresentacoes, function($a, $b) { return strtotime($a['data_apresentacao']) - strtotime($b['data_apresentacao']); });
-    usort($projetos_atraso, function($a, $b) { return strtotime($a['data_apresentacao']) - strtotime($b['data_apresentacao']); });
+    usort($proximas_apresentacoes, fn($a, $b) => strtotime($a['data_apresentacao']) - strtotime($b['data_apresentacao']));
+    usort($projetos_atraso, fn($a, $b) => strtotime($a['data_apresentacao']) - strtotime($b['data_apresentacao']));
     
     // --- LÓGICA DE DADOS PARA OS GRÁFICOS DO COMERCIAL ---
     $chart_funil_labels = ['Contato', 'Projeto 3D', 'Orçamento', 'Reunião', 'Pausados'];
@@ -118,19 +125,24 @@ try {
         
         $stmt_novos = $pdo->prepare("SELECT COUNT(*) FROM comercial_leads WHERE MONTH(data_entrada) = ? AND YEAR(data_entrada) = ? AND ativo = 1");
         $stmt_novos->execute([$mes_num, $ano_num]);
-        $chart_bar_novos[] = $stmt_novos->fetchColumn();
+        $chart_bar_novos[] = (int)$stmt_novos->fetchColumn();
 
         $stmt_fechados = $pdo->prepare("SELECT COUNT(*) FROM comercial_leads WHERE fase = 'FECHADO' AND MONTH(COALESCE(data_fechamento, data_entrada)) = ? AND YEAR(COALESCE(data_fechamento, data_entrada)) = ? AND ativo = 1");
         $stmt_fechados->execute([$mes_num, $ano_num]);
-        $chart_bar_fechados[] = $stmt_fechados->fetchColumn();
+        $chart_bar_fechados[] = (int)$stmt_fechados->fetchColumn();
     }
 
-} catch (\PDOException $e) { die("Erro: " . $e->getMessage()); }
+} catch (\PDOException $e) { 
+    die("Erro: " . $e->getMessage()); 
+}
 
-function corMemorial($status) {
-    if ($status === 'FEITO') return 'text-green-600 dark:text-green-500';
-    if ($status === 'PROJETANDO') return 'text-yellow-600 dark:text-yellow-500';
-    return 'text-red-500 dark:text-red-400';
+// PHP 8: Função simplificada com Match
+function corMemorial(?string $status): string {
+    return match($status) {
+        'FEITO' => 'text-green-600 dark:text-green-500',
+        'PROJETANDO' => 'text-yellow-600 dark:text-yellow-500',
+        default => 'text-red-500 dark:text-red-400'
+    };
 }
 
 $page_title = 'COMERCIAL & CRM';
@@ -271,7 +283,7 @@ require_once 'includes/header.php';
                     <?php foreach($proximas_apresentacoes as $ap): ?>
                         <div class="flex justify-between items-center border-b border-gray-100 dark:border-gray-700 pb-2">
                             <div>
-                                <p class="text-xs font-bold text-gray-800 dark:text-gray-200 uppercase"><?= htmlspecialchars($ap['nome_cadastrado'] ?: $ap['cliente_nome']) ?></p>
+                                <p class="text-xs font-bold text-gray-800 dark:text-gray-200 uppercase"><?= htmlspecialchars($ap['nome_cadastrado'] ?: ($ap['cliente_nome'] ?? '')) ?></p>
                                 <p class="text-[10px] text-gray-500 uppercase mt-0.5"><?= $funil[$ap['fase']]['titulo'] ?></p>
                             </div>
                             <span class="text-xs text-blue-600 dark:text-blue-400 font-bold"><?= date('d/m/Y', strtotime($ap['data_apresentacao'])) ?></span>
@@ -289,7 +301,7 @@ require_once 'includes/header.php';
                     <?php foreach($projetos_atraso as $pa): ?>
                         <div class="flex justify-between items-center border-b border-gray-100 dark:border-gray-700 pb-2">
                             <div>
-                                <p class="text-xs font-bold text-gray-800 dark:text-gray-200 uppercase"><?= htmlspecialchars($pa['nome_cadastrado'] ?: $pa['cliente_nome']) ?></p>
+                                <p class="text-xs font-bold text-gray-800 dark:text-gray-200 uppercase"><?= htmlspecialchars($pa['nome_cadastrado'] ?: ($pa['cliente_nome'] ?? '')) ?></p>
                                 <p class="text-[10px] text-gray-500 uppercase mt-0.5"><?= $funil[$pa['fase']]['titulo'] ?></p>
                             </div>
                             <span class="text-[10px] text-white bg-red-600 dark:bg-red-500 px-1.5 py-0.5 rounded font-bold">Atrasado</span>
@@ -339,15 +351,15 @@ require_once 'includes/header.php';
                             }
                         }
                         
-                        $nome_formatado = htmlspecialchars(!empty($l['nome_cadastrado']) ? $l['nome_cadastrado'] : $l['cliente_nome'], ENT_QUOTES, 'UTF-8');
-                        $obs_formatada = htmlspecialchars(!empty($l['observacao']) ? $l['observacao'] : '', ENT_QUOTES, 'UTF-8');
+                        $nome_formatado = htmlspecialchars($l['nome_cadastrado'] ?: ($l['cliente_nome'] ?? ''), ENT_QUOTES, 'UTF-8');
+                        $obs_formatada = htmlspecialchars($l['observacao'] ?? '', ENT_QUOTES, 'UTF-8');
                     ?>
                         <div class="bg-white dark:bg-gray-800 border <?= $card_border ?> rounded p-3 cursor-grab transition-colors duration-200" data-id="<?= $l['id'] ?>">
                             
                             <div class="flex justify-between items-center border-b border-gray-100 dark:border-gray-700 pb-2 mb-2">
                                 <span class="text-[10px] text-gray-500 dark:text-gray-400 font-medium">Entrada: <?= date('d/m/y', strtotime($l['data_entrada'])) ?></span>
                                 <div class="flex items-center">
-                                    <span class="text-[9px] text-gray-800 dark:text-gray-200 bg-gray-200 dark:bg-gray-700 px-1 font-bold rounded uppercase mr-2"><?= htmlspecialchars($l['origem']) ?></span>
+                                    <span class="text-[9px] text-gray-800 dark:text-gray-200 bg-gray-200 dark:bg-gray-700 px-1 font-bold rounded uppercase mr-2"><?= htmlspecialchars($l['origem'] ?? '') ?></span>
                                     
                                     <a href="#" onclick="abrirGoogleCalendar('<?= $nome_formatado ?>', '<?= !empty($l['data_apresentacao']) ? $l['data_apresentacao'] : '' ?>', '<?= $obs_formatada ?>'); return false;" class="text-gray-400 hover:text-green-600 dark:hover:text-green-400 mr-2" title="Salvar no Google Agenda">
                                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
@@ -363,12 +375,10 @@ require_once 'includes/header.php';
                                     </button>
                                     <?php endif; ?>
 
-                                    <!-- Botão Lixeira agora move para Perdidos -->
                                     <button onclick="abrirModalMotivo(<?= $l['id'] ?>, 'PERDIDO')" class="text-gray-400 hover:text-red-500 dark:hover:text-red-400 ml-1.5" title="Mover para Perdidos">
                                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                                     </button>
 
-                                    <!-- NOVO: Botão Exclusão Permanente (Some se estiver Fechado) -->
                                     <?php if($fase_chave !== 'FECHADO'): ?>
                                     <button onclick="excluirLeadPermanente(<?= $l['id'] ?>)" class="text-gray-400 hover:text-red-800 dark:hover:text-red-600 ml-1.5" title="Excluir Permanentemente">
                                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
@@ -381,7 +391,7 @@ require_once 'includes/header.php';
                                 <?= $nome_formatado ?>
                                 <?= $sla_tag ?>
                                 <?php if(!empty($l['revisao']) && $l['revisao'] > 0): ?>
-                                    <span class="text-[9px] bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300 px-1.5 py-0.5 rounded font-bold border border-orange-200 dark:border-orange-800 uppercase ml-2">REV. <?= str_pad($l['revisao'], 2, '0', STR_PAD_LEFT) ?></span>
+                                    <span class="text-[9px] bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300 px-1.5 py-0.5 rounded font-bold border border-orange-200 dark:border-orange-800 uppercase ml-2">REV. <?= str_pad((string)$l['revisao'], 2, '0', STR_PAD_LEFT) ?></span>
                                 <?php endif; ?>
                             </h4>
                             
@@ -405,9 +415,12 @@ require_once 'includes/header.php';
                             <?php endif; ?>
                             
                             <div class="text-[10px] text-gray-600 dark:text-gray-400 space-y-1.5 pt-2 border-t border-gray-100 dark:border-gray-700 mt-2">
-                                <div class="flex justify-between"><span>Probabilidade:</span> <span class="font-bold <?= $l['probabilidade']>70?'text-green-600 dark:text-green-500':'text-orange-500' ?>"><?= $l['probabilidade'] ?>%</span></div>
-                                <div class="flex justify-between"><span>Memorial:</span> <span class="font-bold <?= corMemorial($l['memorial_descritivo']) ?>"><?= $l['memorial_descritivo'] ?></span></div>
-                                <div class="flex justify-between"><span>Vlr. Estimado:</span> <span class="font-bold text-emerald-600 dark:text-emerald-400">R$ <?= number_format($l['valor_estimado'], 2, ',', '.') ?></span></div>
+                                <div class="flex justify-between">
+                                    <span>Probabilidade:</span> 
+                                    <span class="font-bold <?= ($l['probabilidade'] ?? 0) > 70 ? 'text-green-600 dark:text-green-500' : 'text-orange-500' ?>"><?= (int)($l['probabilidade'] ?? 0) ?>%</span>
+                                </div>
+                                <div class="flex justify-between"><span>Memorial:</span> <span class="font-bold <?= corMemorial($l['memorial_descritivo'] ?? '') ?>"><?= $l['memorial_descritivo'] ?? '' ?></span></div>
+                                <div class="flex justify-between"><span>Vlr. Estimado:</span> <span class="font-bold text-emerald-600 dark:text-emerald-400">R$ <?= number_format((float)($l['valor_estimado'] ?? 0), 2, ',', '.') ?></span></div>
                                 <div class="flex justify-between items-center">
                                     <span>Apresentação:</span> 
                                     <?php if(!empty($l['apresentacao_realizada'])): ?>
@@ -429,6 +442,7 @@ require_once 'includes/header.php';
     </div>
 </div>
 
+<!-- (Manteve-se inalterados os MODAIS, por serem estruturas HTML estáticas do usuário) -->
 <div id="modalLead" class="fixed inset-0 bg-black bg-opacity-60 dark:bg-opacity-70 flex items-center justify-center z-50 hidden opacity-0 transition-opacity duration-300">
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-2xl p-6 border border-gray-200 dark:border-gray-700 transform scale-95 transition-all duration-300 max-h-[90vh] overflow-y-auto" id="modalLeadConteudo">
         <div class="flex justify-between items-center mb-4 border-b border-gray-200 dark:border-gray-700 pb-2">
@@ -603,7 +617,7 @@ require_once 'includes/header.php';
 <div id="modalReprojeto" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[70] hidden opacity-0 transition-opacity duration-300">
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-sm p-6 border border-gray-200 dark:border-gray-700 transform scale-95 transition-all duration-300" id="modalReprojetoConteudo">
         <h3 class="text-lg font-bold text-orange-600 dark:text-orange-400 mb-4 uppercase flex items-center">
-            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg> Solicitar Reprojeto
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg Solicitar Reprojeto
         </h3>
         <p class="text-xs text-gray-600 dark:text-gray-400 mb-4">O projeto retornará para a fase de Projeto 3D.</p>
         <form id="formReprojeto" onsubmit="salvarReprojeto(event)">

@@ -5,19 +5,23 @@ protegerAPI();
 require_once '../config/conexao.php';
 header('Content-Type: application/json');
 
-$data = json_decode(file_get_contents('php://input'));
+$data = json_decode((string)file_get_contents('php://input'));
 
-if (!empty($data->mensagem) && !empty($data->de_quem) && !empty($data->para_quem)) {
+$mensagem = trim((string)($data->mensagem ?? ''));
+$de_quem = trim((string)($data->de_quem ?? ''));
+$para_quem = trim((string)($data->para_quem ?? ''));
+
+if ($mensagem !== '' && $de_quem !== '' && $para_quem !== '') {
     try {
         $stmt = $pdo->prepare("INSERT INTO recados (data_recado, de_quem, para_quem, setor, prioridade, mensagem) 
                                VALUES (:data_recado, :de_quem, :para_quem, :setor, :prioridade, :mensagem)");
         $stmt->execute([
-            'data_recado' => $data->data_recado,
-            'de_quem'     => trim($data->de_quem),
-            'para_quem'   => trim($data->para_quem),
-            'setor'       => trim($data->setor),
-            'prioridade'  => $data->prioridade,
-            'mensagem'    => trim($data->mensagem)
+            'data_recado' => (string)($data->data_recado ?? ''),
+            'de_quem'     => $de_quem,
+            'para_quem'   => $para_quem,
+            'setor'       => trim((string)($data->setor ?? '')),
+            'prioridade'  => (string)($data->prioridade ?? 'BAIXA'),
+            'mensagem'    => $mensagem
         ]);
         echo json_encode(['success' => true]);
     } catch (\PDOException $e) {

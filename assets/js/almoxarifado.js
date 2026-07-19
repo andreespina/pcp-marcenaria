@@ -75,12 +75,14 @@ async function ajustarEstoque(id, alteracao, qtd_atual) {
             headers: { 'Content-Type': 'application/json' }, 
             body: JSON.stringify({ id: id, quantidade: novaQtd }) 
         });
-        const result = await response.json();
         
-        if (result.success) { 
+        const result = await response.json().catch(() => null);
+        
+        if (response.ok && result && result.success) { 
             window.location.reload(); 
         } else { 
-            alert('Erro ao atualizar: ' + result.error); 
+            const erroMsg = (result && result.error) ? result.error : `Erro HTTP ${response.status}`;
+            alert('Erro ao atualizar: ' + erroMsg); 
         }
     } catch (error) { 
         alert('Erro de comunicação com o servidor.'); 
@@ -109,12 +111,13 @@ async function salvarItemServidor(event) {
             headers: { 'Content-Type': 'application/json' }, 
             body: JSON.stringify(payload) 
         });
-        const result = await response.json();
+        const result = await response.json().catch(() => null);
         
-        if (result.success) { 
+        if (response.ok && result && result.success) { 
             window.location.reload(); 
         } else { 
-            alert('Erro: ' + (result.error || 'Erro desconhecido.')); 
+            const erroMsg = (result && result.error) ? result.error : `Erro HTTP ${response.status}`;
+            alert('Erro: ' + erroMsg); 
         }
     } catch (error) { 
         alert('Erro de rede ao salvar material.'); 
@@ -131,12 +134,13 @@ async function deletarItem(id) {
             headers: { 'Content-Type': 'application/json' }, 
             body: JSON.stringify({ id: id }) 
         });
-        const result = await response.json();
+        const result = await response.json().catch(() => null);
         
-        if (result.success) { 
+        if (response.ok && result && result.success) { 
             window.location.reload(); 
         } else { 
-            alert('Erro ao apagar: ' + result.error); 
+            const erroMsg = (result && result.error) ? result.error : `Erro HTTP ${response.status}`;
+            alert('Erro ao apagar: ' + erroMsg); 
         }
     } catch (error) { 
         alert('Erro de rede ao apagar o material.'); 

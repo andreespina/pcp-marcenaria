@@ -13,36 +13,40 @@ try {
     $stmt = $pdo->query("SELECT * FROM administrativo_contratos ORDER BY id DESC");
     $contratos = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    $total_valor = 0; 
+    $total_valor = 0.0; 
     $pendentes = 0; 
     $a_faturar = 0; 
     $faturado = 0;
     $pagos = 0;
 
     // Métricas de Custos
-    $total_mdf = 0;
-    $total_ferragens = 0;
-    $total_comissoes = 0;
-    $total_outros = 0;
-    $total_lucro = 0;
+    $total_mdf = 0.0;
+    $total_ferragens = 0.0;
+    $total_comissoes = 0.0;
+    $total_outros = 0.0;
+    $total_lucro = 0.0;
 
     foreach ($contratos as $c) {
-        $total_valor += (float)$c['valor'];
+        $total_valor += (float)($c['valor'] ?? 0);
         
-        if ($c['status_contrato'] === 'PENDENTE') $pendentes++;
+        if (($c['status_contrato'] ?? '') === 'PENDENTE') $pendentes++;
         
-        if ($c['status_financeiro'] === 'A FATURAR') $a_faturar++;
-        if ($c['status_financeiro'] === 'FATURADO') $faturado++;
-        if ($c['status_financeiro'] === 'PAGO') $pagos++;
+        // PHP 8: Match para contagem de Status Financeiro
+        match ($c['status_financeiro'] ?? '') {
+            'A FATURAR' => $a_faturar++,
+            'FATURADO' => $faturado++,
+            'PAGO' => $pagos++,
+            default => null
+        };
 
-        // CORREÇÃO: Substituído o '??' por 'isset()' para compatibilidade com PHP mais antigo
-        $mdf = isset($c['custo_mdf']) ? (float)$c['custo_mdf'] : 0;
-        $fer = isset($c['custo_ferragens']) ? (float)$c['custo_ferragens'] : 0;
-        $com = isset($c['custo_comissao']) ? (float)$c['custo_comissao'] : 0;
-        $out = isset($c['custo_outros']) ? (float)$c['custo_outros'] : 0;
+        // Uso consolidado do Null Coalescing para casting seguro de floats
+        $mdf = (float)($c['custo_mdf'] ?? 0);
+        $fer = (float)($c['custo_ferragens'] ?? 0);
+        $com = (float)($c['custo_comissao'] ?? 0);
+        $out = (float)($c['custo_outros'] ?? 0);
         
         $custos_totais = $mdf + $fer + $com + $out;
-        $lucro = (float)$c['valor'] - $custos_totais;
+        $lucro = (float)($c['valor'] ?? 0) - $custos_totais;
 
         $total_mdf += $mdf;
         $total_ferragens += $fer;
@@ -150,15 +154,15 @@ require_once 'includes/header.php';
                     <?php foreach ($contratos as $c): ?>
                         <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors tr-busca">
                             <td class="px-6 py-4 font-bold uppercase text-gray-900 dark:text-white">
-                                <?= preg_replace('/^(\[.*?\])/', '<span class="text-blue-600 dark:text-blue-400 font-black mr-1">$1</span>', htmlspecialchars($c['cliente_nome'])) ?>
+                                <?= preg_replace('/^(\[.*?\])/', '<span class="text-blue-600 dark:text-blue-400 font-black mr-1">$1</span>', htmlspecialchars($c['cliente_nome'] ?? '')) ?>
                             </td>
                             <td class="px-6 py-4 font-medium text-gray-500 dark:text-gray-400">
                                 <?= !empty($c['numero_nf']) ? htmlspecialchars($c['numero_nf']) : '<span class="italic text-xs">Sem NF</span>' ?>
                             </td>
-                            <td class="px-6 py-4 font-black text-emerald-600 dark:text-emerald-400">R$ <?= number_format($c['valor'], 2, ',', '.') ?></td>
+                            <td class="px-6 py-4 font-black text-emerald-600 dark:text-emerald-400">R$ <?= number_format((float)($c['valor'] ?? 0), 2, ',', '.') ?></td>
                             
                             <td class="px-6 py-4">
-                                <?php if($c['status_contrato'] === 'ASSINADO'): ?>
+                                <?php if(($c['status_contrato'] ?? '') === 'ASSINADO'): ?>
                                     <span class="text-[10px] bg-green-100 text-green-800 px-2 py-1 rounded font-bold border border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800">ASSINADO</span>
                                 <?php else: ?>
                                     <span class="text-[10px] bg-red-100 text-red-800 px-2 py-1 rounded font-bold border border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800 animate-pulse">PENDENTE</span>
@@ -166,9 +170,9 @@ require_once 'includes/header.php';
                             </td>
                             
                             <td class="px-6 py-4">
-                                <?php if($c['status_financeiro'] === 'PAGO'): ?>
+                                <?php if(($c['status_financeiro'] ?? '') === 'PAGO'): ?>
                                     <span class="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-1 rounded font-bold border border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400">LIQUIDADO</span>
-                                <?php elseif($c['status_financeiro'] === 'FATURADO'): ?>
+                                <?php elseif(($c['status_financeiro'] ?? '') === 'FATURADO'): ?>
                                     <span class="text-[10px] bg-blue-100 text-blue-800 px-2 py-1 rounded font-bold border border-blue-200 dark:bg-blue-900/30 dark:text-blue-400">FATURADO</span>
                                 <?php else: ?>
                                     <span class="text-[10px] bg-yellow-100 text-yellow-800 px-2 py-1 rounded font-bold border border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400">A FATURAR</span>
@@ -207,7 +211,7 @@ require_once 'includes/header.php';
                     
                     <select id="manual_cliente_id" required size="4" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-2 focus:ring-blue-500 uppercase scrollbar-thin">
                         <?php foreach ($clientes_db as $cli): 
-                            $codigo_cli = !empty($cli['codigo_cliente']) ? $cli['codigo_cliente'] : "CLI-" . str_pad($cli['id'], 2, "0", STR_PAD_LEFT); 
+                            $codigo_cli = !empty($cli['codigo_cliente']) ? $cli['codigo_cliente'] : "CLI-" . str_pad((string)$cli['id'], 2, "0", STR_PAD_LEFT); 
                         ?>
                         <option value="<?= $cli['id'] ?>" class="p-1 border-b border-gray-100 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-gray-600">
                             [<?= htmlspecialchars($codigo_cli) ?>] - <?= htmlspecialchars($cli['nome_contrato']) ?>

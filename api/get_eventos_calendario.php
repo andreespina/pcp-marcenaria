@@ -15,46 +15,48 @@ try {
 
     $eventos = [];
     foreach ($projetos as $p) {
-        $equipe = $p['equipe_instalacao'] ? strtoupper($p['equipe_instalacao']) : 'SEM EQUIPA';
+        $equipe = !empty($p['equipe_instalacao']) ? strtoupper($p['equipe_instalacao']) : 'SEM EQUIPA';
         
-        // FullCalendar precisa que a data final seja o dia seguinte (exclusive end date) para preencher a barra no calendário corretamente
-        $endDate = '';
+        $endDate = (string)($p['data_inicio_instalacao'] ?? '');
         if (!empty($p['data_fim_instalacao'])) {
-            $end = new DateTime($p['data_fim_instalacao']);
-            $end->modify('+1 day'); // Adiciona 1 dia para o visual do calendário
-            $endDate = $end->format('Y-m-d');
-        } else {
-            $endDate = $p['data_inicio_instalacao'];
+            try {
+                $end = new DateTime($p['data_fim_instalacao']);
+                $end->modify('+1 day'); // Adiciona 1 dia para o visual do calendário
+                $endDate = $end->format('Y-m-d');
+            } catch (\Exception $e) {
+                // Se a data vier corrompida do banco, faz um fallback
+                $endDate = $p['data_fim_instalacao'];
+            }
         }
 
-        // Definir uma cor padrão baseada no status
+        $status = (string)($p['status'] ?? '');
         $color = '#3b82f6'; // Azul padrão
-        if ($p['status'] == 'atrasou') $color = '#ef4444'; // Vermelho se atrasou
-        elseif ($p['status'] == 'instalacao') $color = '#10b981'; // Verde se já está instalando
+        if ($status === 'atrasou') {
+            $color = '#ef4444'; // Vermelho se atrasou
+        } elseif ($status === 'instalacao') {
+            $color = '#10b981'; // Verde se já está instalando
+        }
         
-        // Se tiver equipa, gera uma cor fixa única para aquela equipa baseada no nome (ex: Equipe A será sempre roxa, Equipe B laranja...)
-        if ($p['equipe_instalacao']) {
+        if (!empty($p['equipe_instalacao'])) {
             $hash = md5($equipe);
-            $r = hexdec(substr($hash, 0, 2));
-            $g = hexdec(substr($hash, 2, 2));
-            $b = hexdec(substr($hash, 4, 2));
-            // Escurece um pouco a cor para o texto branco ficar legível
-            $r = max(0, $r - 50); $g = max(0, $g - 50); $b = max(0, $b - 50);
-            $color = "rgb($r,$g,$b)";
+            $r = max(0, hexdec(substr($hash, 0, 2)) - 50);
+            $g = max(0, hexdec(substr($hash, 2, 2)) - 50);
+            $b = max(0, hexdec(substr($hash, 4, 2)) - 50);
+            $color = "rgb({$r},{$g},{$b})";
         }
 
         $eventos[] = [
             'id' => $p['id'],
-            'title' => "[" . $equipe . "] " . $p['cliente'],
+            'title' => "[{$equipe}] " . ($p['cliente'] ?? 'Sem Cliente'),
             'start' => $p['data_inicio_instalacao'],
             'end' => $endDate,
             'color' => $color,
-            'extendedProps' => [ // Variáveis extras para usar no modal de clique
-                'cliente' => $p['cliente'],
+            'extendedProps' => [
+                'cliente' => $p['cliente'] ?? '',
                 'equipe' => $equipe,
-                'status' => $p['status'],
-                'data_inicio' => date('d/m/Y', strtotime($p['data_inicio_instalacao'])),
-                'data_fim' => $p['data_fim_instalacao'] ? date('d/m/Y', strtotime($p['data_fim_instalacao'])) : 'Não definida'
+                'status' => $status,
+                'data_inicio' => !empty($p['data_inicio_instalacao']) ? date('d/m/Y', strtotime($p['data_inicio_instalacao'])) : '',
+                'data_fim' => !empty($p['data_fim_instalacao']) ? date('d/m/Y', strtotime($p['data_fim_instalacao'])) : 'Não definida'
             ]
         ];
     }

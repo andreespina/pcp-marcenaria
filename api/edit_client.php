@@ -6,15 +6,16 @@ require_once '../config/conexao.php';
 
 header('Content-Type: application/json');
 $json = file_get_contents('php://input');
-$data = json_decode($json);
+$data = json_decode((string)$json);
 
-$id = isset($data->id) ? (int)$data->id : 0;
-$cliente = isset($data->cliente) ? trim($data->cliente) : '';
+$id = (int)($data->id ?? 0);
+$cliente = trim((string)($data->cliente ?? ''));
 
-if ($id > 0 && !empty($cliente)) {
+if ($id > 0 && $cliente !== '') {
     // --- MOTOR DE BUSCA DE ID ---
     $cliente_id = null;
     $nome_limpo = trim(preg_replace('/^\[.*?\]\s*/', '', $cliente));
+    $cliente_codigo = null;
     
     $stmtCli = $pdo->prepare("SELECT id, codigo_cliente FROM clientes_cadastro WHERE TRIM(UPPER(nome_contrato)) = UPPER(?) LIMIT 1");
     $stmtCli->execute([$nome_limpo]);
@@ -44,25 +45,25 @@ if ($id > 0 && !empty($cliente)) {
     }
     // -----------------------------
 
-    $data_limite = !empty($data->data_limite) ? $data->data_limite : null;
-    $observacao  = !empty($data->observacao) ? trim($data->observacao) : null;
+    $data_limite = !empty($data->data_limite) ? (string)$data->data_limite : null;
+    $observacao  = !empty($data->observacao) ? trim((string)$data->observacao) : null;
     
-    $promob            = isset($data->promob) ? $data->promob : 'PARA FAZER';
-    $projeto_executivo = isset($data->projeto_executivo) ? $data->projeto_executivo : 'PARA FAZER';
-    $corte_furacao     = isset($data->corte_furacao) ? $data->corte_furacao : 'PARA ENVIAR';
-    $lista_compras     = isset($data->lista_compras) ? $data->lista_compras : 'PARA ENVIAR';
-    $lista_ferragens   = isset($data->lista_ferragens) ? $data->lista_ferragens : 'PARA ENVIAR';
+    $promob            = (string)($data->promob ?? 'PARA FAZER');
+    $projeto_executivo = (string)($data->projeto_executivo ?? 'PARA FAZER');
+    $corte_furacao     = (string)($data->corte_furacao ?? 'PARA ENVIAR');
+    $lista_compras     = (string)($data->lista_compras ?? 'PARA ENVIAR');
+    $lista_ferragens   = (string)($data->lista_ferragens ?? 'PARA ENVIAR');
 
-    $checklist_respondido = isset($data->checklist_respondido) ? $data->checklist_respondido : 'NAO';
-    $checklist_link       = isset($data->checklist_link) ? trim($data->checklist_link) : null;
-    $medicao_agendada     = isset($data->medicao_agendada) ? $data->medicao_agendada : 'NAO';
-    $medicao_data         = !empty($data->medicao_data) ? $data->medicao_data : null;
+    $checklist_respondido = (string)($data->checklist_respondido ?? 'NAO');
+    $checklist_link       = !empty($data->checklist_link) ? trim((string)$data->checklist_link) : null;
+    $medicao_agendada     = (string)($data->medicao_agendada ?? 'NAO');
+    $medicao_data         = !empty($data->medicao_data) ? (string)$data->medicao_data : null;
 
-    $equipe_instalacao      = !empty($data->equipe_instalacao) ? trim($data->equipe_instalacao) : null;
-    $data_inicio_instalacao = !empty($data->data_inicio_instalacao) ? $data->data_inicio_instalacao : null;
-    $data_fim_instalacao    = !empty($data->data_fim_instalacao) ? $data->data_fim_instalacao : null;
+    $equipe_instalacao      = !empty($data->equipe_instalacao) ? trim((string)$data->equipe_instalacao) : null;
+    $data_inicio_instalacao = !empty($data->data_inicio_instalacao) ? (string)$data->data_inicio_instalacao : null;
+    $data_fim_instalacao    = !empty($data->data_fim_instalacao) ? (string)$data->data_fim_instalacao : null;
     
-    $situacao_obra = isset($data->situacao_obra) ? $data->situacao_obra : 'NORMAL';
+    $situacao_obra = (string)($data->situacao_obra ?? 'NORMAL');
 
     try {
         $pdo->beginTransaction();
@@ -71,7 +72,7 @@ if ($id > 0 && !empty($cliente)) {
 
         // Se encontramos o cliente e o nome no input veio sem a Tag, nós adicionamos a Tag para ficar padronizado na visualização!
         if ($cliente_id && !preg_match('/^\[.*?\]/', $cliente_final)) {
-            $codigo_usar = !empty($cliente_codigo) ? $cliente_codigo : "CLI-" . str_pad($cliente_id, 2, "0", STR_PAD_LEFT);
+            $codigo_usar = !empty($cliente_codigo) ? $cliente_codigo : "CLI-" . str_pad((string)$cliente_id, 2, "0", STR_PAD_LEFT);
             $cliente_final = "[" . $codigo_usar . "] " . mb_strtoupper($nome_limpo, 'UTF-8');
         }
 

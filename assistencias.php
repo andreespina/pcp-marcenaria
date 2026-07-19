@@ -5,8 +5,8 @@ protegerPagina();
 
 require_once 'config/conexao.php';
 
-// Define a permissão do usuário
-$role = isset($_SESSION['usuario_role']) ? $_SESSION['usuario_role'] : 'USER';
+// Define a permissão do usuário de forma segura no PHP 8
+$role = $_SESSION['usuario_role'] ?? 'USER';
 
 // Colunas do Kanban de Assistências
 $titulos_colunas = [
@@ -33,15 +33,17 @@ try {
     $formas_pagamento = [];
     
     foreach($cadastros_base as $cad) {
-        if($cad['tipo'] == 'EQUIPE_MONTAGEM') $equipes_montagem[] = $cad['nome'];
-        if($cad['tipo'] == 'FORMA_PAGAMENTO') $formas_pagamento[] = $cad['nome'];
+        $tipo = $cad['tipo'] ?? '';
+        if($tipo === 'EQUIPE_MONTAGEM') $equipes_montagem[] = $cad['nome'];
+        if($tipo === 'FORMA_PAGAMENTO') $formas_pagamento[] = $cad['nome'];
     }
     // -------------------------------------------------------
 
     $colunas = [ 'pendente'  => [], 'agendada'  => [], 'concluida' => [] ];
     
     foreach ($assistencias as $a) {
-        $status = isset($colunas[$a['status']]) ? $a['status'] : 'pendente';
+        $status_banco = $a['status'] ?? '';
+        $status = array_key_exists($status_banco, $colunas) ? $status_banco : 'pendente';
         $colunas[$status][] = $a;
     }
 
@@ -49,19 +51,17 @@ try {
     die("Erro na consulta: " . $e->getMessage());
 }
 
-function formatarData($data) {
-    if (!$data) return '';
-    return date('d/m/Y', strtotime($data));
+// Funções com Tipagem Estrita
+function formatarData(?string $data): string {
+    return $data ? date('d/m/Y', strtotime($data)) : '';
 }
 
-function formatarDataPrint($data) {
-    if (!$data) return '';
-    return date('d/m/Y', strtotime($data));
+function formatarDataPrint(?string $data): string {
+    return $data ? date('d/m/Y', strtotime($data)) : '';
 }
 
-function jsSafe($val) {
-    if ($val === null) $val = '';
-    return htmlspecialchars(json_encode($val), ENT_QUOTES, 'UTF-8');
+function jsSafe(mixed $val): string {
+    return htmlspecialchars(json_encode($val ?? ''), ENT_QUOTES, 'UTF-8');
 }
 
 // Variáveis para o header
@@ -196,33 +196,33 @@ require_once 'includes/header.php';
                             if (!empty($a['codigo_cliente'])) {
                                 $codigo_exibicao = $a['codigo_cliente'];
                             } elseif (!empty($a['id_cadastro'])) {
-                                $codigo_exibicao = "CLI-" . str_pad($a['id_cadastro'], 2, "0", STR_PAD_LEFT);
+                                $codigo_exibicao = "CLI-" . str_pad((string)$a['id_cadastro'], 2, "0", STR_PAD_LEFT);
                             }
 
                             $cardData = htmlspecialchars(json_encode([
-                                'id' => $a['id'], 'projeto_id' => $a['projeto_id'], 'cliente' => $a['cliente'], 'obs' => $a['obs_assistencia'],
+                                'id' => $a['id'], 'projeto_id' => $a['projeto_id'] ?? null, 'cliente' => $a['cliente'] ?? '', 'obs' => $a['obs_assistencia'] ?? '',
                                 'codigo_cli' => $codigo_exibicao,
-                                'end' => $a['endereco'], 'num' => $a['numero_lote'], 'qd' => $a['quadra'],
-                                'bairro' => $a['bairro'], 'cond' => $a['condominio'], 'comp' => $a['complemento'],
-                                'cid' => $a['cidade'], 'cep' => $a['cep'], 'fixo' => $a['tel_fixo'], 'cel' => $a['tel_cel'],
-                                'dt_solic_raw' => $a['data_solicitacao'], 'dt_agend_raw' => $a['data_assistencia'],
-                                'dt_solic' => formatarDataPrint($a['data_solicitacao']), 'dt_agend' => formatarDataPrint($a['data_assistencia']),
-                                'resolvido' => $a['resolvido_assistencia'], 'tecnico' => $a['tecnico_assistencia'],
-                                'tipo_cobranca' => isset($a['tipo_cobranca']) ? $a['tipo_cobranca'] : 'GARANTIA', 
-                                'valor_cobrado' => isset($a['valor_cobrado']) ? $a['valor_cobrado'] : null,
-                                'forma_pagamento' => isset($a['forma_pagamento']) ? $a['forma_pagamento'] : null, 
-                                'comprovante_file' => isset($a['comprovante_file']) ? $a['comprovante_file'] : null
+                                'end' => $a['endereco'] ?? '', 'num' => $a['numero_lote'] ?? '', 'qd' => $a['quadra'] ?? '',
+                                'bairro' => $a['bairro'] ?? '', 'cond' => $a['condominio'] ?? '', 'comp' => $a['complemento'] ?? '',
+                                'cid' => $a['cidade'] ?? '', 'cep' => $a['cep'] ?? '', 'fixo' => $a['tel_fixo'] ?? '', 'cel' => $a['tel_cel'] ?? '',
+                                'dt_solic_raw' => $a['data_solicitacao'] ?? '', 'dt_agend_raw' => $a['data_assistencia'] ?? '',
+                                'dt_solic' => formatarDataPrint($a['data_solicitacao'] ?? null), 'dt_agend' => formatarDataPrint($a['data_assistencia'] ?? null),
+                                'resolvido' => $a['resolvido_assistencia'] ?? '', 'tecnico' => $a['tecnico_assistencia'] ?? '',
+                                'tipo_cobranca' => $a['tipo_cobranca'] ?? 'GARANTIA', 
+                                'valor_cobrado' => $a['valor_cobrado'] ?? null,
+                                'forma_pagamento' => $a['forma_pagamento'] ?? null, 
+                                'comprovante_file' => $a['comprovante_file'] ?? null
                             ]), ENT_QUOTES, 'UTF-8'); 
                         ?>
                         
                         <div class="card-busca bg-gray-50 dark:bg-gray-800/80 hover:bg-gray-100 dark:hover:bg-gray-700/80 border border-gray-200 dark:border-gray-700 p-3 rounded-lg shadow-sm cursor-grab active:cursor-grabbing transition-all duration-200" 
-                             data-id="<?= $a['id'] ?>" data-nome="<?= htmlspecialchars(strtolower($a['cliente'])) ?>" data-time="<?= strtotime($a['data_solicitacao']) ?>" data-json='<?= $cardData ?>'>
+                             data-id="<?= $a['id'] ?>" data-nome="<?= htmlspecialchars(strtolower($a['cliente'] ?? '')) ?>" data-time="<?= strtotime($a['data_solicitacao'] ?? '') ?>" data-json='<?= $cardData ?>'>
                             
                             <!-- CABEÇALHO CLICÁVEL (VISÃO MINIMALISTA) -->
                             <div class="cursor-pointer select-none flex flex-col" onclick="toggleAssistenciaCard(this)">
                                 <div class="flex justify-between items-start mb-1">
                                     <div class="flex items-center space-x-1.5">
-                                        <span class="text-[10px] font-bold text-amber-600 dark:text-amber-500 bg-amber-100 dark:bg-amber-900/30 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-800">AST #<?= $a['id'] ?></span>
+                                        <span class="text-[10px] font-bold text-amber-600 dark:text-amber-500 bg-amber-100 dark:bg-amber-900/30 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-800">AST #<?= $a['id'] ?? '' ?></span>
                                         <?php if($codigo_exibicao): ?>
                                             <span class="text-amber-600 dark:text-amber-500 font-black text-[10px] tracking-wider">[<?= htmlspecialchars($codigo_exibicao) ?>]</span>
                                         <?php endif; ?>
@@ -230,7 +230,7 @@ require_once 'includes/header.php';
                                     <svg class="w-4 h-4 text-gray-400 transform transition-transform duration-200 icon-seta <?= ($status_chave === 'concluida') ? '' : 'rotate-180' ?>" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                                 </div>
                                 <p class="font-bold text-gray-800 dark:text-gray-100 uppercase text-xs truncate mt-0.5">
-                                    <span class="texto-pesquisa"><?= htmlspecialchars($a['cliente']) ?></span>
+                                    <span class="texto-pesquisa"><?= htmlspecialchars($a['cliente'] ?? '') ?></span>
                                 </p>
                             </div>
 
@@ -252,19 +252,19 @@ require_once 'includes/header.php';
                                         
                                         <?php if ($role === 'ADMIN'): ?>
                                             <div class="w-px h-4 bg-gray-300 dark:bg-gray-600 mx-1"></div>
-                                            <button onclick="deletarAssistencia(event, <?= $a['id'] ?>)" class="text-gray-400 hover:text-red-600 dark:text-red-400 transition-colors p-1 text-sm font-bold" title="Apagar Assistência">
+                                            <button onclick="deletarAssistencia(event, <?= $a['id'] ?? 0 ?>)" class="text-gray-400 hover:text-red-600 dark:text-red-400 transition-colors p-1 text-sm font-bold" title="Apagar Assistência">
                                                 &times;
                                             </button>
                                         <?php endif; ?>
                                     </div>
-                                    <span class="text-[9px] font-semibold text-gray-500 dark:text-gray-400">Criada: <?= formatarData($a['data_solicitacao']) ?></span>
+                                    <span class="text-[9px] font-semibold text-gray-500 dark:text-gray-400">Criada: <?= formatarData($a['data_solicitacao'] ?? null) ?></span>
                                 </div>
 
                                 <!-- DETALHES -->
                                 <div class="mt-1 flex items-center flex-wrap gap-1">
-                                    <?php if (isset($a['tipo_cobranca']) && $a['tipo_cobranca'] === 'FATURADA'): ?>
+                                    <?php if (($a['tipo_cobranca'] ?? '') === 'FATURADA'): ?>
                                         <span class="bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300 px-1.5 py-0.5 rounded text-[9px] font-bold border border-purple-200 dark:border-purple-800/50 uppercase">
-                                            FATURADA (R$ <?= number_format((float)$a['valor_cobrado'], 2, ',', '.') ?>)
+                                            FATURADA (R$ <?= number_format((float)($a['valor_cobrado'] ?? 0), 2, ',', '.') ?>)
                                         </span>
                                         <?php if (!empty($a['comprovante_file'])): ?>
                                             <a href="<?= htmlspecialchars($a['comprovante_file']) ?>" target="_blank" class="bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 px-1.5 py-0.5 rounded text-[9px] font-bold border border-blue-200 dark:border-blue-800/50 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors flex items-center" title="Ver Comprovante" onclick="event.stopPropagation()">
@@ -276,25 +276,25 @@ require_once 'includes/header.php';
                                     <?php endif; ?>
                                 </div>
                                 
-                                <?php if ($a['projeto_id']): ?>
-                                    <p class="text-[10px] text-gray-400 dark:text-gray-500 mt-1">(Ref. Projeto Original #<?= $a['projeto_id'] ?>)</p>
+                                <?php if (!empty($a['projeto_id'])): ?>
+                                    <p class="text-[10px] text-gray-400 dark:text-gray-500 mt-1">(Ref. Projeto Original #<?= htmlspecialchars($a['projeto_id']) ?>)</p>
                                 <?php endif; ?>
-                                <?php if ($a['cidade'] || $a['condominio']): ?>
-                                    <p class="text-[10px] text-gray-500 dark:text-gray-400 italic mt-0.5"><?= htmlspecialchars($a['condominio']) ?> <?= $a['cidade'] ? '- '.$a['cidade'] : '' ?></p>
+                                <?php if (!empty($a['cidade']) || !empty($a['condominio'])): ?>
+                                    <p class="text-[10px] text-gray-500 dark:text-gray-400 italic mt-0.5"><?= htmlspecialchars($a['condominio'] ?? '') ?> <?= !empty($a['cidade']) ? '- '.htmlspecialchars($a['cidade']) : '' ?></p>
                                 <?php endif; ?>
                                 
                                 <!-- Exibição Formatada do Relato com CSS do Quill -->
-                                <?php if ($a['obs_assistencia']): ?>
+                                <?php if (!empty($a['obs_assistencia'])): ?>
                                     <div class="text-xs mt-2 text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 p-2 rounded texto-pesquisa">
                                         <strong class="text-red-500 dark:text-red-400">Relato:</strong>
                                         <div class="quill-content mt-1"><?= $a['obs_assistencia'] ?></div>
                                     </div>
                                 <?php endif; ?>
 
-                                <?php if ($a['resolvido_assistencia'] === 'SIM'): ?>
+                                <?php if (($a['resolvido_assistencia'] ?? '') === 'SIM'): ?>
                                     <div class="mt-3 pt-2 border-t border-gray-200 dark:border-gray-700 text-[10px] bg-green-50 dark:bg-green-900/10 p-2 rounded">
-                                        <p class="text-green-700 dark:text-green-400 font-bold">✅ Resolvido por: <?= htmlspecialchars($a['tecnico_assistencia']) ?></p>
-                                        <p class="text-green-600 dark:text-green-500">Data de Resolução: <?= formatarData($a['data_assistencia']) ?></p>
+                                        <p class="text-green-700 dark:text-green-400 font-bold">✅ Resolvido por: <?= htmlspecialchars($a['tecnico_assistencia'] ?? '') ?></p>
+                                        <p class="text-green-600 dark:text-green-500">Data de Resolução: <?= formatarData($a['data_assistencia'] ?? null) ?></p>
                                     </div>
                                 <?php endif; ?>
 
@@ -329,7 +329,7 @@ require_once 'includes/header.php';
                     
                     <select id="na_cliente" name="cliente" required size="4" onchange="autoPreencherFormulario(this.value, 'na')" class="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded uppercase text-sm focus:ring-2 focus:ring-amber-500 scrollbar-thin">
                         <?php foreach ($lista_clientes_base as $cb): 
-                             $codigo_cb = !empty($cb['codigo_cliente']) ? $cb['codigo_cliente'] : "CLI-" . str_pad($cb['id'], 2, "0", STR_PAD_LEFT);
+                             $codigo_cb = !empty($cb['codigo_cliente']) ? $cb['codigo_cliente'] : "CLI-" . str_pad((string)$cb['id'], 2, "0", STR_PAD_LEFT);
                         ?>
                         <option value="<?= htmlspecialchars($cb['nome_contrato']) ?>" class="p-1 border-b border-gray-100 dark:border-gray-700 hover:bg-amber-50 dark:hover:bg-gray-600">
                             [<?= htmlspecialchars($codigo_cb) ?>] - <?= htmlspecialchars($cb['nome_contrato']) ?>
@@ -451,7 +451,7 @@ require_once 'includes/header.php';
                     <input type="text" id="search_ea_cliente" onkeyup="filtrarSelect('search_ea_cliente', 'ea_cliente')" placeholder="Pesquisar cliente..." autocomplete="off" class="w-full px-3 py-1.5 mb-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-2 focus:ring-blue-500">
                     <select id="ea_cliente" name="cliente" required size="4" onchange="autoPreencherFormulario(this.value, 'ea')" class="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded uppercase text-sm focus:ring-2 focus:ring-blue-500 scrollbar-thin">
                         <?php foreach ($lista_clientes_base as $cb): 
-                         $codigo_cb = !empty($cb['codigo_cliente']) ? $cb['codigo_cliente'] : "CLI-" . str_pad($cb['id'], 2, "0", STR_PAD_LEFT);
+                         $codigo_cb = !empty($cb['codigo_cliente']) ? $cb['codigo_cliente'] : "CLI-" . str_pad((string)$cb['id'], 2, "0", STR_PAD_LEFT);
                         ?>
                         <option value="<?= htmlspecialchars($cb['nome_contrato']) ?>" class="p-1 border-b border-gray-100 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-gray-600">
                             [<?= htmlspecialchars($codigo_cb) ?>] - <?= htmlspecialchars($cb['nome_contrato']) ?>

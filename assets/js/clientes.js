@@ -133,11 +133,14 @@ async function salvarClienteServidor(event) {
             headers: { 'Content-Type': 'application/json' }, 
             body: JSON.stringify(payload) 
         }); 
-        const result = await response.json(); 
-        if (result.success) { 
+        
+        const result = await response.json().catch(() => null);
+        
+        if (response.ok && result && result.success) { 
             window.location.reload(); 
         } else { 
-            alert('Erro: ' + (result.error || 'Erro desconhecido ao gravar.')); 
+            const erroMsg = (result && result.error) ? result.error : `Erro HTTP ${response.status}`;
+            alert('Erro: ' + erroMsg); 
         } 
     } catch (error) { 
         alert('Erro de rede.'); 
@@ -152,11 +155,14 @@ async function deletarCliente(id) {
             headers: { 'Content-Type': 'application/json' }, 
             body: JSON.stringify({ id: id }) 
         }); 
-        const result = await response.json();
-        if(result.success){
+        
+        const result = await response.json().catch(() => null);
+        
+        if (response.ok && result && result.success) {
             window.location.reload(); 
         } else {
-            alert('Erro ao apagar: ' + result.error);
+            const erroMsg = (result && result.error) ? result.error : `Erro HTTP ${response.status}`;
+            alert('Erro ao apagar: ' + erroMsg);
         }
     } catch (error) {
         alert('Falha na comunicação com o servidor.');

@@ -106,35 +106,45 @@ async function salvarUsuario(event) {
     };
 
     try {
-        const res = await fetch(endpoint, {
+        const response = await fetch(endpoint, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(payload)
         });
-        const text = await res.text();
-        try {
-            const result = JSON.parse(text);
-            if(result.success) window.location.reload(); 
-            else alert('Erro no banco: ' + result.error);
-        } catch(e) {
-            console.error(text);
-            alert("Erro estrutural no servidor. Verifique o console.");
+        
+        const result = await response.json().catch(() => null);
+        
+        if (response.ok && result && result.success) {
+            window.location.reload(); 
+        } else {
+            const erroMsg = (result && result.error) ? result.error : `Falha no servidor (HTTP ${response.status})`;
+            alert('Erro: ' + erroMsg);
         }
-    } catch(e) { alert('Falha de conexão com a API.'); }
+    } catch(e) { 
+        alert('Falha de conexão com a API.'); 
+    }
 }
 
 async function excluirUsuario(id) {
     if(!confirm("Atenção: Tem a certeza que deseja remover esta conta de acesso em definitivo?")) return;
     try {
-        const res = await fetch('api/delete_usuario.php', {
+        const response = await fetch('api/delete_usuario.php', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({id: id})
         });
-        const result = await res.json();
-        if(result.success) window.location.reload();
-        else alert('Erro: ' + result.error);
-    } catch(e) { alert('Falha na API.'); }
+        
+        const result = await response.json().catch(() => null);
+        
+        if (response.ok && result && result.success) {
+            window.location.reload();
+        } else {
+            const erroMsg = (result && result.error) ? result.error : `Falha ao apagar (HTTP ${response.status})`;
+            alert('Erro: ' + erroMsg);
+        }
+    } catch(e) { 
+        alert('Falha na API.'); 
+    }
 }
 
 // Auxiliar para compatibilidade de verificação de arrays

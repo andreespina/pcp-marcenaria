@@ -37,10 +37,10 @@ try {
     $entradas_producao = [];
     
     foreach ($logs as $log) {
-        if ($log['status_novo'] == 'producao') {
+        if (($log['status_novo'] ?? '') === 'producao') {
             $entradas_producao[$log['projeto_id']] = strtotime($log['data_mudanca']);
         }
-        if ($log['status_anterior'] == 'producao' && isset($entradas_producao[$log['projeto_id']])) {
+        if (($log['status_anterior'] ?? '') === 'producao' && isset($entradas_producao[$log['projeto_id']])) {
             $saida = strtotime($log['data_mudanca']);
             $diferenca_dias = ($saida - $entradas_producao[$log['projeto_id']]) / (60 * 60 * 24);
             $tempos_producao[] = $diferenca_dias;
@@ -50,40 +50,45 @@ try {
     
     $lead_time_medio = count($tempos_producao) > 0 ? round(array_sum($tempos_producao) / count($tempos_producao), 1) : 0;
 
-    // 8. DADOS DO CRM (Tentativa de busca genérica para evitar erros)
+    // 8. DADOS DO CRM
     $crm_leads = [];
     try {
-        // Se a sua tabela do CRM tiver outro nome, basta alterar "comercial_leads" abaixo
         $stmt_crm = $pdo->query("SELECT * FROM comercial_leads ORDER BY id DESC");
         $crm_leads = $stmt_crm->fetchAll(PDO::FETCH_ASSOC);
-    } catch (\PDOException $e) { /* Tabela pode não existir com este nome exato, ignoramos suavemente */ }
-
+    } catch (\PDOException) { 
+        // No PHP 8, podemos suprimir a variável $e se não formos usá-la.
+    }
 
     // ==========================================
     // CÁLCULOS E ESTATÍSTICAS GERAIS
     // ==========================================
     
-    // PROJETOS
+    // PROJETOS (Uso do construtor match do PHP 8)
     $proj_total = count($projetos);
     $proj_atrasados = 0; $proj_concluidos = 0; $proj_andamento = 0;
     foreach($projetos as $p) {
-        if ($p['status'] === 'atrasou') { $proj_atrasados++; }
-        elseif ($p['status'] === 'assistencia') { $proj_concluidos++; }
-        else { $proj_andamento++; }
+        match ($p['status'] ?? '') {
+            'atrasou' => $proj_atrasados++,
+            'assistencia' => $proj_concluidos++,
+            default => $proj_andamento++
+        };
     }
 
     // ASSISTÊNCIAS
     $ast_total = count($assistencias);
     $ast_pendentes = 0; $ast_agendadas = 0; $ast_resolvidas = 0;
-    $ast_garantia = 0; $ast_faturadas = 0; $valor_faturado = 0;
+    $ast_garantia = 0; $ast_faturadas = 0; $valor_faturado = 0.0;
     foreach($assistencias as $a) {
-        if ($a['status'] === 'pendente') $ast_pendentes++;
-        elseif ($a['status'] === 'agendada') $ast_agendadas++;
-        elseif ($a['status'] === 'concluida') $ast_resolvidas++;
+        match ($a['status'] ?? '') {
+            'pendente' => $ast_pendentes++,
+            'agendada' => $ast_agendadas++,
+            'concluida' => $ast_resolvidas++,
+            default => null
+        };
         
-        if (isset($a['tipo_cobranca']) && $a['tipo_cobranca'] === 'FATURADA') {
+        if (($a['tipo_cobranca'] ?? '') === 'FATURADA') {
             $ast_faturadas++;
-            $valor_faturado += (float)$a['valor_cobrado'];
+            $valor_faturado += (float)($a['valor_cobrado'] ?? 0);
         } else {
             $ast_garantia++;
         }
@@ -93,33 +98,38 @@ try {
     $almox_total = count($almoxarifado);
     $almox_critico = 0; $almox_ok = 0;
     foreach($almoxarifado as $al) {
-        if ($al['quantidade'] <= $al['quantidade_minima']) { $almox_critico++; } else { $almox_ok++; }
+        if (($al['quantidade'] ?? 0) <= ($al['quantidade_minima'] ?? 0)) { 
+            $almox_critico++; 
+        } else { 
+            $almox_ok++; 
+        }
     }
     $cli_total = count($clientes);
 
     // ADMINISTRATIVO (LUCRATIVIDADE)
-    $adm_vendas_total = 0; $adm_custos_total = 0;
+    $adm_vendas_total = 0.0; $adm_custos_total = 0.0;
     $adm_contratos_assinados = 0; $adm_contratos_pendentes = 0;
     foreach($administrativo as $ad) {
-        if ($ad['status_contrato'] === 'ASSINADO') $adm_contratos_assinados++;
+        if (($ad['status_contrato'] ?? '') === 'ASSINADO') $adm_contratos_assinados++;
         else $adm_contratos_pendentes++;
 
-        $adm_vendas_total += (float)$ad['valor'];
-        $adm_custos_total += (float)$ad['custo_mdf'] + (float)$ad['custo_ferragens'] + (float)$ad['custo_comissao'] + (float)$ad['custo_outros'];
+        $adm_vendas_total += (float)($ad['valor'] ?? 0);
+        $adm_custos_total += (float)($ad['custo_mdf'] ?? 0) + (float)($ad['custo_ferragens'] ?? 0) + (float)($ad['custo_comissao'] ?? 0) + (float)($ad['custo_outros'] ?? 0);
     }
     $adm_lucro_liquido = $adm_vendas_total - $adm_custos_total;
     $adm_margem_geral = $adm_vendas_total > 0 ? ($adm_lucro_liquido / $adm_vendas_total) * 100 : 0;
 
     // FINANCEIRO (FLUXO)
-    $fin_rec_pagas = 0; $fin_rec_pendentes = 0;
-    $fin_desp_pagas = 0; $fin_desp_pendentes = 0;
+    $fin_rec_pagas = 0.0; $fin_rec_pendentes = 0.0;
+    $fin_desp_pagas = 0.0; $fin_desp_pendentes = 0.0;
     foreach($financeiro as $f) {
-        if($f['tipo'] == 'RECEITA') {
-            if($f['status'] == 'PAGO') $fin_rec_pagas += $f['valor'];
-            else $fin_rec_pendentes += $f['valor'];
+        $valor = (float)($f['valor'] ?? 0);
+        if(($f['tipo'] ?? '') === 'RECEITA') {
+            if(($f['status'] ?? '') === 'PAGO') $fin_rec_pagas += $valor;
+            else $fin_rec_pendentes += $valor;
         } else {
-            if($f['status'] == 'PAGO') $fin_desp_pagas += $f['valor'];
-            else $fin_desp_pendentes += $f['valor'];
+            if(($f['status'] ?? '') === 'PAGO') $fin_desp_pagas += $valor;
+            else $fin_desp_pendentes += $valor;
         }
     }
     $fin_saldo_real = $fin_rec_pagas - $fin_desp_pagas;
@@ -129,8 +139,9 @@ try {
     $crm_total = count($crm_leads);
     $crm_ganhos = 0; $crm_perdidos = 0; $crm_andamento = 0;
     foreach($crm_leads as $l) {
-        if(strtoupper($l['status']) == 'GANHO' || strtoupper($l['status']) == 'FECHADO') $crm_ganhos++;
-        elseif(strtoupper($l['status']) == 'PERDIDO') $crm_perdidos++;
+        $status_upper = strtoupper($l['status'] ?? '');
+        if($status_upper === 'GANHO' || $status_upper === 'FECHADO') $crm_ganhos++;
+        elseif($status_upper === 'PERDIDO') $crm_perdidos++;
         else $crm_andamento++;
     }
     $crm_conversao = $crm_total > 0 ? ($crm_ganhos / $crm_total) * 100 : 0;
@@ -139,14 +150,17 @@ try {
     die("Erro na consulta do banco de dados: " . $e->getMessage());
 }
 
-// Funções Auxiliares
-function formatarData($data) {
-    if (!$data) return '-';
-    return date('d/m/Y', strtotime($data));
+// ==========================================
+// FUNÇÕES AUXILIARES COM TIPAGEM (PHP 8)
+// ==========================================
+
+function formatarData(?string $data): string {
+    return $data ? date('d/m/Y', strtotime($data)) : '-';
 }
 
-function nomeStatus($status) {
-    $nomes = [
+function nomeStatus(?string $status): string {
+    // Nova estrutura Match do PHP 8.0: Retorna direto, é muito mais veloz e limpo que if/else e Switch.
+    return match($status) {
         'instalacao'      => 'Em Instalação',
         'expedicao'       => 'Em Expedição',
         'producao'        => 'Em Produção',
@@ -155,9 +169,9 @@ function nomeStatus($status) {
         'assistencia'     => 'Concluído',
         'pendente'        => 'Pendente',
         'agendada'        => 'Agendada',
-        'concluida'       => 'Baixada'
-    ];
-    return isset($nomes[$status]) ? $nomes[$status] : strtoupper($status);
+        'concluida'       => 'Baixada',
+        default           => strtoupper((string)$status),
+    };
 }
 
 // Configurações do Header
@@ -193,6 +207,8 @@ $head_extras = '
 
 require_once 'includes/header.php';
 ?>
+
+<!-- TODO O SEU CONTEÚDO HTML FOI MANTIDO INTACTO ABAIXO, GARANTINDO QUE A INTERFACE PERMANEÇA IGUAL -->
 
 <div class="flex flex-col gap-4">
 
@@ -380,18 +396,19 @@ require_once 'includes/header.php';
                             <tr><td colspan="6" class="px-6 py-8 text-center text-gray-500 italic">Nenhum contrato registado.</td></tr>
                         <?php endif; ?>
                         <?php foreach ($administrativo as $ad): 
-                            $c_total = $ad['custo_mdf'] + $ad['custo_ferragens'] + $ad['custo_comissao'] + $ad['custo_outros'];
-                            $lucro = $ad['valor'] - $c_total;
-                            $margem = $ad['valor'] > 0 ? ($lucro / $ad['valor']) * 100 : 0;
+                            $c_total = ($ad['custo_mdf'] ?? 0) + ($ad['custo_ferragens'] ?? 0) + ($ad['custo_comissao'] ?? 0) + ($ad['custo_outros'] ?? 0);
+                            $venda_valor = $ad['valor'] ?? 0;
+                            $lucro = $venda_valor - $c_total;
+                            $margem = $venda_valor > 0 ? ($lucro / $venda_valor) * 100 : 0;
                             $cor_lucro = $lucro >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400';
                         ?>
                             <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors text-gray-700 dark:text-gray-200 tr-adm">
-                                <td class="px-6 py-3 font-bold uppercase text-gray-800 dark:text-gray-100 td-busca"><?= htmlspecialchars($ad['cliente_nome']) ?></td>
-                                <td class="px-6 py-3 font-black text-right text-gray-800 dark:text-gray-200 td-busca"><?= number_format($ad['valor'], 2, ',', '.') ?></td>
+                                <td class="px-6 py-3 font-bold uppercase text-gray-800 dark:text-gray-100 td-busca"><?= htmlspecialchars($ad['cliente_nome'] ?? '') ?></td>
+                                <td class="px-6 py-3 font-black text-right text-gray-800 dark:text-gray-200 td-busca"><?= number_format($venda_valor, 2, ',', '.') ?></td>
                                 <td class="px-6 py-3 font-medium text-right text-red-500 dark:text-red-400 td-busca"><?= number_format($c_total, 2, ',', '.') ?></td>
                                 <td class="px-6 py-3 font-black text-right <?= $cor_lucro ?> td-busca"><?= number_format($lucro, 2, ',', '.') ?></td>
                                 <td class="px-6 py-3 font-bold text-center <?= $cor_lucro ?> td-busca"><?= number_format($margem, 1, ',', '.') ?>%</td>
-                                <td class="px-6 py-3 text-center td-busca"><span class="px-2 py-1 rounded text-[10px] font-bold uppercase <?= $ad['status_contrato'] === 'ASSINADO' ? 'border border-green-200 bg-green-50 text-green-700 dark:bg-green-900/30 dark:border-green-800 dark:text-green-400' : 'border border-red-200 bg-red-50 text-red-700 dark:bg-red-900/30 dark:border-red-800 dark:text-red-400' ?>"><?= $ad['status_contrato'] ?></span></td>
+                                <td class="px-6 py-3 text-center td-busca"><span class="px-2 py-1 rounded text-[10px] font-bold uppercase <?= ($ad['status_contrato'] ?? '') === 'ASSINADO' ? 'border border-green-200 bg-green-50 text-green-700 dark:bg-green-900/30 dark:border-green-800 dark:text-green-400' : 'border border-red-200 bg-red-50 text-red-700 dark:bg-red-900/30 dark:border-red-800 dark:text-red-400' ?>"><?= $ad['status_contrato'] ?? '' ?></span></td>
                             </tr>
                         <?php endforeach; ?>
                     </tbody>
@@ -440,19 +457,19 @@ require_once 'includes/header.php';
                     </thead>
                     <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
                         <?php if (empty($financeiro)): ?>
-                            <tr><td colspan=\"5\" class="px-6 py-8 text-center text-gray-500 italic">Nenhum lançamento registado.</td></tr>
+                            <tr><td colspan="5" class="px-6 py-8 text-center text-gray-500 italic">Nenhum lançamento registado.</td></tr>
                         <?php endif; ?>
                         <?php foreach ($financeiro as $fin): 
-                            $is_rec = $fin['tipo'] === 'RECEITA';
+                            $is_rec = ($fin['tipo'] ?? '') === 'RECEITA';
                             $cor_valor = $is_rec ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400';
                             $sinal = $is_rec ? '+' : '-';
                         ?>
                             <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors text-gray-700 dark:text-gray-200 tr-fin">
-                                <td class="px-6 py-3 font-medium td-busca"><?= formatarData($fin['data_vencimento']) ?></td>
-                                <td class="px-6 py-3 font-bold uppercase td-busca <?= $is_rec ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400' ?>"><?= $fin['tipo'] ?><br><span class="text-[10px] text-gray-500 font-normal"><?= htmlspecialchars($fin['categoria']) ?></span></td>
-                                <td class="px-6 py-3 font-bold uppercase text-gray-800 dark:text-gray-100 td-busca"><?= htmlspecialchars($fin['descricao']) ?></td>
-                                <td class="px-6 py-3 font-black text-right <?= $cor_valor ?> td-busca"><?= $sinal ?> <?= number_format($fin['valor'], 2, ',', '.') ?></td>
-                                <td class="px-6 py-3 text-center td-busca"><span class="px-2 py-1 rounded text-[10px] font-bold uppercase <?= $fin['status'] === 'PAGO' ? 'border border-green-200 bg-green-50 text-green-700 dark:bg-green-900/30 dark:border-green-800 dark:text-green-400' : 'border border-yellow-200 bg-yellow-50 text-yellow-700 dark:bg-yellow-900/30 dark:border-yellow-800 dark:text-yellow-400' ?>"><?= $fin['status'] ?></span></td>
+                                <td class="px-6 py-3 font-medium td-busca"><?= formatarData($fin['data_vencimento'] ?? null) ?></td>
+                                <td class="px-6 py-3 font-bold uppercase td-busca <?= $is_rec ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400' ?>"><?= $fin['tipo'] ?? '' ?><br><span class="text-[10px] text-gray-500 font-normal"><?= htmlspecialchars($fin['categoria'] ?? '') ?></span></td>
+                                <td class="px-6 py-3 font-bold uppercase text-gray-800 dark:text-gray-100 td-busca"><?= htmlspecialchars($fin['descricao'] ?? '') ?></td>
+                                <td class="px-6 py-3 font-black text-right <?= $cor_valor ?> td-busca"><?= $sinal ?> <?= number_format($fin['valor'] ?? 0, 2, ',', '.') ?></td>
+                                <td class="px-6 py-3 text-center td-busca"><span class="px-2 py-1 rounded text-[10px] font-bold uppercase <?= ($fin['status'] ?? '') === 'PAGO' ? 'border border-green-200 bg-green-50 text-green-700 dark:bg-green-900/30 dark:border-green-800 dark:text-green-400' : 'border border-yellow-200 bg-yellow-50 text-yellow-700 dark:bg-yellow-900/30 dark:border-yellow-800 dark:text-yellow-400' ?>"><?= $fin['status'] ?? '' ?></span></td>
                             </tr>
                         <?php endforeach; ?>
                     </tbody>
@@ -509,11 +526,11 @@ require_once 'includes/header.php';
                         <?php endif; ?>
                         <?php foreach ($projetos as $p): ?>
                             <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors text-gray-700 dark:text-gray-200 tr-proj">
-                                <td class="px-6 py-3 font-bold text-gray-500 dark:text-gray-400 td-busca">#<?= $p['id'] ?></td>
-                                <td class="px-6 py-3 font-bold uppercase text-gray-800 dark:text-gray-100 td-busca"><?= htmlspecialchars($p['cliente']) ?></td>
-                                <td class="px-6 py-3 td-busca"><span class="px-2 py-1 rounded text-[10px] font-bold uppercase border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700"><?= nomeStatus($p['status']) ?></span></td>
-                                <td class="px-6 py-3 font-medium td-busca"><?= formatarData($p['data_limite']) ?></td>
-                                <td class="px-6 py-3 uppercase text-xs text-indigo-600 dark:text-indigo-400 font-semibold td-busca"><?= htmlspecialchars($p['equipe_instalacao']) ?: '-' ?></td>
+                                <td class="px-6 py-3 font-bold text-gray-500 dark:text-gray-400 td-busca">#<?= $p['id'] ?? '' ?></td>
+                                <td class="px-6 py-3 font-bold uppercase text-gray-800 dark:text-gray-100 td-busca"><?= htmlspecialchars($p['cliente'] ?? '') ?></td>
+                                <td class="px-6 py-3 td-busca"><span class="px-2 py-1 rounded text-[10px] font-bold uppercase border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700"><?= nomeStatus($p['status'] ?? '') ?></span></td>
+                                <td class="px-6 py-3 font-medium td-busca"><?= formatarData($p['data_limite'] ?? null) ?></td>
+                                <td class="px-6 py-3 uppercase text-xs text-indigo-600 dark:text-indigo-400 font-semibold td-busca"><?= htmlspecialchars($p['equipe_instalacao'] ?? '') ?: '-' ?></td>
                             </tr>
                         <?php endforeach; ?>
                     </tbody>
@@ -567,16 +584,16 @@ require_once 'includes/header.php';
                         <?php endif; ?>
                         <?php foreach ($assistencias as $a): ?>
                             <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors text-gray-700 dark:text-gray-200 tr-ast">
-                                <td class="px-6 py-3 font-bold text-gray-500 dark:text-gray-400 td-busca">AST #<?= $a['id'] ?></td>
-                                <td class="px-6 py-3 font-bold uppercase td-busca"><?= htmlspecialchars($a['cliente']) ?></td>
-                                <td class="px-6 py-3 text-xs text-gray-500 dark:text-gray-400 td-busca"><?= formatarData($a['data_solicitacao']) ?></td>
-                                <td class="px-6 py-3 td-busca"><span class="px-2 py-1 rounded text-[10px] font-bold uppercase border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700"><?= nomeStatus($a['status']) ?></span></td>
+                                <td class="px-6 py-3 font-bold text-gray-500 dark:text-gray-400 td-busca">AST #<?= $a['id'] ?? '' ?></td>
+                                <td class="px-6 py-3 font-bold uppercase td-busca"><?= htmlspecialchars($a['cliente'] ?? '') ?></td>
+                                <td class="px-6 py-3 text-xs text-gray-500 dark:text-gray-400 td-busca"><?= formatarData($a['data_solicitacao'] ?? null) ?></td>
+                                <td class="px-6 py-3 td-busca"><span class="px-2 py-1 rounded text-[10px] font-bold uppercase border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700"><?= nomeStatus($a['status'] ?? '') ?></span></td>
                                 
-                                <td class="px-6 py-3 font-bold text-[11px] td-busca <?= (isset($a['tipo_cobranca']) && $a['tipo_cobranca'] === 'FATURADA') ? 'text-purple-600 dark:text-purple-400' : 'text-emerald-600 dark:text-emerald-400' ?>">
+                                <td class="px-6 py-3 font-bold text-[11px] td-busca <?= (($a['tipo_cobranca'] ?? '') === 'FATURADA') ? 'text-purple-600 dark:text-purple-400' : 'text-emerald-600 dark:text-emerald-400' ?>">
                                     <?= !empty($a['tipo_cobranca']) ? $a['tipo_cobranca'] : 'GARANTIA' ?>
                                 </td>
                                 <td class="px-6 py-3 font-medium td-busca">
-                                    <?= (isset($a['tipo_cobranca']) && $a['tipo_cobranca'] === 'FATURADA') ? 'R$ ' . number_format((float)$a['valor_cobrado'], 2, ',', '.') : '-' ?>
+                                    <?= (($a['tipo_cobranca'] ?? '') === 'FATURADA') ? 'R$ ' . number_format((float)($a['valor_cobrado'] ?? 0), 2, ',', '.') : '-' ?>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -625,13 +642,13 @@ require_once 'includes/header.php';
                             <tr><td colspan="5" class="px-6 py-8 text-center text-gray-500 italic">Nenhum item.</td></tr>
                         <?php endif; ?>
                         <?php foreach ($almoxarifado as $al): 
-                            $critico = ($al['quantidade'] <= $al['quantidade_minima']);
+                            $critico = (($al['quantidade'] ?? 0) <= ($al['quantidade_minima'] ?? 0));
                         ?>
                             <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors text-gray-700 dark:text-gray-200 tr-almox">
-                                <td class="px-6 py-3 font-bold uppercase text-gray-800 dark:text-gray-100 td-busca"><?= htmlspecialchars($al['nome_item']) ?></td>
-                                <td class="px-6 py-3 text-xs uppercase text-gray-500 dark:text-gray-400 td-busca"><?= htmlspecialchars($al['categoria']) ?></td>
-                                <td class="px-6 py-3 font-black td-busca <?= $critico ? 'text-red-600 dark:text-red-400' : 'text-gray-800 dark:text-gray-200' ?>"><?= (float)$al['quantidade'] ?> <?= $al['unidade_medida'] ?></td>
-                                <td class="px-6 py-3 font-medium text-gray-500 dark:text-gray-400 td-busca"><?= (float)$al['quantidade_minima'] ?></td>
+                                <td class="px-6 py-3 font-bold uppercase text-gray-800 dark:text-gray-100 td-busca"><?= htmlspecialchars($al['nome_item'] ?? '') ?></td>
+                                <td class="px-6 py-3 text-xs uppercase text-gray-500 dark:text-gray-400 td-busca"><?= htmlspecialchars($al['categoria'] ?? '') ?></td>
+                                <td class="px-6 py-3 font-black td-busca <?= $critico ? 'text-red-600 dark:text-red-400' : 'text-gray-800 dark:text-gray-200' ?>"><?= (float)($al['quantidade'] ?? 0) ?> <?= $al['unidade_medida'] ?? '' ?></td>
+                                <td class="px-6 py-3 font-medium text-gray-500 dark:text-gray-400 td-busca"><?= (float)($al['quantidade_minima'] ?? 0) ?></td>
                                 <td class="px-6 py-3 text-center">
                                     <?php if($critico): ?>
                                         <span class="bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400 px-2 py-1 rounded text-[10px] font-bold border border-red-200 dark:border-red-800/50 uppercase">COMPRAR</span>
@@ -694,10 +711,10 @@ require_once 'includes/header.php';
                         <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
                             <?php foreach ($crm_leads as $l): ?>
                                 <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors text-gray-700 dark:text-gray-200 tr-crm">
-                                    <td class="px-6 py-3 text-xs td-busca"><?= formatarData(isset($l['data_criacao']) ? $l['data_criacao'] : null) ?></td>
-                                    <td class="px-6 py-3 font-bold uppercase td-busca"><?= htmlspecialchars(isset($l['nome_lead']) ? $l['nome_lead'] : (isset($l['cliente']) ? $l['cliente'] : '-')) ?></td>
-                                    <td class="px-6 py-3 font-medium text-right td-busca">R$ <?= isset($l['valor_estimado']) ? number_format((float)$l['valor_estimado'], 2, ',', '.') : '0,00' ?></td>
-                                    <td class="px-6 py-3 text-center td-busca"><span class="px-2 py-1 rounded text-[10px] font-bold uppercase border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700"><?= htmlspecialchars($l['status']) ?></span></td>
+                                    <td class="px-6 py-3 text-xs td-busca"><?= formatarData($l['data_criacao'] ?? null) ?></td>
+                                    <td class="px-6 py-3 font-bold uppercase td-busca"><?= htmlspecialchars($l['nome_lead'] ?? ($l['cliente'] ?? '-')) ?></td>
+                                    <td class="px-6 py-3 font-medium text-right td-busca">R$ <?= number_format((float)($l['valor_estimado'] ?? 0), 2, ',', '.') ?></td>
+                                    <td class="px-6 py-3 text-center td-busca"><span class="px-2 py-1 rounded text-[10px] font-bold uppercase border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700"><?= htmlspecialchars($l['status'] ?? '') ?></span></td>
                                 </tr>
                             <?php endforeach; ?>
                         </tbody>
@@ -739,14 +756,14 @@ require_once 'includes/header.php';
                             <tr><td colspan="5" class="px-6 py-8 text-center text-gray-500 italic">Nenhum cliente cadastrado.</td></tr>
                         <?php endif; ?>
                         <?php foreach ($clientes as $c): 
-                            $codigo = !empty($c['codigo_cliente']) ? $c['codigo_cliente'] : "CLI-" . str_pad($c['id'], 2, "0", STR_PAD_LEFT);
+                            $codigo = !empty($c['codigo_cliente']) ? $c['codigo_cliente'] : "CLI-" . str_pad((string)($c['id'] ?? 0), 2, "0", STR_PAD_LEFT);
                         ?>
                             <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors text-gray-700 dark:text-gray-200 tr-cli">
                                 <td class="px-6 py-3 font-bold text-blue-600 dark:text-blue-400 text-[11px] td-busca">[<?= htmlspecialchars($codigo) ?>]</td>
-                                <td class="px-6 py-3 font-bold uppercase text-gray-800 dark:text-gray-100 td-busca"><?= htmlspecialchars($c['nome_contrato']) ?></td>
-                                <td class="px-6 py-3 font-medium td-busca"><?= htmlspecialchars($c['telefone'] ?: $c['whatsapp']) ?: '-' ?></td>
-                                <td class="px-6 py-3 uppercase text-xs td-busca"><?= htmlspecialchars($c['cidade']) ?: '-' ?></td>
-                                <td class="px-6 py-3 uppercase text-xs text-indigo-600 dark:text-indigo-400 font-semibold td-busca"><?= htmlspecialchars($c['arquiteto_nome']) ?: '-' ?></td>
+                                <td class="px-6 py-3 font-bold uppercase text-gray-800 dark:text-gray-100 td-busca"><?= htmlspecialchars($c['nome_contrato'] ?? '') ?></td>
+                                <td class="px-6 py-3 font-medium td-busca"><?= htmlspecialchars($c['telefone'] ?? ($c['whatsapp'] ?? '')) ?: '-' ?></td>
+                                <td class="px-6 py-3 uppercase text-xs td-busca"><?= htmlspecialchars($c['cidade'] ?? '') ?: '-' ?></td>
+                                <td class="px-6 py-3 uppercase text-xs text-indigo-600 dark:text-indigo-400 font-semibold td-busca"><?= htmlspecialchars($c['arquiteto_nome'] ?? '') ?: '-' ?></td>
                             </tr>
                         <?php endforeach; ?>
                     </tbody>

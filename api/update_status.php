@@ -8,14 +8,16 @@ require_once '../config/conexao.php';
 header('Content-Type: application/json');
 
 $json = file_get_contents('php://input');
-$data = json_decode($json);
+// PHP 8: Cast explícito para string evita que json_decode receba null
+$data = json_decode((string)$json);
 
-if (isset($data->id) && isset($data->status)) {
-    $id = (int) $data->id;
-    $novo_status = $data->status;
-    
-    // Captura o usuário logado que fez a ação (baseado no seu login)
-    $usuario_acao = isset($_SESSION['usuario_login']) ? $_SESSION['usuario_login'] : 'SISTEMA';
+// Uso do operador de coalescência nula (??) para extrair os dados com segurança
+$id = (int) ($data->id ?? 0);
+$novo_status = (string) ($data->status ?? '');
+
+if ($id > 0 && $novo_status !== '') {
+    // Captura o usuário logado com coalescência nula (PHP 8)
+    $usuario_acao = $_SESSION['usuario_login'] ?? 'SISTEMA';
 
     try {
         // Inicia a transação para garantir integridade dos dados
@@ -27,7 +29,7 @@ if (isset($data->id) && isset($data->status)) {
         $projeto = $stmtAtual->fetch(PDO::FETCH_ASSOC);
 
         if ($projeto) {
-            $status_anterior = $projeto['status'];
+            $status_anterior = $projeto['status'] ?? '';
 
             // 2. Só registra a mudança se o status for realmente diferente
             if ($status_anterior !== $novo_status) {

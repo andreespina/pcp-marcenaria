@@ -5,15 +5,15 @@ protegerAPI();
 require_once '../config/conexao.php';
 
 header('Content-Type: application/json');
-$json = file_get_contents('php://input');
-$data = json_decode($json);
+$data = json_decode((string)file_get_contents('php://input'));
 
-if (isset($data->id)) {
-    $id = (int) $data->id;
-    $tecnico = isset($data->tecnico) ? trim($data->tecnico) : null;
-    $data_atendimento = !empty($data->data_atendimento) ? $data->data_atendimento : null;
-    $resolvido = isset($data->resolvido) ? $data->resolvido : 'NAO';
-    $obs = isset($data->observacao) ? trim($data->observacao) : null;
+$id = (int)($data->id ?? 0);
+
+if ($id > 0) {
+    $tecnico = !empty($data->tecnico) ? trim((string)$data->tecnico) : null;
+    $data_atendimento = !empty($data->data_atendimento) ? (string)$data->data_atendimento : null;
+    $resolvido = (string)($data->resolvido ?? 'NAO');
+    $obs = !empty($data->observacao) ? trim((string)$data->observacao) : null;
 
     try {
         // Atualiza a tabela nova e já muda o status se estiver resolvido!

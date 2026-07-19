@@ -2,17 +2,14 @@
 // api/delete_client.php
 require_once '../includes/auth.php';
 protegerAPI();
-
 require_once '../config/conexao.php';
 
 header('Content-Type: application/json');
+$data = json_decode((string)file_get_contents('php://input'));
 
-$json = file_get_contents('php://input');
-$data = json_decode($json);
+$id = (int)($data->id ?? 0);
 
-if (isset($data->id)) {
-    $id = (int) $data->id;
-
+if ($id > 0) {
     try {
         $stmt = $pdo->prepare("DELETE FROM projetos_pcp WHERE id = :id");
         $stmt->execute(['id' => $id]);

@@ -5,12 +5,18 @@ protegerAPI();
 require_once '../config/conexao.php';
 
 header('Content-Type: application/json');
-$json = file_get_contents('php://input');
-$data = json_decode($json);
+$data = json_decode((string)file_get_contents('php://input'));
 
-$nova_senha = isset($data->nova_senha) ? trim($data->nova_senha) : '';
+$nova_senha = trim((string)($data->nova_senha ?? ''));
+$usuario_id = (int)($_SESSION['usuario_id'] ?? 0);
 
-if (!empty($nova_senha)) {
+if ($usuario_id === 0) {
+    http_response_code(401);
+    echo json_encode(['success' => false, 'error' => 'Sessão inválida ou expirada.']);
+    exit;
+}
+
+if ($nova_senha !== '') {
     try {
         // Criptografa a nova senha com hash seguro
         $senha_hash = password_hash($nova_senha, PASSWORD_DEFAULT);
@@ -19,7 +25,7 @@ if (!empty($nova_senha)) {
         $stmt = $pdo->prepare("UPDATE usuarios SET senha = :senha WHERE id = :id");
         $stmt->execute([
             'senha' => $senha_hash,
-            'id'    => $_SESSION['usuario_id']
+            'id'    => $usuario_id
         ]);
 
         echo json_encode(['success' => true]);

@@ -156,17 +156,25 @@ function abrirGoogleCalendar(cliente, data_apres, obs) {
 // ==============================================================
 async function atualizarFase(id, fase, gerarPCP, motivo) {
     try {
-        const res = await fetch('api/crm_update_fase.php', { 
+        const response = await fetch('api/crm_update_fase.php', { 
             method: 'POST', headers: { 'Content-Type': 'application/json' }, 
             body: JSON.stringify({ id: id, fase: fase, gerarPCP: gerarPCP, motivo: motivo }) 
         });
-        const text = await res.text();
-        try {
-            const result = JSON.parse(text);
-            if (result.success) window.location.reload();
-            else { alert('Erro na API: ' + (result.error || 'Desconhecido')); window.location.reload(); }
-        } catch(e) { alert("Erro estrutural ao salvar a fase."); }
-    } catch (error) { alert('Falha de conexão com o servidor.'); }
+        
+        const result = await response.json().catch(() => null);
+        
+        if (response.ok && result && result.success) {
+            window.location.reload();
+        } else { 
+            const erroMsg = (result && result.error) ? result.error : `Erro HTTP ${response.status}`;
+            alert('Erro na API: ' + erroMsg); 
+            // Mantém o reload no erro para que o card do Kanban volte à posição original caso falhe
+            window.location.reload(); 
+        }
+    } catch (error) { 
+        alert('Falha de conexão com o servidor.'); 
+        window.location.reload(); 
+    }
 }
 
 function abrirEdicaoPorId(id) {
@@ -317,14 +325,19 @@ async function salvarLead(event) {
     
     const endpoint = data.id ? 'api/edit_lead.php' : 'api/add_lead.php';
     try {
-        const res = await fetch(endpoint, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
-        const text = await res.text();
-        try {
-            const result = JSON.parse(text);
-            if(result.success) window.location.reload(); 
-            else alert('Erro: ' + result.error);
-        } catch(e) { alert("Erro ao processar retorno."); }
-    } catch(e) { alert('Falha na API.'); }
+        const response = await fetch(endpoint, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
+        
+        const result = await response.json().catch(() => null);
+        
+        if (response.ok && result && result.success) {
+            window.location.reload(); 
+        } else {
+            const erroMsg = (result && result.error) ? result.error : `Erro HTTP ${response.status}`;
+            alert('Erro: ' + erroMsg);
+        }
+    } catch(e) { 
+        alert('Falha na API.'); 
+    }
 }
 
 // Botão Lixeira - Agora atua como soft-delete / PERDIDO e já foi redirecionado no PHP para abrirModalMotivo
@@ -333,15 +346,20 @@ async function excluirLeadPermanente(id) {
     if(!confirm("⚠️ ATENÇÃO EXTREMA:\nDeseja realmente excluir este lead de forma PERMANENTE?\n\nO projeto será totalmente apagado do banco de dados e NÃO poderá ser recuperado. (Dica: Se ele apenas não fechou negócio, prefira usar o ícone da Lixeira para movê-lo para 'Perdidos').")) return;
     
     try {
-        const res = await fetch('api/delete_lead_permanente.php', { 
+        const response = await fetch('api/delete_lead_permanente.php', { 
             method: 'POST', 
             headers: {'Content-Type': 'application/json'}, 
             body: JSON.stringify({id: id}) 
         });
-        const result = await res.json();
         
-        if(result.success) window.location.reload();
-        else alert('Erro ao excluir: ' + result.error);
+        const result = await response.json().catch(() => null);
+        
+        if (response.ok && result && result.success) {
+            window.location.reload();
+        } else {
+            const erroMsg = (result && result.error) ? result.error : `Erro HTTP ${response.status}`;
+            alert('Erro ao excluir: ' + erroMsg);
+        }
     } catch(e) { 
         alert('Falha na API ao tentar exclusão permanente.'); 
     }
@@ -374,13 +392,21 @@ async function salvarReprojeto(event) {
     const motivo = elMotivo ? elMotivo.value : 'Revisão solicitada pelo cliente';
     
     try {
-        const res = await fetch('api/request_reprojeto.php', { 
+        const response = await fetch('api/request_reprojeto.php', { 
             method: 'POST', 
             headers: {'Content-Type': 'application/json'}, 
             body: JSON.stringify({id: id, nova_data: novaData, motivo: motivo}) 
         });
-        const result = await res.json();
-        if(result.success) window.location.reload(); 
-        else alert('Erro: ' + result.error);
-    } catch(e) { alert('Falha de rede ao solicitar reprojeto.'); }
+        
+        const result = await response.json().catch(() => null);
+        
+        if (response.ok && result && result.success) {
+            window.location.reload(); 
+        } else {
+            const erroMsg = (result && result.error) ? result.error : `Erro HTTP ${response.status}`;
+            alert('Erro: ' + erroMsg);
+        }
+    } catch(e) { 
+        alert('Falha de rede ao solicitar reprojeto.'); 
+    }
 }
