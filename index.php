@@ -121,9 +121,15 @@ try {
 
         $chart_bar_labels[] = $meses_nomes[(int)$mes_num - 1] . '/' . substr($ano_num, 2);
         
-        $stmt_proj_mes = $pdo->prepare("SELECT COUNT(*) FROM projetos_pcp WHERE status = 'assistencia' AND MONTH(data_limite) = ? AND YEAR(data_limite) = ?");
-        $stmt_proj_mes->execute([$mes_num, $ano_num]);
-        $chart_bar_projetos[] = $stmt_proj_mes->fetchColumn();
+        // Conta as obras entregues mapeando os mesmos projetos que já estão na coluna do Kanban
+        $count_entregues = 0;
+        foreach ($colunas['entregue'] as $proj_entregue) {
+            $data_ref = !empty($proj_entregue['data_fim_instalacao']) ? $proj_entregue['data_fim_instalacao'] : (!empty($proj_entregue['data_limite']) ? $proj_entregue['data_limite'] : date('Y-m-d'));
+            if (date('m', strtotime($data_ref)) == $mes_num && date('Y', strtotime($data_ref)) == $ano_num) {
+                $count_entregues++;
+            }
+        }
+        $chart_bar_projetos[] = $count_entregues;
 
         $stmt_ast_mes = $pdo->prepare("SELECT COUNT(*) FROM assistencias_tecnicas WHERE MONTH(data_solicitacao) = ? AND YEAR(data_solicitacao) = ?");
         $stmt_ast_mes->execute([$mes_num, $ano_num]);
