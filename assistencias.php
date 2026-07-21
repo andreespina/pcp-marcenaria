@@ -5,6 +5,19 @@ protegerPagina();
 
 require_once 'config/conexao.php';
 
+// --- BUSCA A LOGO CADASTRADA (USADA NAS IMPRESSÕES DA OS DE ASSISTÊNCIA) ---
+$logo_path = 'assets/images/sbg_oficial.png'; // Fallback padrão
+try {
+    $stmtEmp = $pdo->query("SELECT logo_path FROM configuracoes_empresa WHERE id = 1 LIMIT 1");
+    $empresa = $stmtEmp->fetch(PDO::FETCH_ASSOC);
+    if ($empresa && !empty($empresa['logo_path'])) {
+        $logo_path = $empresa['logo_path'];
+    }
+} catch (\PDOException $e) {
+    // Silencioso, mantém o fallback
+}
+// -------------------------------------------------------------------------
+
 // Define a permissão do usuário de forma segura no PHP 8
 $role = $_SESSION['usuario_role'] ?? 'USER';
 
@@ -607,6 +620,9 @@ require_once 'includes/header.php';
 </div>
 
 <script>
+    // Exporta a logo carregada no banco para o arquivo JS acessar durante as impressões
+    const LOGO_EMPRESA = '<?= htmlspecialchars($logo_path) ?>?v=<?= time() ?>';
+    
     // Variável global para o JavaScript conseguir buscar os dados do cliente e preencher os endereços sozinho
     window.CLIENTES_BASE_DATA = <?= json_encode($lista_clientes_base, JSON_UNESCAPED_UNICODE) ?>;
 </script>

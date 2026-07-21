@@ -4,6 +4,18 @@ require_once 'includes/auth.php';
 protegerPagina();
 require_once 'config/conexao.php';
 
+// Busca a logo cadastrada no sistema
+$logo_path = 'assets/images/sbg_oficial.png'; // Fallback padrão
+try {
+    $stmtEmp = $pdo->query("SELECT logo_path FROM configuracoes_empresa WHERE id = 1 LIMIT 1");
+    $empresa = $stmtEmp->fetch(PDO::FETCH_ASSOC);
+    if ($empresa && !empty($empresa['logo_path'])) {
+        $logo_path = $empresa['logo_path'];
+    }
+} catch (\PDOException $e) {
+    // Silencioso em caso de erro na tabela, mantém o fallback
+}
+
 $page_title = 'IMPRESSÕES RÁPIDAS';
 $page_subtitle = 'Formulários, Checklists e Capas Editáveis';
 $main_class = 'flex-1 max-w-7xl mx-auto w-full'; 
@@ -90,7 +102,7 @@ require_once 'includes/header.php';
     <div class="print-area min-w-[900px]" style="padding: 40px 60px; box-sizing: border-box; height: 95vh; display: flex; flex-direction: column; justify-content: center;">
         <div style="display: flex; justify-content: space-between; align-items: stretch; margin-bottom: 50px;">
             <div style="width: 38%; border: 3px solid #6b7280; padding: 40px 30px; display: flex; align-items: center; justify-content: center;">
-                <img src="assets/images/sbg_oficial.png" alt="SBG Móveis & Design" style="max-width: 100%; height: auto;" onerror="this.style.display='none';">
+                <img src="<?= htmlspecialchars($logo_path) ?>?v=<?= time() ?>" alt="Logo da Empresa" style="max-width: 100%; height: auto;" onerror="this.style.display='none';">
             </div>
             <div style="width: 55%; font-family: Arial, sans-serif; font-size: 16px; line-height: 1.5; color: #374151; display: flex; flex-direction: column; justify-content: center;">
                 <div style="display: flex; margin-bottom: 25px; align-items: flex-end;">
@@ -187,7 +199,7 @@ require_once 'includes/header.php';
         
         <!-- Cabeçalho Clean (Super Compacto) -->
         <div style="display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px; margin-bottom: 10px;">
-            <img src="assets/images/sbg_oficial.png" alt="SBG Móveis & Design" style="max-height: 30px;" onerror="this.style.display='none';">
+            <img src="<?= htmlspecialchars($logo_path) ?>?v=<?= time() ?>" alt="Logo da Empresa" style="max-height: 30px;" onerror="this.style.display='none';">
             <h2 contenteditable="true" style="margin: 0; font-size: 14px; font-weight: 800; color: #334155; text-transform: uppercase; font-family: Arial, sans-serif;">Conferência de Caixa de Ferramentas - Instalação</h2>
             <div style="font-family: Arial, sans-serif; font-size: 10px; text-align: right; color: #475569;">
                 <div contenteditable="true"><strong>Equipe:</strong> _______________________</div>
@@ -315,7 +327,7 @@ require_once 'includes/header.php';
     <div class="print-area min-w-[1000px]" style="padding: 20px 45px; box-sizing: border-box;">
         
         <div style="display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 15px;">
-            <img src="assets/images/sbg_oficial.png" alt="SBG Móveis & Design" style="max-height: 35px;" onerror="this.style.display='none';">
+            <img src="<?= htmlspecialchars($logo_path) ?>?v=<?= time() ?>" alt="Logo da Empresa" style="max-height: 35px;" onerror="this.style.display='none';">
             <h2 contenteditable="true" style="margin: 0; font-size: 16px; font-weight: 800; color: #334155; text-transform: uppercase; font-family: Arial, sans-serif;">Ordem de Separação e Conferência (Romaneio)</h2>
             <div style="font-family: Arial, sans-serif; font-size: 11px; color: #475569;">
                 <table style="border: none !important; margin:0; text-align: right;">
@@ -363,34 +375,6 @@ require_once 'includes/header.php';
     </div>
 </div>
 
-<script>
-    function mudarModelo(modelo) {
-        const modelos = ['capa', 'checklist', 'ferramentas', 'producao'];
-        
-        modelos.forEach(mod => {
-            const el = document.getElementById('mod_' + mod);
-            if(el) {
-                el.classList.add('hidden');
-                el.classList.remove('active-print-tab');
-            }
-            
-            const btn = document.getElementById('btn_' + mod);
-            if(btn) {
-                btn.className = 'bg-gray-200 text-gray-700 hover:bg-gray-300 px-4 py-2 rounded text-sm font-bold shadow-sm transition-colors';
-            }
-        });
-
-        const elAtivo = document.getElementById('mod_' + modelo);
-        if(elAtivo) {
-            elAtivo.classList.remove('hidden');
-            elAtivo.classList.add('active-print-tab');
-        }
-
-        const btnAtivo = document.getElementById('btn_' + modelo);
-        if(btnAtivo) {
-            btnAtivo.className = 'bg-blue-600 text-white px-4 py-2 rounded text-sm font-bold shadow-sm transition-colors';
-        }
-    }
-</script>
+<script src="assets/js/impressoes.js?v=<?= time() ?>"></script>
 
 <?php require_once 'includes/footer.php'; ?>

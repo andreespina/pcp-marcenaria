@@ -4,6 +4,19 @@ require_once 'includes/auth.php';
 protegerPagina();
 require_once 'config/conexao.php';
 
+// --- BUSCA A LOGO CADASTRADA (USADA NAS IMPRESSÕES DA FICHA) ---
+$logo_path = 'assets/images/sbg_oficial.png'; // Fallback padrão
+try {
+    $stmtEmp = $pdo->query("SELECT logo_path FROM configuracoes_empresa WHERE id = 1 LIMIT 1");
+    $empresa = $stmtEmp->fetch(PDO::FETCH_ASSOC);
+    if ($empresa && !empty($empresa['logo_path'])) {
+        $logo_path = $empresa['logo_path'];
+    }
+} catch (\PDOException $e) {
+    // Silencioso, mantém o fallback
+}
+// ---------------------------------------------------------------
+
 try {
     $stmt = $pdo->query("SELECT * FROM clientes_cadastro ORDER BY nome_contrato ASC");
     $clientes = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -129,8 +142,12 @@ require_once 'includes/header.php';
                         
                         <div class="flex items-center space-x-2 pl-2" onclick="event.stopPropagation();">
                             
+                            <!-- Ícone do Olho Corrigido -->
                             <a href="perfil_cliente.php?id=<?= $c['id'] ?>" class="text-gray-500 hover:text-purple-600 dark:text-gray-400 dark:hover:text-purple-400 transition-colors p-1.5 bg-white dark:bg-gray-700 rounded shadow-sm border border-gray-200 dark:border-gray-600 flex items-center justify-center" title="Ver Dossiê 360º">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path>
+                                    <circle cx="12" cy="12" r="3"></circle>
+                                </svg>
                             </a>
 
                             <button onclick="chamarImpressaoFicha(this)" class="text-gray-500 hover:text-green-600 dark:text-gray-400 dark:hover:text-green-400 transition-colors p-1.5 bg-white dark:bg-gray-700 rounded shadow-sm border border-gray-200 dark:border-gray-600" title="Imprimir Ficha de Medição">
@@ -380,6 +397,10 @@ require_once 'includes/header.php';
     </div>
 </div>
 
+<script>
+    // Exporta a logo carregada no banco para o arquivo JS acessar durante as impressões
+    const LOGO_EMPRESA = '<?= htmlspecialchars($logo_path) ?>?v=<?= time() ?>';
+</script>
 <script src="assets/js/clientes.js?v=<?= time() ?>"></script>
 
 <?php require_once 'includes/footer.php'; ?>

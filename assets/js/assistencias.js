@@ -229,12 +229,15 @@ async function deletarAssistencia(event, id) {
     }
 }
 
-// 4. Impressão de Ordem de Serviço (Ajustada para entender HTML do Quill)
+// 4. Impressão de Ordem de Serviço (Ajustada logo com tamanho travado e margens reduzidas)
 function imprimirOSAssistencia(dados) {
     // Agora dados.obs já contém o HTML do Quill (<ul>, <li>, <p>, <strong>, etc)
     let obsItens = dados.obs ? dados.obs : `<p>Verificar defeito no local.</p>`; 
     
     const codigoCli = dados.codigo_cli ? `[${dados.codigo_cli}]` : '';
+
+    // Puxa a variável global definida no PHP. Se não existir, usa o fallback.
+    const logoSrc = typeof LOGO_EMPRESA !== 'undefined' ? LOGO_EMPRESA : 'assets/images/sbg_oficial.png';
 
     const html = `<!DOCTYPE html>
     <html lang="pt-BR">
@@ -243,18 +246,21 @@ function imprimirOSAssistencia(dados) {
         <title>OS Assistência - AST #${dados.id}</title>
         <style>
             @media print { 
-                @page { margin: 0; } 
-                body { margin: 0; padding: 1.5cm; } 
+                @page { margin: 5mm; } 
+                body { margin: 0; padding: 0; } 
             } 
-            body { font-family: 'Times New Roman', Times, serif; color: #000; max-width: 800px; margin: 40px auto; line-height: 1.6; }
+            body { font-family: 'Times New Roman', Times, serif; color: #000; max-width: 800px; margin: 15px auto; line-height: 1.6; padding: 10px; }
             .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
-            .logo-img { max-width: 160px; height: auto; }
+            
+            /* Trava de segurança para a Logo */
+            .logo-img { max-width: 160px; max-height: 60px; object-fit: contain; }
+            
             .date-box { border: 1px solid #000; padding: 8px 12px; min-width: 220px; font-size: 14px; }
             .date-box p { margin: 4px 0; }
-            .title-row { display: flex; justify-content: space-between; align-items: baseline; margin-top: 20px; margin-bottom: 20px; border-bottom: 2px solid #000; padding-bottom: 10px; }
+            .title-row { display: flex; justify-content: space-between; align-items: baseline; margin-top: 15px; margin-bottom: 15px; border-bottom: 2px solid #000; padding-bottom: 10px; }
             .title-row h1 { font-size: 24px; font-weight: bold; margin: 0; text-transform: uppercase; }
             .title-row h2 { font-size: 18px; font-weight: bold; margin: 0; color: #333; }
-            .client-info { font-size: 14px; width: 100%; border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 20px; }
+            .client-info { font-size: 14px; width: 100%; border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 15px; }
             .client-info table { width: 100%; border-collapse: collapse; }
             .client-info td { padding: 4px 0; vertical-align: top; }
             .address-box { margin-top: 8px; padding: 12px; border: 1px solid #ccc; background-color: #f9f9f9; border-radius: 4px; }
@@ -270,7 +276,7 @@ function imprimirOSAssistencia(dados) {
     </head>
     <body>
         <div class="header">
-            <img src="assets/images/sbg_oficial.png" class="logo-img" alt="SBG Móveis & Design" onerror="this.style.display='none';">
+            <img src="${logoSrc}" class="logo-img" alt="Logo Empresa" onerror="this.style.display='none';">
             <div class="date-box">
                 <p>Solicitação: <strong>${dados.dt_solic || '-'}</strong></p>
                 <p>Agendado: <strong>${dados.dt_agend || '-'}</strong></p>

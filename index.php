@@ -5,6 +5,19 @@ protegerPagina();
 
 require_once 'config/conexao.php';
 
+// --- BUSCA A LOGO CADASTRADA (USADA NAS IMPRESSÕES DOS CARDS) ---
+$logo_path = 'assets/images/sbg_oficial.png'; // Fallback padrão
+try {
+    $stmtEmp = $pdo->query("SELECT logo_path FROM configuracoes_empresa WHERE id = 1 LIMIT 1");
+    $empresa = $stmtEmp->fetch(PDO::FETCH_ASSOC);
+    if ($empresa && !empty($empresa['logo_path'])) {
+        $logo_path = $empresa['logo_path'];
+    }
+} catch (\PDOException $e) {
+    // Silencioso, mantém o fallback
+}
+// ----------------------------------------------------------------
+
 // --- FUNÇÃO PARA CALCULAR DIAS ÚTEIS COM TIPAGEM (PHP 8) ---
 function calcularDiasUteis(?string $data_inicial, ?string $data_final): ?int {
     if (!$data_inicial || !$data_final) return null;
@@ -50,13 +63,13 @@ try {
     try {
         $stmt_ast = $pdo->query("SELECT COUNT(*) FROM assistencias_tecnicas WHERE resolvido_assistencia != 'SIM'");
         $total_assistencias_abertas = (int)$stmt_ast->fetchColumn();
-    } catch (\PDOException) {} // Removido o $e inativo
+    } catch (\PDOException) {} 
 
     $total_clientes = 0;
     try {
         $stmt_cli = $pdo->query("SELECT COUNT(*) FROM clientes_cadastro");
         $total_clientes = (int)$stmt_cli->fetchColumn();
-    } catch (\PDOException) {} // Removido o $e inativo
+    } catch (\PDOException) {} 
 
     $estoque_critico = [];
     $total_critico = 0;
@@ -66,7 +79,7 @@ try {
         
         $stmt_almox_count = $pdo->query("SELECT COUNT(*) FROM almoxarifado WHERE quantidade <= quantidade_minima");
         $total_critico = (int)$stmt_almox_count->fetchColumn();
-    } catch (\PDOException) {} // Removido o $e inativo
+    } catch (\PDOException) {} 
 
     $colunas = [
         'desenvolvimento' => [], 'producao' => [], 'expedicao' => [], 'instalacao' => [], 'entregue' => []
@@ -83,7 +96,6 @@ try {
         
         // Lógica: Se for entregue, verifica se está dentro dos últimos 6 meses
         if ($status_atual === 'entregue') {
-            // Refatorado com encadeamento de coalescência nula (PHP 8)
             $data_ref = $p['data_fim_instalacao'] ?? ($p['data_limite'] ?? date('Y-m-d'));
             $seis_meses_atras = date('Y-m-d', strtotime('-6 months'));
             
@@ -347,7 +359,6 @@ require_once 'includes/header.php';
                 
                 <?php foreach ($lista_projetos as $p): ?>
                     <?php 
-                        // PHP 8: Troca do isset e operador ternário pela coalescência nula ??
                         $chk_resp = $p['checklist_respondido'] ?? 'NAO';
                         $chk_link = $p['checklist_link'] ?? '';
                         $med_agen = $p['medicao_agendada'] ?? 'NAO';
@@ -841,6 +852,10 @@ require_once 'includes/header.php';
     </div>
 </div>
 
+<script>
+    // Exporta a logo carregada no banco para o arquivo index.js acessar durante as impressões
+    const LOGO_EMPRESA = '<?= htmlspecialchars($logo_path) ?>?v=<?= time() ?>';
+</script>
 <script src="assets/js/index.js?v=<?= time() ?>"></script>
 <script>
     const corTexto = document.documentElement.classList.contains('dark') ? '#9ca3af' : '#475569';
