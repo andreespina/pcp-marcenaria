@@ -1,8 +1,8 @@
 <?php
 // config/conexao.php
 $host = 'mysql.aespina.com';
-$db   = 'aespina04';
-$user = 'aespina04';
+$db   = 'aespina06';
+$user = 'aespina06';
 $pass = 'Sg1979AE';
 
 // PHP 8+: Configurações otimizadas do PDO passadas diretamente na instância

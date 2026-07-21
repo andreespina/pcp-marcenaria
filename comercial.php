@@ -146,7 +146,7 @@ function corMemorial(?string $status): string {
 }
 
 $page_title = 'COMERCIAL & CRM';
-$page_subtitle = 'SBG Móveis & Design';
+$page_subtitle = 'MoodLAR Projetos Moveleiros';
 $main_class = 'flex-1'; 
 $menu_button_text = 'MENU';
 

@@ -1,7 +1,7 @@
 <?php
 // includes/header.php
 // PHP 8: Uso de Null Coalescing (??) para uma atribuição super limpa e rápida
-$page_title = $page_title ?? 'PCP Marcenaria';
+$page_title = $page_title ?? 'MoodLAR';
 $page_subtitle = $page_subtitle ?? '';
 $page_title_color = $page_title_color ?? 'text-[#1e3a8a] dark:text-blue-400';
 $main_class = $main_class ?? 'flex-1 max-w-7xl mx-auto w-full';
@@ -13,7 +13,7 @@ $menu_button_class = $menu_button_class ?? 'bg-gray-200 dark:bg-gray-700 hover:b
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= htmlspecialchars($page_title) ?> - SBG</title>
+    <title><?= htmlspecialchars($page_title) ?> - AE</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>tailwind.config = { darkMode: 'class', }</script>
     <script>

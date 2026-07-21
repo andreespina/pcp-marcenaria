@@ -155,7 +155,7 @@ function jsSafe(mixed $val): string {
 }
 
 $page_title = 'PAINEL DE CONTROLE';
-$page_subtitle = 'SBG Móveis & Design';
+$page_subtitle = 'MoodLAR Projetos Moveleiros;
 $main_class = 'flex-1'; 
 $menu_button_text = 'MENU';
 $menu_button_class = 'bg-[#1e3a8a] dark:bg-blue-600 hover:bg-blue-800 dark:hover:bg-blue-500 text-white';
